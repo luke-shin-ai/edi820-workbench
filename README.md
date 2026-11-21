@@ -2,7 +2,7 @@
 
 > Kiroween 2026 · **Resurrection** category · built with Kiro (spec-driven, steering, hooks, MCP, PBT)
 
-> **Build status (2026-11-21):** repository scaffolding. `.kiro` spec, steering, hooks and agent definitions are complete; `src/` lands per `tasks.md`. The commands below describe the target CLI contract (tasks T5.1–T5.4).
+> **Build status (2026-11-21):** the deterministic core is implemented and green — L1 (copybook compiler + fixed-width parser) and L2 (reconciler) run against three synthetic layouts, with 146 tests passing (126 unit, 14 property-based, 6 regression) and byte-identical round-trip on all five fixtures. L3 (explainer), the CLI, the web screen and the MCP server are the next tasks (T4–T6); the `820 parse|reconcile|explain|verify` commands below are the CLI contract they will implement.
 
 Corporate payment files never died. The people and tools that could read them did.
 
@@ -21,8 +21,19 @@ The verdict is **deterministic and re-verifiable** (`820 verify`); the model nev
 
 ## Run it
 
+Right now (deterministic core, no CLI yet):
+
 ```bash
 npm install
+npm test                      # 146 tests: npx vitest run
+npm run fixtures              # regenerate samples/data from the generator
+npm run demo                  # parse + reconcile 4 scenarios, write out/<ts>/demo-report.json
+npx tsc --noEmit              # strict typecheck
+```
+
+The CLI contract those commands belong to (tasks T5.1–T5.4):
+
+```bash
 npx tsx src/cli/index.ts parse     --copybook samples/copybooks/820.cpy --file samples/data/820-good.txt --out out/
 npx tsx src/cli/index.ts reconcile --copybook samples/copybooks/820.cpy --file samples/data/820-bad.txt --bank samples/data/823-bank.txt
 npx tsx src/cli/index.ts explain   --findings out/report.json
@@ -41,7 +52,6 @@ Exit codes: `0` all checks pass · `2` findings present · `3` spec or I/O error
 - `docs/copybook-to-spec.md` — how a legacy spec document became a Kiro spec (what it got right, what it got wrong)
 
 ## What this guarantees / does not guarantee
-
 See [`docs/guarantees.md`](docs/guarantees.md). Short version: it guarantees format interpretation and arithmetic/reference reconciliation; it does **not** guarantee legal or accounting adequacy — that stays with a human, on purpose.
 
 ## Data
