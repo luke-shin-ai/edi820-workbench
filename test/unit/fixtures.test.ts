@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { bytesEqual } from '../../src/core/bytes.js';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { compileCopybook } from '../../src/copybook/index.js';
@@ -103,11 +104,11 @@ describe('T0.3 — the fixture set matches its documented defects', () => {
     for (const [path, copybook] of pairs) {
       const source = readBuf(path);
       const result = parseFile({ copybook, source });
-      expect(serializeParseResult(result).equals(source)).toBe(true);
+      expect(bytesEqual(serializeParseResult(result), source)).toBe(true);
     }
     for (const path of ['samples/data/bai2-good.txt', 'samples/data/bai2-bad.txt']) {
       const source = readBuf(path);
-      expect(serializeParseResult(parseBai2(source)).equals(source)).toBe(true);
+      expect(bytesEqual(serializeParseResult(parseBai2(source)), source)).toBe(true);
     }
   });
 

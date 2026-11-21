@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { bytesEqual } from '../../src/core/bytes.js';
 import fc from 'fast-check';
 import { compileCopybook, type Copybook, type CopybookField } from '../../src/copybook/index.js';
 import {
@@ -95,7 +96,7 @@ describe('T2.4 — parse → serialize is byte-identical', () => {
 
           expect(result.issues).toEqual([]);
           expect(result.records).toHaveLength(seeds.length);
-          expect(serializeParseResult(result).equals(source)).toBe(true);
+          expect(bytesEqual(serializeParseResult(result), source)).toBe(true);
         },
       ),
       { numRuns: 250 },
@@ -159,7 +160,7 @@ describe('T2.5 — boundary and truncation behaviour', () => {
           });
           expect(result.records).toHaveLength(records.length);
           expect(result.records[1]!.raw).toBe(records[1]);
-          expect(serializeParseResult(result).equals(source)).toBe(true);
+          expect(bytesEqual(serializeParseResult(result), source)).toBe(true);
         },
       ),
       { numRuns: 150 },

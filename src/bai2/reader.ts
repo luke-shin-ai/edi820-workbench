@@ -21,6 +21,7 @@
  * sums would be a category error. `docs/bai2.md` records that reasoning.
  */
 import type { Copybook } from '../copybook/types.js';
+import { fromLatin1, isBytes, toLatin1, type Bytes } from '../core/bytes.js';
 import {
   CURRENCY_EXPONENTS,
   sha256,
@@ -100,9 +101,9 @@ interface GroupState {
   accountControlTotals: bigint[];
 }
 
-export function parseBai2(source: Buffer | string, options: Bai2ParseOptions = {}): ParseResult {
-  const buffer = Buffer.isBuffer(source) ? source : Buffer.from(source, 'latin1');
-  const text = buffer.toString('latin1');
+export function parseBai2(source: Bytes | string, options: Bai2ParseOptions = {}): ParseResult {
+  const buffer: Bytes = isBytes(source) ? source : fromLatin1(source);
+  const text = toLatin1(buffer);
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
   const trailingNewline = text.length > 0 && text.endsWith(eol);
   const lines = text.length === 0 ? [] : text.split(eol);

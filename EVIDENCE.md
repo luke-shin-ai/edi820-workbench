@@ -5,8 +5,8 @@
 > invoked by hand with the same payload shape — the rows are identical either way, and this note
 > says which way it was.
 > Format: `YYYY-MM-DD HH:MM | task | command | result | commit`
-> Test counts are from `npx vitest run`: **222 tests / 17 files** (194 unit, 22 property, 6
-> regression) at T5, 148 before T4/T5.
+> Test counts are from `npx vitest run`: **275 tests / 20 files** after T7.1 (2026-11-21 18:33);
+> 222 / 17 at T5, 148 before T4/T5.
 
 | when | task | command | result | commit |
 |---|---|---|---|---|
@@ -43,6 +43,14 @@
 | 2026-11-21 15:55 | T6.2 | — | `devpost-submission-draft.md`: submission text plus all eight Kiro write-up topics and the vibe-coding comparison, each tied to a file, closing with five claims the submission does not make | c65a45f |
 | 2026-11-21 15:56 | T6.3b | — | `review.md`: checklist status, five scores (8.0 average), five repairs applied in this pass, four residual risks, next actions by owner | c65a45f |
 | 2026-11-21 16:05 | T6.4 | `python3 demo-video/build/build.py check` | 161.13 s (2:41), 17.14 MB, 1920×1080 H.264 752 kb/s + AAC 87 kb/s, 31 subtitle cues; page errors 0 during capture | c65a45f |
+| 2026-11-21 18:05 | INTEGRITY | `npx vitest run test/regressions/verdict-integrity.test.ts` + `cd /tmp && 820 verify out/evidence` | 7 regression tests: a 99-byte record now yields verdict `INCOMPLETE` (exit 2, was `PASS` with 0 findings), `verify` from another cwd prints `RESULT: identical` instead of `ENOENT samples/copybooks/820.cpy`, and S6's delta now names its parts (`credits 1,205,550.00 minus debits 25.00`, delta −79,025.00) | 13ef2ec |
+| 2026-11-21 18:05 | HOOK-FIX | probe hook on `AgentStop` vs `Stop` | `AgentStop` never fired; `Stop` fired on the next session. Trigger corrected, command replaced by `scripts/verify-latest.mjs` (real entry `src/cli/main.ts verify`, newest `out/*/report.json`), every firing logged to `out/hook-log.txt` | 13ef2ec |
+| 2026-11-21 18:05 | WEB-DROP | `npx vitest run test/unit/web.test.ts` | a COMP-3 sample dropped as base64 parses to the same `fileHash` and fingerprint as the same file read by path; 10 web tests | 13ef2ec |
+| 2026-11-21 18:29 | T7.1 | `kiro-cli chat --v3 --agent 820-implementer --no-interactive --trust-all-tools --model claude-haiku-4.5` (3 turns) | `src/exception/register.ts` 384 lines, CLI `exceptions/waive/release`, MCP `exceptions`, 38 tests; session ended with `tsc 0 errors`, `20 files / 270 tests passed` | d813a37 |
+| 2026-11-21 18:30 | T7.1-REVIEW | `kiro-cli chat --v3 --agent reviewer --trust-tools=read,grep,glob,@820` | reviewer called `@820/reconcile` (FAIL, 4 findings, fingerprint `7af64454…`), `@820/exceptions` (4 OPEN, unadjudicated 4) and `@820/verify` (ok true, 6107 → 6107 bytes, mtime unchanged); one MINOR (release `compensatingControl` could be empty) | d813a37 |
+| 2026-11-21 18:31 | HOOK-FIRED | `cat out/hook-log.txt` | `09:30:16 Stop run=l4-review exit=0` · `09:32:22 PostFileSave unit+pbt tests ran` · `09:32:33 Stop run=l4-review exit=0` — the hooks fired inside live Kiro sessions | d813a37 |
+| 2026-11-21 18:32 | T7.1-FIX | `npx tsc --noEmit && npx vitest run` | integrity check before an append, `unadjudicated` counts `RELEASED`, `--control` required on release, EPIPE guard, 4 CLI exit-code tests (OPEN→2, all waived→0, release→2, tampered ledger→3, expired→2); 275 tests / 20 files, 0 errors | d813a37 |
+| 2026-11-21 18:32 | T7.2 | — | `docs/kiro-session-evidence.md`: 3 sessions, hook firings with their log lines, the reviewer's MCP calls and returned values, the 6 post-session repairs, the reviewer's MINOR, and the limits (non-interactive, `PostTaskExecution` unobserved, no credit count) | d813a37 |
 | 2026-11-21 16:06 | TYPE+TEST | `npx tsc --noEmit && npx vitest run` | 0 errors; 222 passed (222) in 17 files | c65a45f |
 
 ## Demo run (the numbers the video shows)

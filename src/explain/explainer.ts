@@ -8,7 +8,7 @@
  * would hold only for the adapters nobody uses in the demo.
  */
 import type { Finding } from '../reconcile/index.js';
-import { createMockAdapter } from './adapters.js';
+import { createMockAdapter } from './mock.js';
 import { citationOf, findingHasEvidence, validateExplanation } from './evidence.js';
 import { buildPrompt } from './prompt.js';
 import type { Explanation, ExplainOptions, ExplanationDraft, ExplainerAdapter } from './types.js';

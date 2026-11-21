@@ -6,6 +6,7 @@
  * record nesting/control checks, and the "type code decides direction" rule.
  */
 import { describe, expect, it } from 'vitest';
+import { bytesEqual } from '../../src/core/bytes.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { compileCopybook } from '../../src/copybook/index.js';
@@ -100,11 +101,11 @@ describe('T5.1 — the reader checks the bank file against itself', () => {
 
   it('round-trips byte for byte under LF and CRLF', () => {
     const lf = good();
-    expect(serializeParseResult(lf).equals(lf.source)).toBe(true);
+    expect(bytesEqual(serializeParseResult(lf), lf.source)).toBe(true);
     const crlfSource = Buffer.from(readText('samples/data/bai2-good.txt').replace(/\n/g, '\r\n'), 'latin1');
     const crlf = parseBai2(crlfSource);
     expect(crlf.eol).toBe('\r\n');
-    expect(serializeParseResult(crlf).equals(crlfSource)).toBe(true);
+    expect(bytesEqual(serializeParseResult(crlf), crlfSource)).toBe(true);
     expect(crlf.records.map((r) => r.raw)).toEqual(lf.records.map((r) => r.raw));
     expect(crlf.issues).toEqual(lf.issues);
   });

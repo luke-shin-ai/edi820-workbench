@@ -7,6 +7,7 @@
  * naive reader fails: a file whose control totals agree produces no issue.
  */
 import { describe, expect, it } from 'vitest';
+import { bytesEqual } from '../../src/core/bytes.js';
 import fc from 'fast-check';
 import { parseBai2 } from '../../src/bai2/index.js';
 import { serializeParseResult } from '../../src/parser/index.js';
@@ -53,7 +54,7 @@ describe('T5 — a BAI2 file round-trips byte for byte', () => {
             .reduce((a, b) => a + b, 0n);
           const { text } = buildFile(details, total, details.length);
           const result = parseBai2(Buffer.from(text, 'latin1'));
-          expect(serializeParseResult(result).equals(Buffer.from(text, 'latin1'))).toBe(true);
+          expect(bytesEqual(serializeParseResult(result), Buffer.from(text, 'latin1'))).toBe(true);
         },
       ),
       { numRuns: 120 },

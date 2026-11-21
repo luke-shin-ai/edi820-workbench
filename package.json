@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:unit": "vitest run test/unit",
     "test:pbt": "vitest run test/pbt",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.static.json --noEmit",
     "fixtures": "tsx scripts/gen-fixtures.mjs",
     "demo": "tsx scripts/demo-reconcile.mjs",
     "cli": "tsx src/cli/main.ts",
@@ -20,7 +20,9 @@
     "mcp": "tsx src/mcp/main.ts",
     "demo:cli": "tsx src/cli/main.ts demo",
     "evidence": "tsx src/cli/main.ts reconcile --copybook samples/copybooks/820.cpy --file samples/data/820-good.txt --bank samples/data/823-bank.txt --bank-copybook samples/copybooks/823.cpy --window 2026-11-18..2026-11-20 --out out/evidence",
-    "verify:latest": "node scripts/verify-latest.mjs"
+    "verify:latest": "node scripts/verify-latest.mjs",
+    "build:static": "tsx scripts/build-static.ts",
+    "check:static": "python3 scripts/check-static.py"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -9,6 +9,7 @@
  *  - the raw record is kept so `serialize` can reproduce the input byte for byte.
  */
 import { createHash } from 'node:crypto';
+import { fromLatin1, isBytes, toLatin1, type Bytes } from '../core/bytes.js';
 import type { Copybook, CopybookField, Framing } from '../copybook/types.js';
 import {
   FieldDecodeError,
@@ -113,7 +114,7 @@ export interface ParseResult {
   copybookHash: string;
   /** SHA-256 over the normalised parse result: same input ⇒ same fingerprint. */
   fingerprint: string;
-  source: Buffer;
+  source: Bytes;
 }
 
 /** ISO-4217 minor-unit exponents we can verify a copybook's scale against. */
@@ -130,16 +131,16 @@ export const CURRENCY_EXPONENTS: Record<string, number> = {
   KRW: 0,
 };
 
-export function sha256(data: string | Buffer): string {
+export function sha256(data: string | Bytes): string {
   return createHash('sha256').update(data).digest('hex');
 }
 
 export function splitRecords(
-  source: Buffer,
+  source: Bytes,
   recordLength: number,
   framing: Framing,
 ): { records: string[]; eol: string | null; trailingNewline: boolean } {
-  const text = source.toString('latin1');
+  const text = toLatin1(source);
   if (framing === 'fixed') {
     const records: string[] = [];
     for (let offset = 0; offset < text.length; offset += recordLength) {
@@ -178,7 +179,7 @@ function decodeField(field: CopybookField, slice: string, dateFormat: 'CCYYMMDD'
 
 export interface ParseInput {
   copybook: Copybook;
-  source: Buffer | string;
+  source: Bytes | string;
   /** Kept for issue messages; parsing itself never reads the file system. */
   filename?: string;
 }
@@ -188,7 +189,7 @@ export function parseFile(input: ParseInput): ParseResult {
   if (!copybook.recordLength || copybook.recordLength < 1) {
     throw new Error('copybook declares a record length of zero — refusing to parse');
   }
-  const source = Buffer.isBuffer(input.source) ? input.source : Buffer.from(input.source, 'latin1');
+  const source: Bytes = isBytes(input.source) ? input.source : fromLatin1(input.source);
   const { records: rawRecords, eol, trailingNewline } = splitRecords(source, copybook.recordLength, copybook.framing);
   const issues: ParseIssue[] = [];
   const records: TypedRecord[] = [];

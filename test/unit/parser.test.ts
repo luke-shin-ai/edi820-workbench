@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { bytesEqual } from '../../src/core/bytes.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { compileCopybook } from '../../src/copybook/index.js';
@@ -173,31 +174,31 @@ describe('framing — the copybook decides how records are delimited', () => {
 describe('R3.1/R3.2 — round-trip fidelity', () => {
   it('serializes the 820 file back to identical bytes', () => {
     const result = parseFile({ copybook: cob820, source: good820 });
-    expect(serializeParseResult(result).equals(good820)).toBe(true);
+    expect(bytesEqual(serializeParseResult(result), good820)).toBe(true);
   });
 
   it('serializes the binary COMP-3 stream back to identical bytes', () => {
     const result = parseFile({ copybook: cobPacked, source: packed820 });
-    expect(serializeParseResult(result).equals(packed820)).toBe(true);
+    expect(bytesEqual(serializeParseResult(result), packed820)).toBe(true);
   });
 
   it('serializes a file with a broken record back to identical bytes', () => {
     const result = parseFile({ copybook: cob820, source: bad820 });
-    expect(serializeParseResult(result).equals(bad820)).toBe(true);
+    expect(bytesEqual(serializeParseResult(result), bad820)).toBe(true);
   });
 
   it('keeps a missing trailing newline missing', () => {
     const source = Buffer.from(`${'P'.padEnd(100, ' ')}\n${'T'.padEnd(100, ' ')}`, 'latin1');
     const result = parseFile({ copybook: cob820, source });
     expect(result.trailingNewline).toBe(false);
-    expect(serializeParseResult(result).equals(source)).toBe(true);
+    expect(bytesEqual(serializeParseResult(result), source)).toBe(true);
   });
 
   it('keeps CRLF line endings', () => {
     const source = Buffer.from(`${'P'.padEnd(100, ' ')}\r\n${'T'.padEnd(100, ' ')}\r\n`, 'latin1');
     const result = parseFile({ copybook: cob820, source });
     expect(result.eol).toBe('\r\n');
-    expect(serializeParseResult(result).equals(source)).toBe(true);
+    expect(bytesEqual(serializeParseResult(result), source)).toBe(true);
   });
 });
 

@@ -7,6 +7,7 @@
  * not lose information* — a stronger claim than "I kept the original string".
  */
 import type { Copybook } from '../copybook/types.js';
+import { fromLatin1, type Bytes } from '../core/bytes.js';
 import type { ParsedValue, ParseResult, TypedRecord } from './parser.js';
 import { encodeField } from './encode.js';
 
@@ -14,13 +15,13 @@ export function serializeRecord(record: TypedRecord): string {
   return record.raw;
 }
 
-export function serializeParseResult(result: ParseResult): Buffer {
+export function serializeParseResult(result: ParseResult): Bytes {
   if (result.framing === 'fixed') {
-    return Buffer.from(result.records.map((r) => r.raw).join(''), 'latin1');
+    return fromLatin1(result.records.map((r) => r.raw).join(''));
   }
   const eol = result.eol ?? '\n';
   const body = result.records.map((r) => r.raw).join(eol);
-  return Buffer.from(result.trailingNewline ? `${body}${eol}` : body, 'latin1');
+  return fromLatin1(result.trailingNewline ? `${body}${eol}` : body);
 }
 
 /** Re-encode a record from typed values (used by tests and the diff view). */

@@ -173,7 +173,7 @@ export function resolveRecordedInputs(inputs: CaseInputs, reportPath: string): C
 /** Convert a value to JSON-safe data: bigint → decimal string, buffers dropped. */
 export function jsonSafe(value: unknown): unknown {
   if (typeof value === 'bigint') return value.toString();
-  if (Buffer.isBuffer(value)) return `sha256-bytes:${value.length}`;
+  if (value instanceof Uint8Array) return `sha256-bytes:${value.length}`;
   if (Array.isArray(value)) return value.map(jsonSafe);
   if (value && typeof value === 'object') {
     const out: Record<string, unknown> = {};
