@@ -1,0 +1,20 @@
+export {
+  emptyLedger,
+  parseLedger,
+  serialiseLedger,
+  appendWaiver,
+  appendRelease,
+  verifyLedger,
+  classify,
+  findingKey,
+  type ExceptionStatus,
+  type Ledger,
+  type LedgerEntry,
+  type WaiverInput,
+  type ReleaseInput,
+  type DecisionContext,
+  type Classification,
+  type ClassificationEntry,
+  LedgerError,
+} from './register.js';
+export type { Finding } from '../reconcile/reconciler.js';

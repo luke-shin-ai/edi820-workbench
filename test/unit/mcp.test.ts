@@ -24,17 +24,17 @@ const BAD = 'samples/data/820-bad.txt';
 const rpc = (method: string, params?: Record<string, unknown>, id: number | string = 1) =>
   handleMessage({ jsonrpc: '2.0', id, method, ...(params ? { params } : {}) });
 
-describe('T5.4 — exactly four tools, each with a JSON schema', () => {
-  it('lists parse_file, reconcile, explain_findings, verify', async () => {
+describe('T5.4 — exactly five tools (T5.1–T5.2, T7.1), each with a JSON schema', () => {
+  it('lists parse_file, reconcile, explain_findings, verify, and exceptions', async () => {
     const response = (await rpc('tools/list')) as JsonRpcResponse;
     const result = response.result as { tools: Array<{ name: string; description: string; inputSchema: { type: string; properties: Record<string, unknown> } }> };
-    expect(result.tools.map((t) => t.name).sort()).toEqual(['explain_findings', 'parse_file', 'reconcile', 'verify']);
+    expect(result.tools.map((t) => t.name).sort()).toEqual(['exceptions', 'explain_findings', 'parse_file', 'reconcile', 'verify']);
     for (const tool of result.tools) {
       expect(tool.description.length).toBeGreaterThan(40);
       expect(tool.inputSchema.type).toBe('object');
       expect(Object.keys(tool.inputSchema.properties).length).toBeGreaterThan(0);
     }
-    expect(MCP_TOOLS).toHaveLength(4);
+    expect(MCP_TOOLS).toHaveLength(5);
   });
 
   it('initialises with a supported protocol version and tool capability', async () => {
@@ -145,7 +145,7 @@ describe('T5.4 — a real stdio session', () => {
     const responses = lines.map((line) => JSON.parse(line) as JsonRpcResponse);
     expect(responses.map((r) => r.id)).toEqual([1, 2, 3]);
     expect((responses[0]!.result as { serverInfo: { name: string } }).serverInfo.name).toBe('edi820-workbench');
-    expect((responses[1]!.result as { tools: unknown[] }).tools).toHaveLength(4);
+    expect((responses[1]!.result as { tools: unknown[] }).tools).toHaveLength(5);
     expect(JSON.parse((responses[2]!.result as { content: Array<{ text: string }> }).content[0]!.text).files.payment.records).toBe(11);
   });
 

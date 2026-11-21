@@ -8,18 +8,18 @@
       "matcher": "\\.(ts|mjs)$|copybooks/.*\\.cpy$",
       "action": {
         "type": "command",
-        "command": "npx vitest run test/unit test/pbt --reporter=dot 2>&1 | tail -20",
+        "command": "npx vitest run test/unit test/pbt --reporter=dot 2>&1 | tail -20; node scripts/log-hook.mjs PostFileSave \"unit+pbt tests ran\"",
         "timeout": 300
       }
     },
     {
       "name": "verify-after-agent-stop",
       "description": "Re-derive the newest report in out/ with the real CLI entry (src/cli/main.ts verify) and compare fingerprints; a drift or a missing run is printed into the session instead of being swallowed.",
-      "trigger": "AgentStop",
+      "trigger": "Stop",
       "matcher": ".*",
       "action": {
         "type": "command",
-        "command": "node scripts/verify-latest.mjs",
+        "command": "HOOK_TRIGGER=Stop node scripts/verify-latest.mjs",
         "timeout": 120
       }
     },

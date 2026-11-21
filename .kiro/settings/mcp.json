@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "820": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp/main.ts"],
+      "env": {},
+      "disabled": false,
+      "autoApprove": ["parse_file", "reconcile", "explain_findings", "verify"]
+    }
+  }
+}

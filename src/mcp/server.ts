@@ -17,8 +17,11 @@
  */
 import { createInterface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
-import { AppError, buildReport, explainReport, loadReport, verifyReport, type CaseInputs } from '../core/ops.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { AppError, buildReport, explainReport, loadReport, reviveFindings, verifyReport, type CaseInputs } from '../core/ops.js';
 import { adapterByName } from '../explain/index.js';
+import { classify, emptyLedger, parseLedger } from '../exception/index.js';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
 export const SUPPORTED_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18'];
@@ -128,6 +131,22 @@ export const MCP_TOOLS: McpToolDefinition[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'exceptions',
+    title: 'Classify findings against an exception ledger',
+    description:
+      'Read-only: reads or creates an exception ledger and classifies each finding as OPEN, WAIVED, EXPIRED, or RELEASED. Same classification object as the CLI.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        reportPath: { type: 'string', description: 'Directory holding report.json, or the file itself.' },
+        ledgerPath: { type: 'string', description: 'Path to ledger.json (optional; defaults to <report dir>/ledger.json).' },
+        today: { type: 'string', description: 'Classification date in YYYY-MM-DD format (optional; defaults to today).' },
+      },
+      required: ['reportPath'],
+      additionalProperties: false,
+    },
+  },
 ];
 
 function str(params: Record<string, unknown>, name: string): string | undefined {
@@ -187,6 +206,23 @@ async function callTool(name: string, params: Record<string, unknown>): Promise<
       const reportPath = str(params, 'reportPath');
       if (!reportPath) throw new AppError('USAGE', 'reportPath is required');
       return verifyReport(reportPath);
+    }
+    case 'exceptions': {
+      const reportPath = str(params, 'reportPath');
+      if (!reportPath) throw new AppError('USAGE', 'reportPath is required');
+      const { report } = loadReport(reportPath);
+      if (!report.verdict) throw new AppError('SPEC', 'report has no verdict');
+
+      const ledgerPath = str(params, 'ledgerPath') ?? join(dirname(reportPath.endsWith('.json') ? reportPath : join(reportPath, 'report.json')), 'ledger.json');
+      let ledger = emptyLedger();
+      if (existsSync(ledgerPath)) {
+        const text = readFileSync(ledgerPath, 'utf8');
+        ledger = parseLedger(text);
+      }
+
+      const onDate = str(params, 'today') ?? new Date().toISOString().split('T')[0]!;
+      const classification = classify(reviveFindings(report.verdict.findings), ledger, onDate);
+      return classification;
     }
     default:
       throw new AppError('USAGE', `unknown tool "${name}"`);

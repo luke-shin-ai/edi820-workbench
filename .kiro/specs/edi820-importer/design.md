@@ -152,3 +152,107 @@ running server, and recorded here rather than discovered by a reviewer.
   explanation (`note`). The free-tier build therefore produces the demo without touching
   the 50-credit allowance.
 
+
+## 13. L4 — exception register (contract for T7.1)
+
+The register is the one place where a human decision is recorded, and it is built so the
+record cannot be edited back into agreement with a later story.
+
+### 13.1 Module boundary
+
+`src/exception/register.ts` is pure: no I/O, no clock of its own, no `node:fs`. The CLI
+reads and writes the file; the module only builds and classifies. That is what lets the
+same code run in the browser bundle of the static demo and in the Node CLI with identical
+hashes.
+
+```ts
+export type ExceptionStatus = 'OPEN' | 'WAIVED' | 'EXPIRED' | 'RELEASED';
+
+export interface LedgerEntry {
+  seq: number;                     // 1-based, dense, never reused
+  id: string;                      // 16 hex chars, derived from seq + decision + findingKey + decidedOn + prevHash
+  decision: 'waived' | 'released';
+  findingKey: string;              // stable identity of the finding (see 13.2)
+  code: string;
+  recordIndex: number;
+  field?: string;
+  reference?: string;
+  owner: string;                   // a person, not "the system"
+  reason: string;
+  compensatingControl: string;     // what keeps this safe while the exception stands
+  decidedOn: string;               // YYYY-MM-DD
+  expiresOn?: string;              // YYYY-MM-DD, inclusive; waived only
+  releaseOf?: string;              // waived entry id; released only
+  fingerprint: string;             // the reconciliation fingerprint the decision was made against
+  prevHash: string;                // 'GENESIS' for seq 1
+  hash: string;                    // sha256 over the canonical fields below + prevHash
+}
+
+export interface Ledger { version: 1; entries: LedgerEntry[]; }
+
+export function findingKey(finding: Finding): string;
+export function emptyLedger(): Ledger;
+export function parseLedger(text: string): Ledger;                     // throws LedgerError('SHAPE')
+export function serialiseLedger(ledger: Ledger): string;               // 2-space JSON + trailing newline
+export function appendWaiver(ledger: Ledger, input: WaiverInput, finding: Finding, context: DecisionContext): Ledger;
+export function appendRelease(ledger: Ledger, input: ReleaseInput, waiverId: string): Ledger;
+export function verifyLedger(ledger: Ledger): { ok: boolean; firstInvalidSeq: number | null; detail?: string };
+export function classify(findings: Finding[], ledger: Ledger, onDate: string): Classification;
+```
+
+`WaiverInput = { owner, reason, compensatingControl, expiresOn?, decidedOn? }`;
+`DecisionContext = { fingerprint: string; decidedOn: string }` (the caller supplies the date,
+so a test can decide "today" without freezing the real clock).
+`Classification = { entries: Array<{ findingKey, code, recordIndex, field?, reference?, status,
+waiverId?, expiresOn? }>; counts: Record<ExceptionStatus, number>; unadjudicated: number }`
+where `unadjudicated` counts `OPEN + EXPIRED + RELEASED`: an exception that was released or
+that lapsed is once again in front of a human, because the finding it names still exists.
+
+### 13.2 Finding identity
+
+`findingKey(finding)` is the same normalisation the verdict fingerprint already uses
+(`code | recordIndex | field | reference | declared | computed | delta`), newly exported from
+`src/reconcile/reconciler.ts` as `findingKey` and reused by `normaliseFinding`. Consequence:
+a waiver survives re-runs of the same file (no timestamps, no report paths) and cannot attach
+to a different finding that merely shares a code.
+
+### 13.3 Hash chain
+
+`hash = sha256(canonical)` where `canonical` is the entry's fields in the fixed order
+`seq|id|decision|findingKey|code|recordIndex|field|reference|owner|reason|compensatingControl|decidedOn|expiresOn|releaseOf|fingerprint|prevHash`,
+each rendered as an empty string when absent, joined with `|`. `prevHash` is the previous
+entry's `hash` (`GENESIS` for the first). `verifyLedger` recomputes both and reports the first
+`seq` where either fails. Editing any field of any entry, or removing one, therefore fails.
+
+### 13.4 Status machine
+
+```
+        waive(reason, owner, control, expiry)          release(id)
+OPEN ───────────────────────────────────▶ WAIVED ──────────────────▶ RELEASED
+ ▲                                          │  expiry < onDate          │
+ │                                          ▼                          │
+ └──────────────────────────────  EXPIRED  ─┘  (a released or expired      )
+                                               exception is OPEN for      )
+                                               the next adjudication      )
+```
+
+A waiver for finding key A never covers finding key B, even with the same code. `RELEASED`
+and `EXPIRED` are reported as such; neither is silently dropped from the classification.
+
+### 13.5 Surfaces
+
+- CLI: `exceptions --report <dir> [--ledger <path>] [--today YYYY-MM-DD] [--json]` (read-only),
+  `waive --report <dir> --index <n> --owner --reason --control [--expires]`,
+  `release --report <dir> --id <waiverId> --owner --reason [--control]`.
+  Default ledger path: `<report dir>/ledger.json`. Exit codes per R8.6.
+- MCP: `exceptions(reportPath, ledgerPath?, today?)`, read-only, same classification object.
+- Web/static: a panel beside the findings; the verdict badge keeps `FAIL`/`INCOMPLETE` while
+  the panel shows what a human decided. A waiver never turns the badge green, because the
+  deterministic answer did not change.
+
+### 13.6 What the register deliberately does not do
+
+- It does not edit the input files or the report.
+- It does not re-run reconciliation to make the finding disappear.
+- It does not require a model: a waiver is a human's typed reason, and the chain proves the
+  record was not rewritten afterwards.

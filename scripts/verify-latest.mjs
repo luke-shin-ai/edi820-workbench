@@ -13,7 +13,7 @@
  *                    fingerprint drift shows up in the session instead of being swallowed.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -46,9 +46,29 @@ function newestRunWithReport() {
   return runs[0] ?? null;
 }
 
+/**
+ * A hook's stdout goes into the agent's context, not into the terminal a person is
+ * watching, so every firing also appends one line to `out/hook-log.txt`. That file is
+ * what a reviewer (or the demo video) can read to see that the hook ran, on which run,
+ * and what the CLI answered.
+ */
+function logFiring(result, command) {
+  try {
+    mkdirSync(outRoot, { recursive: true });
+    appendFileSync(
+      join(outRoot, 'hook-log.txt'),
+      `${new Date().toISOString()}  trigger=${process.env.HOOK_TRIGGER ?? 'manual'}  run=${result?.name ?? '-'}  command=${command}  exit=${result?.exit ?? '-'}\n`,
+    );
+  } catch {
+    /* a log line must never be the reason a hook fails */
+  }
+}
+
 const run = newestRunWithReport();
 if (!run) {
-  console.log(`verify: no report.json with a verdict under ${join('out')} yet — run \`npm run cli reconcile\` first, or \`npm run evidence\``);
+  const message = 'verify: no report.json with a verdict under out/ yet — run `npm run cli reconcile` first, or `npm run evidence`';
+  console.log(message);
+  logFiring(null, 'none');
   process.exit(0);
 }
 
@@ -61,6 +81,8 @@ const args = existsSync(localTsx) ? [cli, 'verify', run.dir] : ['tsx', cli, 'ver
 const result = spawnSync(command, args, { cwd: root, stdio: 'inherit' });
 if (result.error) {
   console.error(`verify: could not start ${command}: ${result.error.message}`);
+  logFiring({ name: run.name, exit: 3 }, `${command} ${args.join(' ')}`);
   process.exit(3);
 }
+logFiring({ name: run.name, exit: result.status ?? 3 }, `${command} ${args.join(' ')}`);
 process.exit(result.status ?? 3);

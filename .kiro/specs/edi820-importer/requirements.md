@@ -41,3 +41,18 @@
 
 ## 7. Out of scope (recorded so it is not silently assumed)
 - Full X12 transaction-set coverage; bank-specific dialects without a copybook; any network transfer of file contents; automatic payment authorization.
+
+## 8. L4 — exception register (the human decision, recorded)
+
+> `docs/guarantees.md` says an exception is the human's call and the tool only refuses to let
+> one exist without a reason, an expiry and a compensating control. These requirements are
+> that sentence made executable.
+
+**R8.1** WHEN an exception is waived, THE SYSTEM SHALL append one immutable entry to a ledger holding the finding key, code, record index, owner, reason, compensating control, decision date, optional expiry, the reconciliation fingerprint it was decided against, and the hash chain (`prevHash`, `hash`).
+**R8.2** WHEN a decision entry is appended, THE SYSTEM SHALL reject an empty owner, an empty reason, an empty compensating control, or an expiry date before the decision date, and SHALL leave the ledger unchanged when it rejects.
+**R8.3** WHEN a ledger is read, THE SYSTEM SHALL re-derive every hash and every `prevHash` link, and SHALL refuse to classify findings from a ledger that fails, naming the first invalid sequence number.
+**R8.4** WHEN a finding is classified against a ledger, THE SYSTEM SHALL return `OPEN` (no waiver), `WAIVED` (a waiver whose expiry covers the reporting date, or no expiry), `EXPIRED` (expiry before the reporting date) or `RELEASED` (a release recorded for that waiver), and a waiver whose finding key differs SHALL NOT cover the finding.
+**R8.5** WHEN a waiver is released, THE SYSTEM SHALL require the id of an existing unreleased waiver and SHALL keep the earlier decision in the ledger; the finding returns to `OPEN` adjudication rather than disappearing.
+**R8.6** WHEN the CLI reports exceptions, THE SYSTEM SHALL exit 0 when no finding is `OPEN` or `EXPIRED`, 2 when at least one is, and 3 on a ledger integrity failure or a waiver naming a finding the report does not hold.
+**R8.7** WHEN the register is consulted, THE SYSTEM SHALL NOT change the deterministic verdict: a waived finding keeps the L2 verdict and is reported beside it, never instead of it.
+**R8.8** WHEN the reviewer agent needs the register state, THE SYSTEM SHALL expose it as a read-only MCP tool (`exceptions`) returning the same classification as the CLI.

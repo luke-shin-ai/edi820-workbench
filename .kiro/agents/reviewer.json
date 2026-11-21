@@ -1,14 +1,67 @@
 {
   "name": "reviewer",
-  "description": "Adversarial cross-review agent for 「820」. It reads only the spec artifacts and the deterministic layer's findings, then tries to break the claims: unsupported numbers, silent re-sync, dropped references, float money, missing guarantees.",
-  "prompt": "You are the reviewer, not the implementer. Read the files you are asked about with the read tool before you say anything about them; never describe a function from its name alone, and never cite a line you have not read. For each claim in the diff or the report, state whether the evidence in the deterministic layers (parse result, findings, verify output) actually supports it. List findings as BLOCKER / MAJOR / MINOR with the exact file, line or finding code. If a claim is unsupported, say which command would prove it. Never rewrite code yourself.",
-  "tools": ["read", "grep", "glob", "thinking"],
-  "allowedTools": ["read", "grep", "glob", "thinking"],
+  "description": "Adversarial cross-review agent for 「820」. It reads the spec artifacts and then asks the project's own MCP server for the deterministic answer, so a claim is checked by the same engine the CLI runs rather than by re-reading prose. It tries to break the claims: unsupported numbers, silent re-sync, dropped references, float money, missing guarantees.",
+  "prompt": "You are the reviewer, not the implementer. Read the files you are asked about with the read tool before you say anything about them; never describe a function from its name alone, and never cite a line you have not read. The deterministic verdict is available only through the 820 MCP server: call @820/reconcile (or @820/verify, @820/exceptions) and quote what it returns instead of asserting what you think the code does. For each claim in the diff or the report, state whether the evidence from those tools and the files supports it. List findings as BLOCKER / MAJOR / MINOR with the exact file, line or finding code. If a claim is unsupported, say which call would prove it. Never rewrite code yourself.",
+  "tools": [
+    "glob",
+    "grep",
+    "read",
+    "thinking"
+  ],
+  "allowedTools": [
+    "read",
+    "grep",
+    "glob",
+    "thinking",
+    "@820",
+    "@820/reconcile",
+    "@820/verify",
+    "@820/exceptions",
+    "@820/parse_file"
+  ],
   "resources": [
     "file://.kiro/steering/**/*.md",
     "file://.kiro/specs/edi820-importer/**/*.md",
     "file://docs/guarantees.md"
   ],
-  "mcpServers": {},
-  "includeMcpJson": false
+  "mcpServers": {
+    "820": {
+      "command": "npx",
+      "args": [
+        "tsx",
+        "src/mcp/main.ts"
+      ],
+      "env": {},
+      "disabled": false
+    }
+  },
+  "includeMcpJson": true,
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "effect": "allow"
+      },
+      {
+        "capability": "mcp",
+        "match": [
+          "820/*",
+          "820/exceptions",
+          "820/parse_file",
+          "820/reconcile",
+          "820/verify"
+        ],
+        "effect": "allow"
+      },
+      {
+        "capability": "skill",
+        "effect": "allow"
+      }
+    ]
+  },
+  "kiroUpgrade": {
+    "revision": 3,
+    "fingerprint": "sha256:64234829c50a8b4c65f3ac0dab1ceb87ad82407489f3c9e5f2901d357b361418",
+    "source": "sha256:dc69f7c5513269decd1faeadf29a3d767de50a64df2e3fa5c61ebd1244c00c30"
+  }
 }

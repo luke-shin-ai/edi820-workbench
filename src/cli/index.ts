@@ -1,17 +1,19 @@
 #!/usr/bin/env node
 /**
- * `820` — the command-line surface (T5.1–T5.2).
+ * `820` — the command-line surface (T5.1–T5.2, T7.1).
  *
  * Exit codes are part of the contract, because a CI job uses them directly:
- *   0  PASS / verified identical
- *   2  FAIL / findings present / verification differs / explanation refused
+ *   0  PASS / verified identical / no unadjudicated exceptions
+ *   2  FAIL / findings present / verification differs / unadjudicated exceptions exist
  *   3  spec or I/O error (nothing was decided)
  *
  * `verify` is read-only: it re-derives the verdict from the inputs recorded in
  * `report.json` and compares. It never rewrites the report, and it prints the
  * report's own mtime and size before and after as proof.
+ *
+ * Exception commands (`exceptions`, `waive`, `release`) read and write a ledger.json.
  */
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
   AppError,
@@ -22,6 +24,7 @@ import {
   loadReport,
   reconcileCase,
   repoRoot,
+  reviveFindings,
   verifyReport,
   writeReport,
   type CaseInputs,
@@ -32,6 +35,15 @@ import {
 } from '../core/ops.js';
 import { adapterByName, type Explanation } from '../explain/index.js';
 import { formatAmount } from '../reconcile/index.js';
+import {
+  appendRelease,
+  appendWaiver,
+  classify,
+  emptyLedger,
+  parseLedger,
+  serialiseLedger,
+  verifyLedger,
+} from '../exception/index.js';
 
 export const EXIT = { PASS: 0, FINDINGS: 2, ERROR: 3 } as const;
 
@@ -56,9 +68,16 @@ Usage:
   820 explain   --findings <report.json|dir> [--adapter mock|kiro-cli|openai]
                 [--max-live <n>] [--out <dir>] [--json]
   820 verify    <report.json|dir> [--json]
+  820 exceptions <report.json|dir> [--ledger <path>] [--today YYYY-MM-DD] [--json]
+  820 waive     --report <dir> --index <n> --owner <who> --reason <why>
+                --control <compensating control> [--expires YYYY-MM-DD]
+                [--ledger <path>] [--today YYYY-MM-DD]
+  820 release   --report <dir> --id <waiver id> --owner <who> --reason <why>
+                --control <what changed> [--ledger <path>] [--today YYYY-MM-DD]
 
 BAI2 files need no copybook: pass --format bai2 (payment) or --bank-format bai2.
-Exit codes: 0 pass, 2 findings / incomplete parse / verification difference, 3 spec or I/O error.
+Exit codes: 0 pass (and no unadjudicated exception), 2 findings / incomplete parse /
+verification difference / OPEN or EXPIRED exception, 3 spec or I/O error.
 Verdicts: PASS (every check agreed), INCOMPLETE (a parse issue left bytes uninterpreted,
 so no PASS is earned), FAIL (findings exist).
 `;
@@ -203,6 +222,119 @@ function printExplanation(explanation: Explanation, index: number, out: (line: s
     out(`     draft  : ${explanation.rejection.draft.cause}`);
   }
   if (explanation.note) out(`     note:  ${explanation.note}`);
+}
+
+/**
+ * Helper functions for exception register CLI commands (T7.1, R8.6).
+ */
+namespace exceptionCommands {
+  /**
+   * `exceptions` — read-only: show the classification of findings against a ledger.
+   */
+  export function exceptions(args: ParsedArgs): { classification: ReturnType<typeof classify>; legacyPath: string } {
+    const reportDir = args.positional[0] ?? flagString(args, 'report');
+    if (!reportDir) throw new AppError('USAGE', 'exceptions needs a report directory or --report');
+    const { report } = loadReport(reportDir);
+    if (!report.verdict) throw new AppError('SPEC', 'report has no verdict');
+
+    const ledgerPath = flagString(args, 'ledger') ?? join(dirname(reportDir.endsWith('.json') ? reportDir : join(reportDir, 'report.json')), 'ledger.json');
+    let ledger = emptyLedger();
+    if (existsSync(ledgerPath)) {
+      const text = readFileSync(ledgerPath, 'utf8');
+      ledger = parseLedger(text);
+    }
+
+    const onDate = flagString(args, 'today') ?? new Date().toISOString().split('T')[0]!;
+    const classification = classify(reviveFindings(report.verdict.findings), ledger, onDate);
+    return { classification, legacyPath: ledgerPath };
+  }
+
+  /**
+   * `waive` — append a waiver for a finding to the ledger.
+   * Requires --report, --index (0-based finding index), --owner, --reason, --control, optional --expires, --today.
+   */
+  export function waive(args: ParsedArgs): { newLedger: ReturnType<typeof appendWaiver>; legacyPath: string } {
+    const reportDir = flagString(args, 'report');
+    if (!reportDir) throw new AppError('USAGE', '--report is required');
+    const { report } = loadReport(reportDir);
+    if (!report.verdict) throw new AppError('SPEC', 'report has no verdict');
+
+    const indexStr = flagString(args, 'index');
+    if (!indexStr) throw new AppError('USAGE', '--index is required');
+    const findingIndex = Number(indexStr);
+    if (!Number.isInteger(findingIndex) || findingIndex < 0 || findingIndex >= report.verdict.findings.length) {
+      throw new AppError('USAGE', `--index must be 0..${report.verdict.findings.length - 1}`);
+    }
+    // Revive the JSON amounts back to `bigint` before the finding key is computed, so the
+    // key the ledger stores is the same one a live reconciliation produces.
+    const finding = reviveFindings(report.verdict.findings)[findingIndex]!;
+
+    const owner = flagString(args, 'owner');
+    if (!owner) throw new AppError('USAGE', '--owner is required');
+    const reason = flagString(args, 'reason');
+    if (!reason) throw new AppError('USAGE', '--reason is required');
+    const control = flagString(args, 'control');
+    if (!control) throw new AppError('USAGE', '--control is required');
+    const expiresOn = flagString(args, 'expires');
+    const decidedOn = flagString(args, 'today') ?? new Date().toISOString().split('T')[0]!;
+
+    const ledgerPath = flagString(args, 'ledger') ?? join(dirname(reportDir.endsWith('.json') ? reportDir : join(reportDir, 'report.json')), 'ledger.json');
+    let ledger = emptyLedger();
+    if (existsSync(ledgerPath)) {
+      const text = readFileSync(ledgerPath, 'utf8');
+      ledger = parseLedger(text);
+    }
+
+    const integrity = verifyLedger(ledger);
+    if (!integrity.ok) {
+      throw new AppError('SPEC', `ledger integrity failed at seq ${integrity.firstInvalidSeq}: ${integrity.detail ?? 'hash chain broken'}`);
+    }
+
+    const newLedger = appendWaiver(
+      ledger,
+      { owner, reason, compensatingControl: control, expiresOn, decidedOn },
+      finding,
+      { fingerprint: report.verdict.fingerprint, decidedOn },
+    );
+    return { newLedger, legacyPath: ledgerPath };
+  }
+
+  /**
+   * `release` — append a release for a waiver to the ledger.
+   * Requires --report, --id (waiver id), --owner, --reason, optional --control, --today.
+   */
+  export function release(args: ParsedArgs): { newLedger: ReturnType<typeof appendRelease>; legacyPath: string } {
+    const reportDir = flagString(args, 'report');
+    if (!reportDir) throw new AppError('USAGE', '--report is required');
+    const { report } = loadReport(reportDir);
+
+    const waiverId = flagString(args, 'id');
+    if (!waiverId) throw new AppError('USAGE', '--id (waiver id) is required');
+
+    const owner = flagString(args, 'owner');
+    if (!owner) throw new AppError('USAGE', '--owner is required');
+    const reason = flagString(args, 'reason');
+    if (!reason) throw new AppError('USAGE', '--reason is required');
+    // R8.1: every entry carries a compensating control, including the one that withdraws a waiver.
+    const control = flagString(args, 'control');
+    if (!control) throw new AppError('USAGE', '--control is required');
+    const decidedOn = flagString(args, 'today') ?? new Date().toISOString().split('T')[0]!;
+
+    const ledgerPath = flagString(args, 'ledger') ?? join(dirname(reportDir.endsWith('.json') ? reportDir : join(reportDir, 'report.json')), 'ledger.json');
+    if (!existsSync(ledgerPath)) {
+      throw new AppError('SPEC', `ledger not found at ${ledgerPath}`);
+    }
+    const text = readFileSync(ledgerPath, 'utf8');
+    const ledger = parseLedger(text);
+
+    const integrity = verifyLedger(ledger);
+    if (!integrity.ok) {
+      throw new AppError('SPEC', `ledger integrity failed at seq ${integrity.firstInvalidSeq}: ${integrity.detail ?? 'hash chain broken'}`);
+    }
+
+    const newLedger = appendRelease(ledger, { owner, reason, control, decidedOn }, waiverId);
+    return { newLedger, legacyPath: ledgerPath };
+  }
 }
 
 export async function runCli(argv: string[], streams: Streams = defaultStreams): Promise<number> {
@@ -374,6 +506,48 @@ export async function runCli(argv: string[], streams: Streams = defaultStreams):
           if (result.status !== 'PASS') worst = EXIT.FINDINGS;
         }
         return worst;
+      }
+
+      case 'exceptions': {
+        const { classification, legacyPath } = exceptionCommands.exceptions(args);
+        if (json) {
+          out(JSON.stringify(classification, null, 2));
+        } else {
+          out(`exceptions (${legacyPath}):`);
+          out(`  OPEN: ${classification.counts.OPEN}   WAIVED: ${classification.counts.WAIVED}   EXPIRED: ${classification.counts.EXPIRED}   RELEASED: ${classification.counts.RELEASED}`);
+          out(`  unadjudicated: ${classification.unadjudicated}`);
+          for (const entry of classification.entries) {
+            const waiverNote = entry.waiverId ? ` (waived ${entry.waiverId}${entry.expiresOn ? ` expires ${entry.expiresOn}` : ''})` : '';
+            out(`    ${entry.status} ${entry.code} @record ${entry.recordIndex}${entry.field ? ` field=${entry.field}` : ''}${entry.reference ? ` ref=${entry.reference}` : ''}${waiverNote}`);
+          }
+        }
+        // R8.6: exit 0 if no OPEN or EXPIRED, 2 if at least one is, 3 on ledger integrity failure
+        return classification.unadjudicated > 0 ? EXIT.FINDINGS : EXIT.PASS;
+      }
+
+      case 'waive': {
+        const { newLedger, legacyPath } = exceptionCommands.waive(args);
+        writeFileSync(legacyPath, serialiseLedger(newLedger), 'utf8');
+        if (json) {
+          out(JSON.stringify({ ledgerPath: legacyPath, entriesCount: newLedger.entries.length }, null, 2));
+        } else {
+          const entry = newLedger.entries[newLedger.entries.length - 1]!;
+          out(`waived: ${entry.id}  finding=${entry.findingKey}`);
+          out(`  owner ${entry.owner} · decided ${entry.decidedOn}${entry.expiresOn ? ` · expires ${entry.expiresOn}` : ' (no expiry)'}`);
+          out(`  ledger: ${legacyPath} (${newLedger.entries.length} entries)`);
+        }
+        return EXIT.PASS;
+      }
+
+      case 'release': {
+        const { newLedger, legacyPath } = exceptionCommands.release(args);
+        writeFileSync(legacyPath, serialiseLedger(newLedger), 'utf8');
+        if (json) {
+          out(JSON.stringify({ ledgerPath: legacyPath, entriesCount: newLedger.entries.length }, null, 2));
+        } else {
+          out(`released: ${legacyPath} now has ${newLedger.entries.length} entries`);
+        }
+        return EXIT.PASS;
       }
 
       default:

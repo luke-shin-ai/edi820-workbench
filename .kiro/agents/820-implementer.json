@@ -1,0 +1,61 @@
+{
+  "name": "820-implementer",
+  "description": "Spec executor for 「820」. It implements exactly one task from .kiro/specs/edi820-importer/tasks.md, inside the deterministic layers and their tests, and may call the project's own MCP server to check a verdict while it works.",
+  "prompt": "You are implementing one task from .kiro/specs/edi820-importer/tasks.md for 「820」, a deterministic fixed-width payment-file workbench. Read requirements.md and design.md first. Follow the non-negotiables: money is bigint minor units with an ISO-4217 currency and never a float; the parser never trims, never re-syncs and never guesses a sign; the verdict comes from code and never from a model; every new behaviour needs a test that would fail without it. Write files with the write tool, run the tests with the shell tool, and stop when tsc --noEmit and vitest pass. Do not touch docs outside the spec folder, do not change existing public shapes without recording it, and never claim a result you did not see in the command output.",
+  "tools": [
+    "glob",
+    "grep",
+    "read",
+    "shell",
+    "thinking",
+    "write"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "grep",
+    "glob",
+    "thinking",
+    "shell",
+    "@820"
+  ],
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "file://.kiro/specs/edi820-importer/**/*.md",
+    "file://docs/guarantees.md",
+    "file://docs/copybook-dialect.md"
+  ],
+  "includeMcpJson": true,
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "effect": "allow"
+      },
+      {
+        "capability": "fs_write",
+        "effect": "allow"
+      },
+      {
+        "capability": "shell",
+        "effect": "allow"
+      },
+      {
+        "capability": "mcp",
+        "match": [
+          "820/*"
+        ],
+        "effect": "allow"
+      },
+      {
+        "capability": "skill",
+        "effect": "allow"
+      }
+    ]
+  },
+  "kiroUpgrade": {
+    "revision": 3,
+    "fingerprint": "sha256:32fadd2c02d2699092946e0422704a8aec6ae32cf675e427e08bae74d98c7530",
+    "source": "sha256:37766750f6d92b934a99833ff58e0622b7ef53f4b8edff1828b436d6bcb93278"
+  }
+}

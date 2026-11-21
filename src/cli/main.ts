@@ -7,4 +7,11 @@
  */
 import { runCli } from './index.js';
 
+// A hook or a pager may close stdout early (`| head`). Without this the process dies
+// with an unhandled EPIPE stack trace instead of exiting like a unix filter should.
+process.stdout.on('error', (error: NodeJS.ErrnoException) => {
+  if (error.code === 'EPIPE') process.exit(0);
+  throw error;
+});
+
 process.exitCode = await runCli(process.argv.slice(2));

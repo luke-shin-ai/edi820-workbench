@@ -328,12 +328,20 @@ function dateFindings(result: ParseResult, label: string, window: SettlementWind
     }));
 }
 
-function normaliseFinding(finding: Finding): string {
+/**
+ * Compute a stable key for a finding. Used by the exception register to link findings
+ * across re-runs (design 13.2). Same normalisation as in src/exception/register.ts.
+ */
+export function findingKey(finding: Finding): string {
   const render = (value: Finding['declared']): string => {
     if (value === undefined) return '-';
     if (typeof value === 'bigint') return value.toString();
     if (typeof value === 'string') return value;
-    return `${value.minorUnits.toString()}${value.currency}@${value.scale}`;
+    if (typeof value === 'object' && value !== null && 'minorUnits' in (value as unknown as Record<string, unknown>)) {
+      const amount = value as Amount;
+      return `${amount.minorUnits.toString()}${amount.currency}@${amount.scale}`;
+    }
+    return '-';
   };
   return [
     finding.code,
@@ -344,6 +352,10 @@ function normaliseFinding(finding: Finding): string {
     render(finding.computed),
     render(finding.delta),
   ].join('|');
+}
+
+function normaliseFinding(finding: Finding): string {
+  return findingKey(finding);
 }
 
 export function sortFindings(findings: Finding[]): Finding[] {
