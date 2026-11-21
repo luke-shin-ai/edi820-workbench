@@ -96,3 +96,12 @@ could be implemented without inventing a rule, so:
 
 This is the honest version of "the copybook is the spec": when the spec contradicts itself,
 the tool says so and a human fixes the spec.
+
+## 6. What is *not* a copybook at all
+
+BAI2 is comma-delimited and has no copybook. It is read by `src/bai2/reader.ts`, whose
+spec object declares `format: 'bai2'`, `recordLength: 0` and no fields — the field
+offsets live on each record (`TypedRecord.spans`) because they depend on the record's
+own content. Faking a fixed layout for it would have made `verify` reproduce a layout the
+bank never sent. [`docs/bai2.md`](bai2.md) has the record tables and the control-total
+reasoning.

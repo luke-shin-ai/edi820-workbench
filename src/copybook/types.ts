@@ -75,6 +75,12 @@ export interface ControlSpec {
 export interface Copybook {
   /** Record name from the `01 <NAME>.` line (or the file stem). */
   name: string;
+  /**
+   * Which reader produced this spec. `copybook` (default) is a fixed-width byte
+   * contract; `bai2` is a delimiter contract and carries no field offsets here
+   * (each record carries its own in `TypedRecord.spans`).
+   */
+  format?: 'copybook' | 'bai2';
   /** Bytes per record — derived from the fields, never guessed from a comment. */
   recordLength: number;
   fields: CopybookField[];

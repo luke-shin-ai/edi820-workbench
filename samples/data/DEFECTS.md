@@ -13,6 +13,10 @@ that drifts from its documented defect fails the build.
 | | | ④ record index 2 value date is 2026-11-14, before the settlement window | `DATE_OUT_OF_WINDOW` (window 2026-11-18..2026-11-20) |
 | `820-packed-good.txt` | 11 | none — same payments as `820-good.txt`, COMP-3 amounts, no line breaks | verdict `PASS` against `823-bank.txt` |
 | `823-bad.txt` | 10 | trailer declares 10 records / full total, one detail record missing | `CONTROL_COUNT_MISMATCH` (10 vs 9) + `CONTROL_TOTAL_MISMATCH` delta −45,000.00 USD |
+| `bai2-good.txt` + `820-good.txt` | 16 | none — comma-delimited statement, detail reference = 820 reference | verdict `PASS` (the 03/100 declared credit total equals the detail sum) |
+| `bai2-bad.txt` | 16 | ① the detail for `NWP-2611-0010` is missing | `REF_UNMATCHED` 820-only for `…0010` |
+| | | ② a bank-initiated debit fee `BANK-FEE-2611` (type code 409, 25.00) exists only on the bank side | `REF_UNMATCHED` bank-only, amount read as **negative** because 400–699 is the debit range |
+| | | ③ the 03 total-credits, 49 account and 98 group totals still declare the good values | `CONTROL_TOTAL_MISMATCH` delta −81,500.00 USD + `BAI2_CONTROL_MISMATCH` at the account trailer |
 
 ## Why the record length is the interesting defect
 Fixed-width files fail quietly: a 99-byte record inside a 100-byte layout shifts every

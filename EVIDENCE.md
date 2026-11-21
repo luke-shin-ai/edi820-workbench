@@ -4,7 +4,7 @@
 > (`scripts/append-evidence.mjs`). Until the hook fires inside a Kiro session, the same script is
 > invoked by hand with the same payload shape — the rows are identical either way.
 > Format: `YYYY-MM-DD HH:MM | task | command | result | commit`
-> Test counts are from `npx vitest run` (148 tests: 128 unit, 14 property, 6 regression).
+> Test counts are from `npx vitest run`: **222 tests** at T5 (194 unit, 22 property, 6 regression) — 148 before T4/T5.
 
 | when | task | command | result | commit |
 |---|---|---|---|---|
@@ -39,6 +39,8 @@
 | S2 `820-packed-good` + `823-bank` | **PASS** | same payments as S1 with COMP-3 amounts (88-byte records, no line breaks) |
 | S3 `820-bad` + `823-bank` | **FAIL**, 4 findings | control total −100.00 USD; 1 short record; 2 unmatched references; 1 value date outside the window |
 | S4 `820-good` + `823-bad` | **FAIL**, 3 findings | bank trailer declares 10 / 1,284,550.00, 9 records arrived: count −1, total −45,000.00, 1 unmatched reference |
+| S5 `820-good` + `bai2-good` | **PASS** | comma-delimited statement; 03/100 total credits = summed details; 10/10 references matched |
+| S6 `820-good` + `bai2-bad` | **FAIL**, 3 findings | control total −79,025.00 USD (missing detail + a bank-side debit fee), `REF_UNMATCHED` both directions (`NWP-2611-0010` 820-only, `BANK-FEE-2611` bank-only) |
 
 ## Defects found by the build itself (not planted in fixtures)
 
@@ -63,3 +65,22 @@
 6. **The agent config had no tools** — `.kiro/agents/reviewer.json` declared resources but no `tools`
    array, so the reviewer could not read a file and produced a confident review of code it had never
    seen. Fixed (`read`, `grep`, `glob`, `thinking`); the prompts now say “read before you cite”.
+| 2026-11-21 14:10 | T4.1 | `npx vitest run test/unit/explain` | 14 passed; the prompt carries the serialised finding plus the steering excerpt for that code and nothing else (asserted absent: record text, another finding's reference); the citation is attached by code, not by the model | pending commit |
+| 2026-11-21 14:10 | T4.2 | `npx vitest run test/pbt/explain.pbt` | 5 properties / 700 generated cases: a foreign amount or record index is always rejected; the finding's own renderings are always accepted; evidence is monotone under added values | pending commit |
+| 2026-11-21 14:10 | T4.3 | `npx vitest run test/unit/explain` | an evidence-less finding is refused before any adapter call (spy call count 0); the fallback text contains no digits; budget 0 falls back with `live-call budget 0 exhausted`; an HTTP 429 falls back keeping the reason | pending commit |
+| 2026-11-21 14:10 | T5.1 | `npx tsx src/cli/main.ts reconcile --copybook samples/copybooks/820.cpy --file samples/data/820-bad.txt --bank samples/data/823-bank.txt --bank-copybook samples/copybooks/823.cpy --window 2026-11-18..2026-11-20` | FAIL, 4 findings, fingerprint `a69a9c1d…`, exit 2; `parse` exits 2 on `RECORD_LENGTH_MISMATCH`; spec/IO errors exit 3; 13 CLI tests including one real process-boundary exit code | pending commit |
+| 2026-11-21 14:10 | T5.2 | `npx tsx src/cli/main.ts verify <outDir>` | recorded = recomputed fingerprint; report 5,582 → 5,582 bytes and mtime unchanged; a tampered fingerprint gives exit 2 and `first differing field: verdict.fingerprint`; a changed input file also gives exit 2 | pending commit |
+| 2026-11-21 14:10 | T5.3 | `tsx src/web/main.ts --port 8720` + headless Chromium at 1920×1200 | PASS screen: 3 columns, 5 guaranteed + 4 not-guaranteed chips, 10 details, 0 findings; FAIL screen: 4 findings, clicking row 2 moved the highlight from `AMOUNT` bytes 24–36 to `VALUE-DATE` bytes 40–47; 0 page errors; `screenshots/ui-pass.png`, `screenshots/ui-fail.png` | pending commit |
+| 2026-11-21 14:10 | T5.4 | `npx tsx src/mcp/main.ts` (real stdio session) | 4 tools (`parse_file`, `reconcile`, `explain_findings`, `verify`); `initialize` → `tools/list` → `tools/call parse_file` returns 11 records; a malformed line returns `-32700` and the server keeps serving; 9 tests | pending commit |
+| 2026-11-21 14:10 | TYPE+TEST | `npx tsc --noEmit && npx vitest run` | 0 errors; 222 tests in 17 files (148 before this stage) — 194 unit, 22 property, 6 regression | pending commit |
+
+7. **BAI2 record counting was wrong in the first draft** — the reader incremented a group
+   record counter from three different branches, so the `98` count check could pass or fail
+   for the wrong reason. Replaced with an index-derived count (`index - startIndex + 1`),
+   which is what the trailer actually describes. Caught by writing the "self-consistent file
+   has no issues" property before trusting the fixture.
+8. **The web legend was invalid HTML** — the field legend was injected as `<tr>/<td>` into a
+   `<dl>`, so the browser flattened it into one unreadable line. Found in the first real
+   browser render (`screenshots/ui-pass.png`), fixed by emitting a real `<table>`; the second
+   render shows the copybook's fields as coloured byte ranges. A screenshot is evidence —
+   this one was wrong, and looking at it is what caught the defect.

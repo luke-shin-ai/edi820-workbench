@@ -26,7 +26,10 @@ export type IssueCode =
   | 'COPYBOOK_OVERLAP'
   | 'UNSUPPORTED_STRUCTURE'
   | 'SPEC_MISSING'
-  | 'CURRENCY_SCALE_MISMATCH';
+  | 'CURRENCY_SCALE_MISMATCH'
+  | 'BAI2_STRUCTURE'
+  | 'BAI2_RECORD_INVALID'
+  | 'BAI2_CONTROL_MISMATCH';
 
 export interface ParseIssue {
   code: IssueCode;
@@ -57,6 +60,12 @@ export interface TypedRecord {
   values: Record<string, ParsedValue>;
   /** Exact slice per field, for byte-offset evidence in the UI and reconciler. */
   slices: Record<string, string>;
+  /**
+   * 1-based character offsets of each field inside this record. Present for
+   * delimiter formats (BAI2), where a field's position depends on the record,
+   * not on a fixed layout.
+   */
+  spans?: Record<string, { start: number; length: number }>;
   issues: ParseIssue[];
   isTrailer: boolean;
 }

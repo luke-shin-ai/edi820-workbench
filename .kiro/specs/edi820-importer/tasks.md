@@ -29,15 +29,22 @@
 - [x] T3.4 Verdict + fingerprint (R4.5). Evidence: two runs, identical fingerprint.
 
 ## Phase 4 — explainer (L3)
-- [ ] T4.1 Adapter with structured findings only (R5.1). Evidence: prompt/response capture.
-- [ ] T4.2 Numeric-literal validation (R5.2). Evidence: rejected-explanation test.
-- [ ] T4.3 `INSUFFICIENT_EVIDENCE` fallback (R5.3). Evidence: test.
+- [x] T4.1 Adapter with structured findings only (R5.1). Evidence: prompt/response capture.
+  - **Delivered:** `src/explain/{types,evidence,prompt,adapters,explainer}.ts`. The prompt carries `serialiseFinding(finding)` plus the steering excerpt for that finding code and nothing else (asserted: the sample record text and other references never appear). Three adapters: `mock` (deterministic, default, off-network), `kiro-cli` (headless, injectable runner), `openai-compatible` (any chat-completions endpoint). Citations are attached by `citationOf()`, not by the model.
+- [x] T4.2 Numeric-literal validation (R5.2). Evidence: rejected-explanation test.
+  - **Delivered:** the guard in `evidence.ts` compares every numeric literal in a draft against the finding's own values (grouped/ungrouped/minor-unit forms, magnitudes, record index, reference fragments, ISO date components). A draft citing `999,999.99` on a finding whose values are `1,284,550.00 / 1,284,450.00 / −100.00` is replaced with `INSUFFICIENT_EVIDENCE` and the draft is kept in `rejection` for review. 14 unit tests + 5 properties (foreign amount always rejected, own values always accepted, evidence monotone).
+- [x] T4.3 `INSUFFICIENT_EVIDENCE` fallback (R5.3). Evidence: test.
+  - **Delivered:** a finding with none of declared/computed/delta/reference is refused before any adapter call (test asserts the spy adapter is never called); the fallback text contains no digits of its own. Live calls are budgeted (`maxLiveCalls`, default 0) and a skipped or failed live call falls back to the template with the reason on the explanation.
 
 ## Phase 5 — surfaces
-- [ ] T5.1 CLI `parse|reconcile|explain|verify` with exit codes 0/2/3. Evidence: four command outputs.
-- [ ] T5.2 `verify` read-only proof (R6.1–R6.2): mtime unchanged + differing-field path printed. Evidence: `stat` before/after.
-- [ ] T5.3 Web screen (three columns + guarantee strip). Evidence: screenshots (1920 wide) incl. empty and error states.
-- [ ] T5.4 MCP server with 4 tools. Evidence: tool list + one call trace.
+- [x] T5.1 CLI `parse|reconcile|explain|verify` with exit codes 0/2/3. Evidence: four command outputs.
+  - **Delivered:** `src/cli/{index,main}.ts` plus a `demo` command that reconciles all six sample pairs. `parse` exits 2 on a coded parse issue, `reconcile` 0/2 on PASS/FAIL, `explain` 2 when any finding is refused, `verify` 0/2. 13 tests, including a real process-boundary exit code.
+- [x] T5.2 `verify` read-only proof (R6.1–R6.2): mtime unchanged + differing-field path printed. Evidence: `stat` before/after.
+  - **Delivered:** `verifyReport()` re-runs the deterministic layers from `report.inputs` and deep-diffs `{inputs, files, verdict}`, printing both fingerprints and the first differing path (`verdict.fingerprint`). The CLI prints report bytes and mtime before/after; tests assert byte and mtime equality and that a tampered report (and a changed input file) yields exit 2 with the path.
+- [x] T5.3 Web screen (three columns + guarantee strip). Evidence: screenshots (1920 wide) incl. empty and error states.
+  - **Delivered:** `src/web/{server,view,page,main}.ts` — one page on 127.0.0.1: [left] sample pickers, drop zones, records-as-read, [middle] verdict card, control totals, findings, parse issues, [right] byte-offset highlight (or the copybook's field-by-field layout when there is nothing to highlight) plus the L3 explanation, with the guaranteed / not-guaranteed strips top and bottom. Screenshots: `screenshots/ui-pass.png` (PASS) and `screenshots/ui-fail.png` (FAIL, VALUE-DATE bytes 40–47 highlighted after clicking the finding). 9 HTTP tests + a real headless-browser run (1920×1200, 0 page errors).
+- [x] T5.4 MCP server with 4 tools. Evidence: tool list + one call trace.
+  - **Delivered:** `src/mcp/{server,main}.ts` — `parse_file`, `reconcile`, `explain_findings`, `verify` over newline-delimited JSON-RPC on stdio, each returning the same JSON the CLI writes. 9 tests including a real stdio session (`initialize` → `tools/list` → `tools/call parse_file`) and a `-32700` recovery.
 
 ## Phase 6 — Kiro evidence and submission
 - [ ] T6.1 `docs/copybook-to-spec.md`: the actual conversion story (what the spec filled in, what it got wrong, what steering changed).

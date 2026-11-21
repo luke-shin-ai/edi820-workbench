@@ -109,3 +109,46 @@ The design above is the contract; building it forced five additions. Each is rec
 
 ## 11. Record framing
 `@framing line` joins records with the file's own terminator (CRLF or LF, trailing newline preserved); `@framing fixed` slices the byte stream every `recordLength` bytes. Both are needed: COMP-3 payloads are binary and cannot be newline-delimited safely. Round-trip fidelity (R3.1) is asserted on both, including a short final record.
+
+## 12. Implementation deltas for T4–T5 (written while building them)
+
+### 6. BAI2 is a reader, not a copybook
+§2 modelled one spec shape. BAI2 has no fixed width and no copybook, so the spec object
+carries `format: 'bai2'`, `recordLength: 0` and `fields: []`, and each record carries its
+own field offsets in `TypedRecord.spans`. The alternative — inventing a fixed layout for a
+comma-delimited format — would have made `verify` reproduce a layout the bank never sent.
+The declared control handed to L2 is BAI2's `03`/`100` total credits, not the `98` group
+total; §4 of `docs/bai2.md` records why.
+
+### 7. The MCP server is implemented against the protocol, not with the SDK
+`tech.md` names `@modelcontextprotocol/sdk`. It is not installed here (the build runs
+where `npm install` cannot reach the registry), so `src/mcp/server.ts` implements the
+stdio transport directly: newline-delimited JSON-RPC 2.0, `initialize`,
+`notifications/initialized`, `tools/list`, `tools/call`, `ping`, `-32601` for unknown
+methods, `-32700` for unparsable lines. `test/unit/mcp.test.ts` runs a real stdio session
+against the process, so the transport is tested, not assumed. Swapping in the SDK later
+changes the transport code only — the four tools call `src/core/ops.ts`, which is what
+keeps CLI, MCP and web returning the same JSON.
+
+### 8. The web screen is one dependency-free document
+`tech.md` names Vite + React for the screen. Neither is installed here, and adding a
+build step would have made the demo depend on a toolchain the judge may not have. The
+screen is one HTML document (embedded CSS + a small script) served by `src/web/server.ts`
+on 127.0.0.1. What the steering asked for is preserved: one page, three columns, the
+guarantee strips top and bottom, byte-offset evidence, empty and error states. What is
+lost: component structure and hot reload — irrelevant for a submission that ships a
+running server, and recorded here rather than discovered by a reviewer.
+
+### 9. L3 details the design left open
+- The **citation** is built by `citationOf(finding)`, never taken from model output, so a
+  mis-citation cannot happen by instruction-following failure.
+- The **evidence vocabulary** is derived from `declared`, `computed`, `delta`,
+  `recordIndex`, `reference` and `detail`, including the forms a reader would derive from
+  them (`1,284,550.00`, `1284550.00`, `128455000`, magnitude of a signed delta). A
+  finding with none of declared/computed/delta/reference is refused **before** any adapter
+  is called (R5.3), so an empty finding cannot spend a credit.
+- **Budgets**: `maxLiveCalls` defaults to `0`; a live adapter that is not allowed or that
+  fails is replaced by the deterministic template, and the reason is kept on the
+  explanation (`note`). The free-tier build therefore produces the demo without touching
+  the 50-credit allowance.
+

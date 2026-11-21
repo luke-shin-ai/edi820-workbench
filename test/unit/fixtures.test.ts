@@ -3,7 +3,8 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { compileCopybook } from '../../src/copybook/index.js';
 import { parseFile, serializeParseResult } from '../../src/parser/index.js';
-import { reconcile } from '../../src/reconcile/index.js';
+import { reconcile, formatAmount } from '../../src/reconcile/index.js';
+import { parseBai2 } from '../../src/bai2/index.js';
 
 /**
  * The fixtures are part of the demo, so their defects are asserted here: if a
@@ -24,7 +25,16 @@ const WINDOW = { settlementWindow: { start: '2026-11-18', end: '2026-11-20' } };
 describe('T0.3 — the fixture set matches its documented defects', () => {
   it('has the expected files and sizes', () => {
     const files = readdirSync(join(root, 'samples/data')).sort();
-    expect(files).toEqual(['820-bad.txt', '820-good.txt', '820-packed-good.txt', '823-bad.txt', '823-bank.txt', 'DEFECTS.md']);
+    expect(files).toEqual([
+      '820-bad.txt',
+      '820-good.txt',
+      '820-packed-good.txt',
+      '823-bad.txt',
+      '823-bank.txt',
+      'DEFECTS.md',
+      'bai2-bad.txt',
+      'bai2-good.txt',
+    ]);
     const sizes = Object.fromEntries(files.map((f) => [f, statSync(join(root, 'samples/data', f)).size]));
     expect(sizes['820-good.txt']).toBe(11 * 100 + 11); // 11 records × 100 bytes + 11 newlines
     expect(sizes['820-bad.txt']).toBe(11 * 100 + 11 - 1); // one record one byte short
@@ -95,5 +105,37 @@ describe('T0.3 — the fixture set matches its documented defects', () => {
       const result = parseFile({ copybook, source });
       expect(serializeParseResult(result).equals(source)).toBe(true);
     }
+    for (const path of ['samples/data/bai2-good.txt', 'samples/data/bai2-bad.txt']) {
+      const source = readBuf(path);
+      expect(serializeParseResult(parseBai2(source)).equals(source)).toBe(true);
+    }
+  });
+
+  it('bai2-good is clean and reconciles to PASS against the 820 file', () => {
+    const bank = parseBai2(readBuf('samples/data/bai2-good.txt'));
+    expect(bank.issues).toEqual([]);
+    expect(bank.computedControl.detailCount).toBe(10);
+    const result = reconcile({
+      payment: parseFile({ copybook: cob820, source: readBuf('samples/data/820-good.txt') }),
+      bank,
+      options: WINDOW,
+    });
+    expect(result.status).toBe('PASS');
+  });
+
+  it('bai2-bad carries exactly the three documented defects', () => {
+    const bank = parseBai2(readBuf('samples/data/bai2-bad.txt'));
+    expect(bank.issues.map((i) => `${i.code}:${i.field ?? ''}`)).toEqual(['BAI2_CONTROL_MISMATCH:ACCOUNT-CONTROL-TOTAL']);
+    const result = reconcile({
+      payment: parseFile({ copybook: cob820, source: readBuf('samples/data/820-good.txt') }),
+      bank,
+      options: WINDOW,
+    });
+    expect(result.findings.map((f) => `${f.code}:${f.reference ?? ''}`)).toEqual([
+      'CONTROL_TOTAL_MISMATCH:',
+      'REF_UNMATCHED:BANK-FEE-2611',
+      'REF_UNMATCHED:NWP-2611-0010',
+    ]);
+    expect(formatAmount((result.findings[0]!.delta as never))).toBe('-79,025.00 USD');
   });
 });

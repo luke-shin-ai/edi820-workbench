@@ -14,7 +14,11 @@
     "test:pbt": "vitest run test/pbt",
     "typecheck": "tsc --noEmit",
     "fixtures": "tsx scripts/gen-fixtures.mjs",
-    "demo": "tsx scripts/demo-reconcile.mjs"
+    "demo": "tsx scripts/demo-reconcile.mjs",
+    "cli": "tsx src/cli/main.ts",
+    "web": "tsx src/web/main.ts",
+    "mcp": "tsx src/mcp/main.ts",
+    "demo:cli": "tsx src/cli/main.ts demo"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

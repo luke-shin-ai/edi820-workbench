@@ -1,0 +1,385 @@
+#!/usr/bin/env node
+/**
+ * `820` — the command-line surface (T5.1–T5.2).
+ *
+ * Exit codes are part of the contract, because a CI job uses them directly:
+ *   0  PASS / verified identical
+ *   2  FAIL / findings present / verification differs / explanation refused
+ *   3  spec or I/O error (nothing was decided)
+ *
+ * `verify` is read-only: it re-derives the verdict from the inputs recorded in
+ * `report.json` and compares. It never rewrites the report, and it prints the
+ * report's own mtime and size before and after as proof.
+ */
+import { writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import {
+  AppError,
+  buildReport,
+  defaultOutDir,
+  ensureDir,
+  explainReport,
+  loadReport,
+  reconcileCase,
+  repoRoot,
+  verifyReport,
+  writeReport,
+  type CaseInputs,
+  type FileFormat,
+  type JsonFinding,
+  type JsonIssue,
+  type Report,
+} from '../core/ops.js';
+import { adapterByName, type Explanation } from '../explain/index.js';
+import { formatAmount } from '../reconcile/index.js';
+
+export const EXIT = { PASS: 0, FINDINGS: 2, ERROR: 3 } as const;
+
+interface Streams {
+  out: (line: string) => void;
+  err: (line: string) => void;
+}
+
+const defaultStreams: Streams = {
+  out: (line) => process.stdout.write(`${line}\n`),
+  err: (line) => process.stderr.write(`${line}\n`),
+};
+
+export const USAGE = `820 — resurrection workbench for fixed-width payment files
+
+Usage:
+  820 parse     --copybook <path> --file <path> [--format fixed|bai2] [--out <dir>] [--json]
+  820 reconcile --copybook <path> --file <path> [--bank <path>]
+                [--bank-copybook <path> | --bank-format bai2]
+                [--window YYYY-MM-DD..YYYY-MM-DD] [--tolerance <days>]
+                [--out <dir>] [--json]
+  820 explain   --findings <report.json|dir> [--adapter mock|kiro-cli|openai]
+                [--max-live <n>] [--out <dir>] [--json]
+  820 verify    <report.json|dir> [--json]
+
+BAI2 files need no copybook: pass --format bai2 (payment) or --bank-format bai2.
+Exit codes: 0 pass, 2 findings/verification difference, 3 spec or I/O error.
+`;
+
+interface ParsedArgs {
+  positional: string[];
+  flags: Record<string, string | boolean>;
+}
+
+export function parseArgs(argv: string[]): ParsedArgs {
+  const positional: string[] = [];
+  const flags: Record<string, string | boolean> = {};
+  for (let i = 0; i < argv.length; i += 1) {
+    const token = argv[i]!;
+    if (!token.startsWith('--')) {
+      positional.push(token);
+      continue;
+    }
+    const body = token.slice(2);
+    const eq = body.indexOf('=');
+    if (eq > 0) {
+      flags[body.slice(0, eq)] = body.slice(eq + 1);
+      continue;
+    }
+    const next = argv[i + 1];
+    if (next !== undefined && !next.startsWith('--')) {
+      flags[body] = next;
+      i += 1;
+    } else {
+      flags[body] = true;
+    }
+  }
+  return { positional, flags };
+}
+
+function flagString(args: ParsedArgs, name: string): string | undefined {
+  const value = args.flags[name];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function requireFlag(args: ParsedArgs, name: string): string {
+  const value = flagString(args, name);
+  if (!value) throw new AppError('USAGE', `--${name} is required`);
+  return value;
+}
+
+function formatFlag(raw: string | undefined, fallback: FileFormat): FileFormat {
+  if (raw === undefined) return fallback;
+  if (raw === 'fixed' || raw === 'bai2') return raw;
+  throw new AppError('USAGE', `unknown format "${raw}" (fixed | bai2)`);
+}
+
+function caseInputsFromFlags(args: ParsedArgs): CaseInputs {
+  const paymentPath = requireFlag(args, 'file');
+  const format = formatFlag(flagString(args, 'format'), 'fixed');
+  const copybook = flagString(args, 'copybook');
+  if (format === 'fixed' && !copybook) throw new AppError('USAGE', '--copybook is required for a fixed-width file');
+  const inputs: CaseInputs = {
+    payment: { path: paymentPath, format, ...(copybook ? { copybookPath: copybook } : {}) },
+  };
+  const bankPath = flagString(args, 'bank');
+  if (bankPath) {
+    const bankFormat = formatFlag(flagString(args, 'bank-format'), 'fixed');
+    const bankCopybook = flagString(args, 'bank-copybook');
+    if (bankFormat === 'fixed' && !bankCopybook) {
+      throw new AppError('USAGE', '--bank-copybook is required for a fixed-width bank file');
+    }
+    inputs.bank = { path: bankPath, format: bankFormat, ...(bankCopybook ? { copybookPath: bankCopybook } : {}) };
+  }
+  const window = flagString(args, 'window');
+  if (window) {
+    const match = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(window);
+    if (!match) throw new AppError('USAGE', '--window must look like 2026-11-18..2026-11-20');
+    inputs.settlementWindow = { start: match[1]!, end: match[2]! };
+  }
+  const tolerance = flagString(args, 'tolerance');
+  if (tolerance !== undefined) {
+    const days = Number(tolerance);
+    if (!Number.isInteger(days) || days < 0) throw new AppError('USAGE', '--tolerance must be a non-negative integer');
+    inputs.toleranceDays = days;
+  }
+  return inputs;
+}
+
+function printFinding(finding: JsonFinding, index: number): string[] {
+  const lines = [`  ${index + 1}. ${finding.code}  record=${finding.recordIndex}${finding.field ? `  field=${finding.field}` : ''}${finding.reference ? `  ref=${finding.reference}` : ''}`];
+  const render = (value: unknown): string => {
+    if (value === undefined || value === null) return '-';
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    if (typeof value === 'bigint') return value.toString();
+    if (typeof value === 'object' && 'minorUnits' in (value as Record<string, unknown>)) {
+      const amount = value as { minorUnits: string | bigint; currency: string; scale: number };
+      return formatAmount({ ...amount, minorUnits: BigInt(amount.minorUnits) });
+    }
+    return JSON.stringify(value);
+  };
+  lines.push(`     declared ${render(finding.declared)}   computed ${render(finding.computed)}   delta ${render(finding.delta)}`);
+  lines.push(`     ${finding.detail}`);
+  return lines;
+}
+
+function printVerdict(report: Report, out: (line: string) => void): void {
+  const verdict = report.verdict!;
+  out(`verdict: ${verdict.status}   findings: ${verdict.findings.length}   fingerprint: ${verdict.fingerprint}`);
+  out(
+    `820 ${report.files.payment.details}/${report.files.payment.records} records (${report.files.payment.format})` +
+      (report.files.bank ? `   bank ${report.files.bank.details}/${report.files.bank.records} records (${report.files.bank.format})` : '') +
+      `   references matched ${verdict.summary.referencesMatched}, unmatched ${verdict.summary.referencesUnmatched}`,
+  );
+  for (const issue of report.files.payment.issues as JsonIssue[]) {
+    out(`  parse issue ${issue.code}${issue.recordIndex !== undefined ? ` @record ${issue.recordIndex}` : ''}: ${issue.detail}`);
+  }
+  for (const issue of (report.files.bank?.issues ?? []) as JsonIssue[]) {
+    out(`  bank issue ${issue.code}${issue.recordIndex !== undefined ? ` @record ${issue.recordIndex}` : ''}: ${issue.detail}`);
+  }
+  for (const [currency, totals] of Object.entries(verdict.summary.totals)) {
+    out(`  control total ${currency}: declared ${totals.declared} summed ${totals.computed} delta ${totals.delta} (minor units)`);
+  }
+  if (verdict.findings.length > 0) {
+    out('findings:');
+    verdict.findings.forEach((finding, index) => printFinding(finding, index).forEach(out));
+  }
+}
+
+function printGuarantees(report: Report, out: (line: string) => void): void {
+  out('');
+  out(`guaranteed (${report.guarantees.sourcePath}):`);
+  for (const item of report.guarantees.guaranteed) out(`  + ${item}`);
+  out('not guaranteed — a human decides:');
+  for (const item of report.guarantees.notGuaranteed) out(`  - ${item}`);
+}
+
+function printExplanation(explanation: Explanation, index: number, out: (line: string) => void): void {
+  out(`  ${index + 1}. ${explanation.citation}  [${explanation.status}] via ${explanation.adapter}`);
+  out(`     cause: ${explanation.cause}`);
+  out(`     fix:   ${explanation.suggestedFix}`);
+  if (explanation.rejection) {
+    out(`     blocked: cited ${explanation.rejection.unsupported.join(', ')} which the finding does not contain`);
+    out(`     draft  : ${explanation.rejection.draft.cause}`);
+  }
+  if (explanation.note) out(`     note:  ${explanation.note}`);
+}
+
+export async function runCli(argv: string[], streams: Streams = defaultStreams): Promise<number> {
+  const { out, err } = streams;
+  const [command, ...rest] = argv;
+  const args = parseArgs(rest);
+  const json = args.flags.json === true;
+
+  try {
+    switch (command) {
+      case undefined:
+      case 'help':
+      case '--help':
+      case '-h':
+        out(USAGE);
+        return EXIT.PASS;
+
+      case 'parse': {
+        const inputs = caseInputsFromFlags(args);
+        const report = buildReport(inputs, { includeVerdict: false });
+        const dir = ensureDir(flagString(args, 'out') ?? defaultOutDir());
+        const path = writeReport(report, dir);
+        if (json) {
+          out(JSON.stringify(report, null, 2));
+        } else {
+          out(`parsed ${inputs.payment.path} (${report.files.payment.format}) — ${report.files.payment.records} records, ${report.files.payment.details} details`);
+          for (const issue of report.files.payment.issues as JsonIssue[]) {
+            out(`  issue ${issue.code}${issue.recordIndex !== undefined ? ` @record ${issue.recordIndex}` : ''}: ${issue.detail}`);
+          }
+          if (report.files.bank) out(`parsed bank ${inputs.bank!.path} — ${report.files.bank.records} records`);
+          out(`report: ${path}`);
+        }
+        return report.files.payment.issues.length === 0 && (report.files.bank?.issues.length ?? 0) === 0
+          ? EXIT.PASS
+          : EXIT.FINDINGS;
+      }
+
+      case 'reconcile': {
+        const inputs = caseInputsFromFlags(args);
+        const report = buildReport(inputs);
+        const dir = ensureDir(flagString(args, 'out') ?? defaultOutDir());
+        const path = writeReport(report, dir);
+        if (json) {
+          out(JSON.stringify(report, null, 2));
+        } else {
+          printVerdict(report, out);
+          printGuarantees(report, out);
+          out(`report: ${path}`);
+        }
+        return report.verdict!.status === 'PASS' ? EXIT.PASS : EXIT.FINDINGS;
+      }
+
+      case 'explain': {
+        const target = flagString(args, 'findings') ?? args.positional[0];
+        if (!target) throw new AppError('USAGE', '--findings <report.json|dir> is required');
+        const { report, path } = loadReport(target);
+        const adapterName = flagString(args, 'adapter') ?? 'mock';
+        const maxLiveRaw = flagString(args, 'max-live');
+        const maxLiveCalls = maxLiveRaw === undefined ? 0 : Number(maxLiveRaw);
+        if (!Number.isInteger(maxLiveCalls) || maxLiveCalls < 0) throw new AppError('USAGE', '--max-live must be a non-negative integer');
+        const adapter = adapterByName(adapterName);
+        const run = await explainReport(report, { adapter, maxLiveCalls });
+        const enriched: Report = { ...report, explanations: run.explanations };
+        const dir = ensureDir(flagString(args, 'out') ?? dirname(path));
+        const explanationsPath = join(dir, 'explanations.json');
+        writeFileSync(
+          explanationsPath,
+          `${JSON.stringify({ generatedAt: new Date().toISOString(), liveCalls: run.liveCalls, explanations: run.explanations }, null, 2)}\n`,
+          'utf8',
+        );
+        if (json) {
+          out(JSON.stringify({ liveCalls: run.liveCalls, budgetLimited: run.budgetLimited, explanations: enriched.explanations }, null, 2));
+        } else {
+          out(`explaining ${enriched.explanations!.length} finding(s) with adapter "${adapterName}" (live calls: ${run.liveCalls})`);
+          enriched.explanations!.forEach((explanation, index) => printExplanation(explanation, index, out));
+          out(`explanations: ${explanationsPath}`);
+        }
+        return enriched.explanations!.every((e) => e.status === 'EXPLAINED') ? EXIT.PASS : EXIT.FINDINGS;
+      }
+
+      case 'verify': {
+        const target = args.positional[0] ?? flagString(args, 'report');
+        if (!target) throw new AppError('USAGE', 'verify needs a report directory or report.json');
+        const outcome = verifyReport(target);
+        if (json) {
+          out(JSON.stringify(outcome, null, 2));
+        } else {
+          out(`verify ${outcome.reportPath}`);
+          out(`  recorded fingerprint   ${outcome.recordedFingerprint ?? '-'}`);
+          out(`  recomputed fingerprint ${outcome.recomputedFingerprint ?? '-'}`);
+          out(`  recorded verdict ${outcome.recordedStatus ?? '-'}   recomputed verdict ${outcome.recomputedStatus ?? '-'}`);
+          out(
+            `  read-only: report ${outcome.mutation.reportBytesBefore} → ${outcome.mutation.reportBytesAfter} bytes, mtime ${outcome.mutation.reportMtimeBefore} → ${outcome.mutation.reportMtimeAfter}`,
+          );
+          if (outcome.ok) {
+            out('  RESULT: identical — same inputs, same verdict');
+          } else {
+            out(`  RESULT: DIFFERENT — first differing field: ${outcome.firstDifference}`);
+          }
+          out('');
+          out(`guaranteed (${outcome.guarantees.sourcePath}):`);
+          for (const item of outcome.guarantees.guaranteed) out(`  + ${item}`);
+          out('not guaranteed — a human decides:');
+          for (const item of outcome.guarantees.notGuaranteed) out(`  - ${item}`);
+        }
+        return outcome.ok ? EXIT.PASS : EXIT.FINDINGS;
+      }
+
+      case 'demo': {
+        // Convenience for the video: reconcile every sample pair in one run.
+        const root = repoRoot();
+        const pairs: Array<{ name: string; inputs: CaseInputs }> = [
+          {
+            name: 'S1 820-good + 823-bank',
+            inputs: {
+              payment: { path: join(root, 'samples/data/820-good.txt'), copybookPath: join(root, 'samples/copybooks/820.cpy') },
+              bank: { path: join(root, 'samples/data/823-bank.txt'), copybookPath: join(root, 'samples/copybooks/823.cpy') },
+              settlementWindow: { start: '2026-11-18', end: '2026-11-20' },
+            },
+          },
+          {
+            name: 'S2 820-packed-good + 823-bank',
+            inputs: {
+              payment: { path: join(root, 'samples/data/820-packed-good.txt'), copybookPath: join(root, 'samples/copybooks/820-packed.cpy') },
+              bank: { path: join(root, 'samples/data/823-bank.txt'), copybookPath: join(root, 'samples/copybooks/823.cpy') },
+              settlementWindow: { start: '2026-11-18', end: '2026-11-20' },
+            },
+          },
+          {
+            name: 'S3 820-bad + 823-bank',
+            inputs: {
+              payment: { path: join(root, 'samples/data/820-bad.txt'), copybookPath: join(root, 'samples/copybooks/820.cpy') },
+              bank: { path: join(root, 'samples/data/823-bank.txt'), copybookPath: join(root, 'samples/copybooks/823.cpy') },
+              settlementWindow: { start: '2026-11-18', end: '2026-11-20' },
+            },
+          },
+          {
+            name: 'S4 820-good + 823-bad',
+            inputs: {
+              payment: { path: join(root, 'samples/data/820-good.txt'), copybookPath: join(root, 'samples/copybooks/820.cpy') },
+              bank: { path: join(root, 'samples/data/823-bad.txt'), copybookPath: join(root, 'samples/copybooks/823.cpy') },
+              settlementWindow: { start: '2026-11-18', end: '2026-11-20' },
+            },
+          },
+          {
+            name: 'S5 820-good + bai2-good',
+            inputs: {
+              payment: { path: join(root, 'samples/data/820-good.txt'), copybookPath: join(root, 'samples/copybooks/820.cpy') },
+              bank: { path: join(root, 'samples/data/bai2-good.txt'), format: 'bai2' },
+              settlementWindow: { start: '2026-11-18', end: '2026-11-20' },
+            },
+          },
+          {
+            name: 'S6 820-good + bai2-bad',
+            inputs: {
+              payment: { path: join(root, 'samples/data/820-good.txt'), copybookPath: join(root, 'samples/copybooks/820.cpy') },
+              bank: { path: join(root, 'samples/data/bai2-bad.txt'), format: 'bai2' },
+              settlementWindow: { start: '2026-11-18', end: '2026-11-20' },
+            },
+          },
+        ];
+        let worst: number = EXIT.PASS;
+        for (const pair of pairs) {
+          const { result } = reconcileCase(pair.inputs);
+          out(`\n=== ${pair.name}: ${result.status} (${result.findings.length} findings)`);
+          result.findings.forEach((finding, index) =>
+            printFinding(finding as unknown as JsonFinding, index).forEach(out),
+          );
+          if (result.status !== 'PASS') worst = EXIT.FINDINGS;
+        }
+        return worst;
+      }
+
+      default:
+        throw new AppError('USAGE', `unknown command "${command}"\n\n${USAGE}`);
+    }
+  } catch (error) {
+    if (error instanceof AppError) {
+      err(`error (${error.kind}): ${error.message}`);
+      return EXIT.ERROR;
+    }
+    err(`error: ${(error as Error).message}`);
+    return EXIT.ERROR;
+  }
+}
