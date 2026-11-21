@@ -26,6 +26,8 @@
 | 2026-11-21 13:45 | T3.4 | `npx vitest run test/pbt/reconcile` + demo | 3 properties / 550 cases; two runs give identical fingerprints (S1 `b373f3a5…`, S3 `a69a9c1d…`) | 6ea5bba |
 | 2026-11-21 13:45 | Kiro-CLI | `kiro-cli whoami`, `agent list`, `agent validate --path .kiro/agents/reviewer.json`, `chat --agent reviewer --no-interactive --model qwen3-coder-next` | Builder ID `yotta0704@gmail.com`; `reviewer` discovered as a workspace agent; validate exit 0 (broken config exits 1); one smoke turn answered `READY` | 6dfa9aa |
 | 2026-11-21 13:45 | TYPE | `npx tsc --noEmit` | 0 errors (strict + noUncheckedIndexedAccess) | 6ea5bba |
+| 2026-11-21 13:58 | REVIEW-3 | `kiro-cli chat --agent reviewer --model claude-haiku-4.5 --trust-tools=read,grep,glob` | reviewer read `reconciler.ts` and `decode.ts` (tool log present); 1 real MINOR (matched-count derived from a detail string) | pending commit |
+| 2026-11-21 14:00 | FIX-REVIEW | `npx vitest run test/unit/reconcile` | blank reference now reported as `REF_UNMATCHED` instead of being skipped; matched count tracked explicitly; 148 tests pass, tsc clean | pending commit |
 
 ## Demo run (the numbers the video will show)
 
@@ -54,3 +56,10 @@
    amount+date fallback match, because the broken record still matched a bank record on amount. The
    fixture now moves one cent between two records, so the reference break survives the fallback and
    the total still differs by exactly −100.00. That is the fallback being *tested*, not trusted.
+5. **A blank reference was dropped** — found by the reviewer agent's second pass (which was otherwise
+   full of invented line numbers) and confirmed by hand: `referenceRecords` skipped blank references,
+   so such a record never reached `REF_UNMATCHED`. Fixed with a test; the matched count is now tracked
+   inside the matching routine instead of being derived from finding text.
+6. **The agent config had no tools** — `.kiro/agents/reviewer.json` declared resources but no `tools`
+   array, so the reviewer could not read a file and produced a confident review of code it had never
+   seen. Fixed (`read`, `grep`, `glob`, `thinking`); the prompts now say “read before you cite”.

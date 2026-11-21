@@ -119,16 +119,36 @@ describe('R4.3 — reference matching; unmatched is reported in both directions'
     expect(refs.map((r) => r.reference).sort()).toEqual(['NWP-2611-0010', 'NWP-2611-0011']);
   });
 
-  it('falls back to amount+currency+date before calling a reference unmatched', () => {
-    // Change only the 820 reference text; the amount/currency/date still line up.
+  it('falls back to amount+currency+date before calling a reference unmatched', () => {    // Change only the 820 reference text; the amount/currency/date still line up.
     const source = Buffer.from(good820.toString('latin1').replace('NWP-2611-0001', 'NWP-2611-9001'), 'latin1');
     const result = reconcile({ payment: parse820(source), bank: parse823(), options: WINDOW });
     expect(result.findings.filter((f) => f.code === 'REF_UNMATCHED')).toEqual([]);
     expect(result.status).toBe('PASS');
   });
 
-  it('does not match a reference whose amount differs', () => {
-    const source = Buffer.from(good820.toString('latin1').replace('NWP-2611-0001', 'NWP-2611-9001'), 'latin1')
+  it('reports a blank reference instead of letting two blanks agree', () => {
+    // Reviewer finding (2026-11-21): a blank reference used to be skipped silently.
+    const source = good820.toString('latin1').replace('NWP-2611-0001', '               ');
+    const result = reconcile({ payment: parse820(Buffer.from(source, 'latin1')), bank: parse823(), options: WINDOW });
+    const blank = result.findings.find((f) => f.code === 'REF_UNMATCHED' && f.reference === '');
+    expect(blank).toBeDefined();
+    expect(blank!.recordIndex).toBe(0);
+    expect(blank!.detail).toContain('blank reference');
+    // The bank side of that record is still reported: nothing is dropped.
+    expect(result.findings.some((f) => f.reference === 'NWP-2611-0001')).toBe(true);
+  });
+
+  it('counts matched references directly, not by reading the finding text', () => {
+    const good = reconcile({ payment: parse820(), bank: parse823(), options: WINDOW });
+    expect(good.summary.referencesMatched).toBe(10);
+    expect(good.summary.referencesUnmatched).toBe(0);
+
+    const bad = reconcile({ payment: parse820(bad820), bank: parse823(), options: WINDOW });
+    expect(bad.summary.referencesMatched).toBe(9);
+    expect(bad.summary.referencesUnmatched).toBe(2);
+  });
+
+  it('does not match a reference whose amount differs', () => {    const source = Buffer.from(good820.toString('latin1').replace('NWP-2611-0001', 'NWP-2611-9001'), 'latin1')
       .toString('latin1')
       .replace('000001500000{', '000001500001{');
     const result = reconcile({ payment: parse820(Buffer.from(source, 'latin1')), bank: parse823(), options: WINDOW });

@@ -1,10 +1,14 @@
 {
   "name": "reviewer",
   "description": "Adversarial cross-review agent for 「820」. It reads only the spec artifacts and the deterministic layer's findings, then tries to break the claims: unsupported numbers, silent re-sync, dropped references, float money, missing guarantees.",
+  "prompt": "You are the reviewer, not the implementer. Read the files you are asked about with the read tool before you say anything about them; never describe a function from its name alone, and never cite a line you have not read. For each claim in the diff or the report, state whether the evidence in the deterministic layers (parse result, findings, verify output) actually supports it. List findings as BLOCKER / MAJOR / MINOR with the exact file, line or finding code. If a claim is unsupported, say which command would prove it. Never rewrite code yourself.",
+  "tools": ["read", "grep", "glob", "thinking"],
+  "allowedTools": ["read", "grep", "glob", "thinking"],
   "resources": [
     "file://.kiro/steering/**/*.md",
     "file://.kiro/specs/edi820-importer/**/*.md",
     "file://docs/guarantees.md"
   ],
-  "prompt": "You are the reviewer, not the implementer. For each claim in the diff or the report, state whether the evidence in the deterministic layers (parse result, findings, verify output) actually supports it. List findings as BLOCKER / MAJOR / MINOR with the exact file, line or finding code. If a claim is unsupported, say which command would prove it. Never rewrite code yourself."
+  "mcpServers": {},
+  "includeMcpJson": false
 }

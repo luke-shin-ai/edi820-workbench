@@ -160,6 +160,7 @@ function groupDigits(digits: string): string {
 
 interface RefRecord {
   record: TypedRecord;
+  /** Trimmed reference text; an empty string means the field was blank. */
   reference: string;
   amount?: Amount;
   date?: string;
@@ -167,16 +168,17 @@ interface RefRecord {
 
 function referenceRecords(result: ParseResult): RefRecord[] {
   const { copybook } = result;
+  if (!copybook.semantics.reference) return [];
   const out: RefRecord[] = [];
   for (const record of result.records) {
     if (record.isTrailer) continue;
-    const reference = stringOf(record, copybook.semantics.reference);
-    if (!reference) continue;
+    const value = record.values[copybook.semantics.reference];
+    if (typeof value !== 'string') continue;
     const amount = amountOf(record, copybook);
     const date = isoDateOf(record, copybook);
     out.push({
       record,
-      reference,
+      reference: value.trim(),
       ...(amount ? { amount } : {}),
       ...(date ? { date } : {}),
     });
@@ -184,16 +186,34 @@ function referenceRecords(result: ParseResult): RefRecord[] {
   return out;
 }
 
-function referenceFindings(payment: ParseResult, bank: ParseResult, toleranceDays: number): Finding[] {
+function referenceFindings(
+  payment: ParseResult,
+  bank: ParseResult,
+  toleranceDays: number,
+): { findings: Finding[]; matched: number } {
   const findings: Finding[] = [];
   const paymentRefs = referenceRecords(payment);
   const bankRefs = referenceRecords(bank);
   const usedBank = new Set<number>();
+  let matched = 0;
 
   for (const p of paymentRefs) {
-    const exact = bankRefs.find((b) => b.reference === p.reference && !usedBank.has(b.record.index));
+    if (p.reference === '') {
+      // A blank reference is a data defect, not a match candidate: report it instead of
+      // letting two blank fields "agree" with each other (reviewer finding, 2026-11-21).
+      findings.push({
+        code: 'REF_UNMATCHED',
+        recordIndex: p.record.index,
+        field: payment.copybook.semantics.reference,
+        reference: '',
+        detail: `820 record ${p.record.index} has a blank reference field and cannot be matched (direction: 820-only)`,
+      });
+      continue;
+    }
+    const exact = bankRefs.find((b) => b.reference === p.reference && b.reference !== '' && !usedBank.has(b.record.index));
     if (exact) {
       usedBank.add(exact.record.index);
+      matched += 1;
       continue;
     }
     // Fallback allowed by the conventions: same amount+currency and a value date
@@ -201,6 +221,7 @@ function referenceFindings(payment: ParseResult, bank: ParseResult, toleranceDay
     if (p.amount) {
       const fallback = bankRefs.find(
         (b) =>
+          b.reference !== '' &&
           !usedBank.has(b.record.index) &&
           b.amount !== undefined &&
           b.amount.currency === p.amount!.currency &&
@@ -209,6 +230,7 @@ function referenceFindings(payment: ParseResult, bank: ParseResult, toleranceDay
       );
       if (fallback) {
         usedBank.add(fallback.record.index);
+        matched += 1;
         continue;
       }
     }
@@ -230,11 +252,14 @@ function referenceFindings(payment: ParseResult, bank: ParseResult, toleranceDay
       field: bank.copybook.semantics.reference,
       reference: b.reference,
       ...(b.amount ? { declared: b.amount } : {}),
-      detail: `bank reference ${b.reference} has no counterpart in the 820 file (direction: bank-only)`,
+      detail:
+        b.reference === ''
+          ? `bank record ${b.record.index} has a blank reference field and cannot be matched (direction: bank-only)`
+          : `bank reference ${b.reference} has no counterpart in the 820 file (direction: bank-only)`,
     });
   }
 
-  return findings;
+  return { findings, matched };
 }
 
 function dateFindings(result: ParseResult, label: string, window: SettlementWindow, toleranceDays: number): Finding[] {
@@ -282,10 +307,13 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
 
   findings.push(...controlFindings(input.payment, '820'));
   let bankFileHash: string | null = null;
+  let referencesMatched = 0;
   if (input.bank) {
     findings.push(...controlFindings(input.bank, 'bank'));
     bankFileHash = input.bank.fileHash;
-    findings.push(...referenceFindings(input.payment, input.bank, toleranceDays));
+    const refResult = referenceFindings(input.payment, input.bank, toleranceDays);
+    findings.push(...refResult.findings);
+    referencesMatched = refResult.matched;
   }
   if (input.options?.settlementWindow) {
     findings.push(...dateFindings(input.payment, '820', input.options.settlementWindow, toleranceDays));
@@ -308,16 +336,13 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
     };
   }
 
-  const referencesMatched = input.bank
-    ? referenceRecords(input.payment).length - sorted.filter((f) => f.code === 'REF_UNMATCHED' && f.detail.includes('820-only')).length
-    : 0;
-
+  const referencesMatchedTotal = referencesMatched;
   const summary: ReconcileSummary = {
     paymentRecords: input.payment.computedControl.recordCount,
     paymentDetails: input.payment.computedControl.detailCount,
     bankRecords: input.bank?.computedControl.recordCount ?? 0,
     bankDetails: input.bank?.computedControl.detailCount ?? 0,
-    referencesMatched,
+    referencesMatched: referencesMatchedTotal,
     referencesUnmatched: sorted.filter((f) => f.code === 'REF_UNMATCHED').length,
     totals,
   };
