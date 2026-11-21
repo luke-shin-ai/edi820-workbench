@@ -14,12 +14,12 @@
     },
     {
       "name": "verify-after-agent-stop",
-      "description": "Re-derive the verdict of the last output directory and compare fingerprints; reports drift instead of trusting the previous run's claim.",
+      "description": "Re-derive the newest report in out/ with the real CLI entry (src/cli/main.ts verify) and compare fingerprints; a drift or a missing run is printed into the session instead of being swallowed.",
       "trigger": "AgentStop",
       "matcher": ".*",
       "action": {
         "type": "command",
-        "command": "npx tsx src/cli/index.ts verify out/ || echo 'verify: no output dir yet (expected before T5.1)'",
+        "command": "node scripts/verify-latest.mjs",
         "timeout": 120
       }
     },

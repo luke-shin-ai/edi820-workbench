@@ -35,16 +35,31 @@ export interface RunRequest {
   copybookPath?: string;
   format?: FileFormat;
   fileText?: string;
+  /** Bytes of a dropped file, base64-encoded so COMP-3/binary samples survive the drop. */
+  fileBase64?: string;
   fileName?: string;
   copybookText?: string;
+  copybookBase64?: string;
+  copybookName?: string;
   bankPath?: string;
   bankCopybookPath?: string;
   bankFormat?: FileFormat;
   bankText?: string;
+  bankBase64?: string;
   bankFileName?: string;
   window?: SettlementWindow;
   toleranceDays?: number;
   explain?: boolean;
+}
+
+/**
+ * Decode a base64 body to a latin1 string, which is how `SourceInput.text` carries
+ * bytes: one character per byte, exactly as `readFileSync(path, 'latin1')` does.
+ * `file.text()` would decode as UTF-8 first and replace every byte above 0x7F with
+ * U+FFFD, which silently corrupts a COMP-3 amount (defect found 2026-11-21).
+ */
+function decodeBase64(value: string): string {
+  return Buffer.from(value, 'base64').toString('latin1');
 }
 
 function asFormat(value: unknown): FileFormat | undefined {
@@ -104,14 +119,17 @@ export function createWebServer(options: WebOptions = {}): WebServer {
   };
 
   const runCase = async (request: RunRequest): Promise<{ view: ViewModel }> => {
+    const droppedPayment = request.fileBase64 !== undefined ? decodeBase64(request.fileBase64) : request.fileText;
+    const droppedCopybook =
+      request.copybookBase64 !== undefined ? decodeBase64(request.copybookBase64) : request.copybookText;
     let payment: SourceInput;
-    if (request.fileText !== undefined) {
+    if (droppedPayment !== undefined) {
       payment = {
         label: request.fileName ?? '(dropped file)',
-        text: request.fileText,
+        text: droppedPayment,
         format: asFormat(request.format) ?? 'fixed',
-        ...(request.copybookText !== undefined
-          ? { copybookText: request.copybookText, copybookLabel: '(dropped copybook)' }
+        ...(droppedCopybook !== undefined
+          ? { copybookText: droppedCopybook, copybookLabel: request.copybookName ?? '(dropped copybook)' }
           : request.copybookPath
             ? { copybookText: sampleFile(request.copybookPath), copybookLabel: request.copybookPath }
             : {}),
@@ -131,11 +149,12 @@ export function createWebServer(options: WebOptions = {}): WebServer {
     }
 
     let bank: SourceInput | undefined;
-    if (request.bankText !== undefined) {
+    const droppedBank = request.bankBase64 !== undefined ? decodeBase64(request.bankBase64) : request.bankText;
+    if (droppedBank !== undefined) {
       const format = asFormat(request.bankFormat) ?? 'fixed';
       bank = {
         label: request.bankFileName ?? '(dropped bank file)',
-        text: request.bankText,
+        text: droppedBank,
         format,
         ...(format === 'fixed' && request.bankCopybookPath
           ? { copybookText: sampleFile(request.bankCopybookPath), copybookLabel: request.bankCopybookPath }

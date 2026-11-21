@@ -1,6 +1,6 @@
 {
   "name": "edi820-workbench",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "「820」 — resurrection workbench for fixed-width EDI 820/823 payment files and COBOL copybooks (Kiroween 2026, Resurrection).",
@@ -18,7 +18,9 @@
     "cli": "tsx src/cli/main.ts",
     "web": "tsx src/web/main.ts",
     "mcp": "tsx src/mcp/main.ts",
-    "demo:cli": "tsx src/cli/main.ts demo"
+    "demo:cli": "tsx src/cli/main.ts demo",
+    "evidence": "tsx src/cli/main.ts reconcile --copybook samples/copybooks/820.cpy --file samples/data/820-good.txt --bank samples/data/823-bank.txt --bank-copybook samples/copybooks/823.cpy --window 2026-11-18..2026-11-20 --out out/evidence",
+    "verify:latest": "node scripts/verify-latest.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -160,6 +160,32 @@ describe('T5.3 — BAI2 and dropped files go through the same screen', () => {
     expect(view.summary.referencesUnmatched).toBe(0);
   });
 
+  it('keeps COMP-3 bytes intact when the file is dropped (base64, not text)', async () => {
+    // 820-packed-good.txt holds bytes above 0x7F. Reading it with `file.text()` would
+    // decode UTF-8 and replace those bytes with U+FFFD; the drop path therefore sends
+    // base64 of the raw bytes and the server decodes them as latin1, one char per byte.
+    const bytes = readFileSync(join(root, 'samples/data/820-packed-good.txt'));
+    expect(bytes.some((b) => b > 0x7f)).toBe(true);
+    const view = await run({
+      fileName: '820-packed-good.txt',
+      fileBase64: bytes.toString('base64'),
+      copybookBase64: Buffer.from(sampleCopybook('820-packed.cpy'), 'utf8').toString('base64'),
+      copybookName: '820-packed.cpy',
+      format: 'fixed',
+      window: { start: '2026-11-18', end: '2026-11-20' },
+    });
+    const byPath = await run({
+      filePath: 'samples/data/820-packed-good.txt',
+      copybookPath: 'samples/copybooks/820-packed.cpy',
+      format: 'fixed',
+      window: { start: '2026-11-18', end: '2026-11-20' },
+    });
+    expect(view.status).toBe('PASS');
+    expect(view.files.payment.fileHash).toBe(byPath.files.payment.fileHash);
+    expect(view.fingerprint).toBe(byPath.fingerprint);
+    expect(view.issues).toEqual([]);
+  });
+
   it('refuses a path outside samples/ instead of reading it', async () => {
     const response = await fetch(`${web.url()}/api/run`, {
       method: 'POST',

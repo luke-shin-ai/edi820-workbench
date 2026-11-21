@@ -8,7 +8,15 @@
  * narrate what L2 actually proved.
  */
 import type { Copybook } from '../copybook/types.js';
-import { CURRENCY_EXPONENTS, sha256, type Amount, type ParseResult, type TypedRecord } from '../parser/parser.js';
+import {
+  CURRENCY_EXPONENTS,
+  sha256,
+  type Amount,
+  type IssueCode,
+  type ParseIssue,
+  type ParseResult,
+  type TypedRecord,
+} from '../parser/parser.js';
 
 export type FindingCode =
   | 'CONTROL_TOTAL_MISMATCH'
@@ -57,10 +65,41 @@ export interface ReconcileSummary {
   bankDetails: number;
   referencesMatched: number;
   referencesUnmatched: number;
-  totals: Record<string, { declared: string; computed: string; delta: string }>;
+  totals: Record<
+    string,
+    { declared: string; computed: string; delta: string; basis?: string; credits?: string; debits?: string }
+  >;
+  /** Parse issues that stop a verdict from being PASS even when no finding fired. */
+  blockingParseIssues: number;
+  parseIssues: { payment: number; bank: number };
 }
 
-export type VerdictStatus = 'PASS' | 'FAIL';
+/**
+ * PASS · INCOMPLETE · FAIL.
+ *
+ * `INCOMPLETE` exists because a parse issue is not a reconciliation finding: a
+ * record that is one byte short, or a BAI2 file whose own trailer total does not
+ * add up, means the file was **not typed faithfully**. Returning PASS there was a
+ * real defect (found 2026-11-21): the tool reported a verdict it had not earned.
+ */
+export type VerdictStatus = 'PASS' | 'INCOMPLETE' | 'FAIL';
+
+/**
+ * Codes that do **not** block a verdict.
+ *
+ * `SPEC_MISSING` only says a comparison could not be made (no declared total, no
+ * mapped field). Every other issue means some bytes were not interpreted as the
+ * spec says, so the file cannot earn a PASS.
+ */
+export const NON_BLOCKING_PARSE_ISSUES: ReadonlySet<IssueCode> = new Set<IssueCode>(['SPEC_MISSING']);
+
+export function isBlockingIssue(issue: ParseIssue): boolean {
+  return !NON_BLOCKING_PARSE_ISSUES.has(issue.code);
+}
+
+export function blockingIssuesOf(result: ParseResult): ParseIssue[] {
+  return result.issues.filter(isBlockingIssue);
+}
 
 export interface ReconcileResult {
   status: VerdictStatus;
@@ -131,6 +170,16 @@ function controlFindings(result: ParseResult, label: string): Finding[] {
     const computedMinor = bucket?.minorUnits ?? 0n;
     const delta = computedMinor - declared.minorUnits;
     if (delta !== 0n) {
+      // Name the composition. A BAI2 `03` code `100` declares *total credits*, while the
+      // detail records it is compared against net credits against debits: without this
+      // line a bank fee and a missing credit arrive as one anonymous number.
+      const credits = bucketKey ? computedControl.creditTotalsByCurrency?.[bucketKey] : undefined;
+      const debits = bucketKey ? computedControl.debitTotalsByCurrency?.[bucketKey] : undefined;
+      const composition =
+        credits || debits
+          ? ` (credits ${formatAmount({ minorUnits: credits?.minorUnits ?? 0n, currency: declared.currency || (bucketKey ?? ''), scale: declared.scale })}` +
+            ` minus debits ${formatAmount({ minorUnits: debits?.minorUnits ?? 0n, currency: declared.currency || (bucketKey ?? ''), scale: declared.scale })})`
+          : '';
       findings.push({
         code: 'CONTROL_TOTAL_MISMATCH',
         recordIndex: declaredControl.recordIndex,
@@ -138,7 +187,7 @@ function controlFindings(result: ParseResult, label: string): Finding[] {
         declared,
         computed: { minorUnits: computedMinor, currency: declared.currency || (bucketKey ?? ''), scale: declared.scale },
         delta: { minorUnits: delta, currency: declared.currency || (bucketKey ?? ''), scale: declared.scale },
-        detail: `${label} control total declares ${formatAmount(declared)} but the detail records sum to ${formatAmount({ ...declared, minorUnits: computedMinor })} (delta ${formatAmount({ ...declared, minorUnits: delta })})`,
+        detail: `${label} control total declares ${formatAmount(declared)} but the detail records net to ${formatAmount({ ...declared, minorUnits: computedMinor })}${composition} (delta ${formatAmount({ ...declared, minorUnits: delta })})`,
       });
     }
   }
@@ -329,12 +378,39 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
   if (declaredTotal) {
     const currency = declaredTotal.currency || Object.keys(paymentTotals)[0] || '';
     const computed = paymentTotals[currency]?.minorUnits ?? 0n;
+    const credits = input.payment.computedControl.creditTotalsByCurrency?.[currency];
+    const debits = input.payment.computedControl.debitTotalsByCurrency?.[currency];
     totals[currency] = {
       declared: declaredTotal.minorUnits.toString(),
       computed: computed.toString(),
       delta: (computed - declaredTotal.minorUnits).toString(),
+      basis: 'signed detail total',
+      ...(credits ? { credits: credits.minorUnits.toString() } : {}),
+      ...(debits ? { debits: debits.minorUnits.toString() } : {}),
     };
   }
+  // The bank side is shown in its own row when it declares a comparable total, so a
+  // reviewer can see that a *credits* declaration was compared against a net figure
+  // carrying debits. This is the S6 case: a missing 79,000.00 credit plus a 25.00 fee.
+  const bankDeclared = input.bank?.declaredControl?.total;
+  if (input.bank && bankDeclared) {
+    const currency = bankDeclared.currency || Object.keys(input.bank.computedControl.totalsByCurrency)[0] || '';
+    const bankTotals = input.bank.computedControl.totalsByCurrency[currency];
+    const bankCredits = input.bank.computedControl.creditTotalsByCurrency?.[currency];
+    const bankDebits = input.bank.computedControl.debitTotalsByCurrency?.[currency];
+    totals[`${currency} (bank ${input.bank.copybook.format === 'bai2' ? '03/100 credits' : 'trailer'})`] = {
+      declared: bankDeclared.minorUnits.toString(),
+      computed: (bankTotals?.minorUnits ?? 0n).toString(),
+      delta: ((bankTotals?.minorUnits ?? 0n) - bankDeclared.minorUnits).toString(),
+      basis: 'credits minus debits (net)',
+      ...(bankCredits ? { credits: bankCredits.minorUnits.toString() } : {}),
+      ...(bankDebits ? { debits: bankDebits.minorUnits.toString() } : {}),
+    };
+  }
+
+  const paymentBlocking = blockingIssuesOf(input.payment);
+  const bankBlocking = input.bank ? blockingIssuesOf(input.bank) : [];
+  const blocking = [...paymentBlocking, ...bankBlocking];
 
   const referencesMatchedTotal = referencesMatched;
   const summary: ReconcileSummary = {
@@ -345,9 +421,14 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
     referencesMatched: referencesMatchedTotal,
     referencesUnmatched: sorted.filter((f) => f.code === 'REF_UNMATCHED').length,
     totals,
+    blockingParseIssues: blocking.length,
+    parseIssues: { payment: input.payment.issues.length, bank: input.bank?.issues.length ?? 0 },
   };
 
-  const status: VerdictStatus = sorted.length === 0 ? 'PASS' : 'FAIL';
+  // A parse issue that leaves bytes uninterpreted cannot earn a PASS (defect found
+  // 2026-11-21: a 99-byte record produced `verdict: PASS findings: 0`).
+  const status: VerdictStatus =
+    sorted.length > 0 ? 'FAIL' : blocking.length > 0 ? 'INCOMPLETE' : 'PASS';
   const fingerprint = sha256(
     [
       `payment:${input.payment.fileHash}`,
@@ -357,6 +438,7 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
       `window:${input.options?.settlementWindow ? `${input.options.settlementWindow.start}..${input.options.settlementWindow.end}` : '-'}`,
       `tolerance:${toleranceDays}`,
       `status:${status}`,
+      `blocking:${blocking.map((issue) => `${issue.code}@${issue.recordIndex ?? '-'}:${issue.field ?? '-'}`).join(',')}`,
       `findings:${sorted.map(normaliseFinding).join(';')}`,
     ].join('|'),
   );

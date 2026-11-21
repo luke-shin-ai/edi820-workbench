@@ -58,7 +58,9 @@ Usage:
   820 verify    <report.json|dir> [--json]
 
 BAI2 files need no copybook: pass --format bai2 (payment) or --bank-format bai2.
-Exit codes: 0 pass, 2 findings/verification difference, 3 spec or I/O error.
+Exit codes: 0 pass, 2 findings / incomplete parse / verification difference, 3 spec or I/O error.
+Verdicts: PASS (every check agreed), INCOMPLETE (a parse issue left bytes uninterpreted,
+so no PASS is earned), FAIL (findings exist).
 `;
 
 interface ParsedArgs {
@@ -161,6 +163,9 @@ function printFinding(finding: JsonFinding, index: number): string[] {
 function printVerdict(report: Report, out: (line: string) => void): void {
   const verdict = report.verdict!;
   out(`verdict: ${verdict.status}   findings: ${verdict.findings.length}   fingerprint: ${verdict.fingerprint}`);
+  if (verdict.status === 'INCOMPLETE') {
+    out(`  INCOMPLETE: ${verdict.summary.blockingParseIssues} parse issue(s) left bytes uninterpreted, so this run does not earn a PASS`);
+  }
   out(
     `820 ${report.files.payment.details}/${report.files.payment.records} records (${report.files.payment.format})` +
       (report.files.bank ? `   bank ${report.files.bank.details}/${report.files.bank.records} records (${report.files.bank.format})` : '') +

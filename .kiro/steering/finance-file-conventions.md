@@ -12,7 +12,13 @@ fileMatchPattern: ["src/copybook/**", "src/parser/**", "src/reconcile/**", "samp
 
 ## Control totals in 820/823/BAI2
 - `CTR` / trailer records declare counts and sums. **Compare count and sum separately**; a matching sum with a wrong count is still a failure.
-- BAI2 `03` file trailer holds `Total records` and `Closing balance`; `49`/`98` hold group/account balances.
+- BAI2 record codes are not interchangeable: `03` is the **account identifier and summary**
+  (the only place a `100` *total credits* declaration lives), `49` is the **account trailer**,
+  `98` the **group trailer**, and `99` the **file trailer** holding the file control total,
+  the number of groups and the number of records. `49`/`98`/`99` are trailers, `03` is not.
+- BAI2 `03`/`100` is a **gross credits** declaration. Compare it against a figure whose
+  credit and debit parts are both named; never fold a debit (a bank fee) into the same
+  delta without saying so (`docs/bai2.md` §4).
 
 ## References and matching
 - 820: `TRN*1*<trace>` (interchange trace), `RMR*<ref>*<amount>` (remittance detail).

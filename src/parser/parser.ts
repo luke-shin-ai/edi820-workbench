@@ -87,7 +87,16 @@ export interface ControlSummary {
   recordCount: number;
   /** Records that are not control trailers. */
   detailCount: number;
+  /** Signed sum per currency: credits positive, debits negative. */
   totalsByCurrency: Record<string, CurrencyTotal>;
+  /**
+   * Gross credit total per currency (magnitudes only). A BAI2 `03` code `100`
+   * declares *total credits*, so a comparison must not silently mix it with
+   * debits; the reconciler prints this split next to the net delta.
+   */
+  creditTotalsByCurrency?: Record<string, CurrencyTotal>;
+  /** Gross debit total per currency, as positive magnitudes. */
+  debitTotalsByCurrency?: Record<string, CurrencyTotal>;
 }
 
 export interface ParseResult {
@@ -300,6 +309,8 @@ export function parseFile(input: ParseInput): ParseResult {
   }
 
   const totalsByCurrency: Record<string, CurrencyTotal> = {};
+  const creditTotalsByCurrency: Record<string, CurrencyTotal> = {};
+  const debitTotalsByCurrency: Record<string, CurrencyTotal> = {};
   let detailCount = 0;
   for (const record of records) {
     if (record.isTrailer) continue;
@@ -310,6 +321,11 @@ export function parseFile(input: ParseInput): ParseResult {
     const bucket = (totalsByCurrency[value.currency] ??= { minorUnits: 0n, scale: value.scale, records: 0 });
     bucket.minorUnits += value.minorUnits;
     bucket.records += 1;
+    const gross = value.minorUnits < 0n ? -value.minorUnits : value.minorUnits;
+    const target = value.minorUnits < 0n ? debitTotalsByCurrency : creditTotalsByCurrency;
+    const grossBucket = (target[value.currency] ??= { minorUnits: 0n, scale: value.scale, records: 0 });
+    grossBucket.minorUnits += gross;
+    grossBucket.records += 1;
   }
 
   const copybookHash = sha256(copybook.source);
@@ -334,7 +350,7 @@ export function parseFile(input: ParseInput): ParseResult {
     records,
     issues,
     ...(declaredControl ? { declaredControl } : {}),
-    computedControl: { recordCount: records.length, detailCount, totalsByCurrency },
+    computedControl: { recordCount: records.length, detailCount, totalsByCurrency, creditTotalsByCurrency, debitTotalsByCurrency },
     eol,
     trailingNewline,
     fileHash,

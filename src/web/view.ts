@@ -6,7 +6,7 @@
  * (right). Every string here is already a display string — the browser never does
  * arithmetic, and never divides a minor unit by 100.
  */
-import { formatAmount, type Finding } from '../reconcile/index.js';
+import { formatAmount, type Finding, type VerdictStatus } from '../reconcile/index.js';
 import type { ParseResult } from '../parser/index.js';
 import type { Explanation } from '../explain/index.js';
 import type { Guarantees } from '../core/guarantees.js';
@@ -68,13 +68,24 @@ export interface ViewFinding {
   explanation?: Explanation;
 }
 
+export interface ViewTotalsRow {
+  currency: string;
+  declared: string;
+  computed: string;
+  delta: string;
+  /** How the compared figure was formed (net of debits, gross credits, signed sum). */
+  basis?: string;
+  credits?: string;
+  debits?: string;
+}
+
 export interface ViewModel {
   generatedAt: string;
   files: { payment: FileSummary; bank?: FileSummary };
-  status: 'PASS' | 'FAIL';
+  status: VerdictStatus;
   fingerprint: string;
   summary: ReconcileResult['summary'];
-  totals: Array<{ currency: string; declared: string; computed: string; delta: string }>;
+  totals: ViewTotalsRow[];
   findings: ViewFinding[];
   records: ViewRecord[];
   issues: Array<{ side: 'payment' | 'bank'; code: string; recordIndex?: number; field?: string; detail: string }>;
@@ -205,11 +216,14 @@ export function buildViewModel(input: {
     ...(bank?.issues ?? []).map((issue) => ({ side: 'bank' as const, code: issue.code, ...(issue.recordIndex !== undefined ? { recordIndex: issue.recordIndex } : {}), ...(issue.field ? { field: issue.field } : {}), detail: issue.detail })),
   ];
 
-  const totals = Object.entries(result.summary.totals).map(([currency, value]) => ({
+  const totals: ViewTotalsRow[] = Object.entries(result.summary.totals).map(([currency, value]) => ({
     currency,
     declared: value.declared,
     computed: value.computed,
     delta: value.delta,
+    ...(value.basis ? { basis: value.basis } : {}),
+    ...(value.credits ? { credits: value.credits } : {}),
+    ...(value.debits ? { debits: value.debits } : {}),
   }));
 
   return {

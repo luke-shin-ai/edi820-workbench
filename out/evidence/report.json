@@ -1,0 +1,101 @@
+{
+  "tool": "820",
+  "version": "0.2.0",
+  "generatedAt": "2026-11-21T09:11:16.498Z",
+  "inputs": {
+    "payment": {
+      "path": "samples/data/820-good.txt",
+      "format": "fixed",
+      "copybookPath": "samples/copybooks/820.cpy"
+    },
+    "bank": {
+      "path": "samples/data/823-bank.txt",
+      "format": "fixed",
+      "copybookPath": "samples/copybooks/823.cpy"
+    },
+    "settlementWindow": {
+      "start": "2026-11-18",
+      "end": "2026-11-20"
+    }
+  },
+  "files": {
+    "payment": {
+      "role": "payment",
+      "path": "samples/data/820-good.txt",
+      "format": "fixed",
+      "copybookPath": "samples/copybooks/820.cpy",
+      "recordLength": 100,
+      "records": 11,
+      "details": 10,
+      "fileHash": "f93e36ddb7b56635e7ebd2c2f93b3aa54c159aa9dbfe3aefb6d023a9c5e8fc18",
+      "copybookHash": "d8603047f6698bf2fdb77b0375588c4359e3c47dd640c940d90d5f5768c9c580",
+      "fingerprint": "e83e41c8467978c0f51b9f9407e03812e34b88c8e17055eabce28b09277516de",
+      "issues": []
+    },
+    "bank": {
+      "role": "bank",
+      "path": "samples/data/823-bank.txt",
+      "format": "fixed",
+      "copybookPath": "samples/copybooks/823.cpy",
+      "recordLength": 80,
+      "records": 11,
+      "details": 10,
+      "fileHash": "c68dda6b8c7f2998612024e5982c89a6dd5900b62f9a8faa8068822a76c6b6ad",
+      "copybookHash": "51ade8c27127a6dc02c8f023b823cc06a2e292c54ee4853245888da5315061eb",
+      "fingerprint": "102e6b850914b94bccaf61862294d3f388633bd7e2c31d472d708f1f362aed05",
+      "issues": []
+    }
+  },
+  "verdict": {
+    "status": "PASS",
+    "fingerprint": "c459b81b86ad3be3248f293de3f520a79483f8760157a1272e33150e944c178a",
+    "findings": [],
+    "summary": {
+      "paymentRecords": 11,
+      "paymentDetails": 10,
+      "bankRecords": 11,
+      "bankDetails": 10,
+      "referencesMatched": 10,
+      "referencesUnmatched": 0,
+      "totals": {
+        "USD": {
+          "declared": "128455000",
+          "computed": "128455000",
+          "delta": "0",
+          "basis": "signed detail total",
+          "credits": "128455000"
+        },
+        "USD (bank trailer)": {
+          "declared": "128455000",
+          "computed": "128455000",
+          "delta": "0",
+          "basis": "credits minus debits (net)",
+          "credits": "128455000"
+        }
+      },
+      "blockingParseIssues": 0,
+      "parseIssues": {
+        "payment": 0,
+        "bank": 0
+      }
+    },
+    "paymentFileHash": "f93e36ddb7b56635e7ebd2c2f93b3aa54c159aa9dbfe3aefb6d023a9c5e8fc18",
+    "bankFileHash": "c68dda6b8c7f2998612024e5982c89a6dd5900b62f9a8faa8068822a76c6b6ad"
+  },
+  "guarantees": {
+    "guaranteed": [
+      "Format interpretation — each field is sliced exactly at the copybook's byte position and length; no trimming, no re-synchronisation.",
+      "Arithmetic — amounts are `bigint` minor units with an ISO-4217 currency; totals and deltas are exact, and never computed in floating point.",
+      "Reference reconciliation — every 820 reference either matches a bank record or appears in the report as `REF_UNMATCHED`; nothing is dropped silently.",
+      "Reproducibility — running `verify` on an output directory re-derives the verdict and compares a SHA-256 fingerprint. Same inputs ⇒ same verdict, or the differing field path is printed.",
+      "Explanation grounding — an agent explanation may cite only numbers present in the finding it explains; unsupported explanations are replaced with `INSUFFICIENT_EVIDENCE`."
+    ],
+    "notGuaranteed": [
+      "Legal or accounting adequacy of a payment or its remittance advice.",
+      "Whether an exception is acceptable — a human must attach a reason, an expiry date, and a compensating control. The tool only refuses to let an exception exist without them.",
+      "Coverage of unmodelled formats — copybooks using `REDEFINES`, `COMP-3` variants not declared, or bank dialects without a copybook are reported as `UNSUPPORTED_STRUCTURE` / `SPEC_MISSING`, never guessed.",
+      "Source data authenticity — the tool verifies internal consistency, not whether the bank sent the right file."
+    ],
+    "sourcePath": "/workspace/hackathons/kiroween-2026/docs/guarantees.md"
+  }
+}

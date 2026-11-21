@@ -113,6 +113,11 @@ export function parseBai2(source: Buffer | string, options: Bai2ParseOptions = {
   const issues: ParseIssue[] = [];
   const records: TypedRecord[] = [];
   const totalsByCurrency: Record<string, CurrencyTotal> = {};
+  // Gross splits. The `03` code `100` is a *total credits* declaration, so the
+  // comparison against it has to be able to say which part is credits and which
+  // is a debit (a bank fee, for example) instead of folding the two together.
+  const creditTotalsByCurrency: Record<string, CurrencyTotal> = {};
+  const debitTotalsByCurrency: Record<string, CurrencyTotal> = {};
 
   let group: GroupState | null = null;
   let account: AccountState | null = null;
@@ -221,6 +226,10 @@ export function parseBai2(source: Buffer | string, options: Bai2ParseOptions = {
           const bucket = (totalsByCurrency[currency] ??= { minorUnits: 0n, scale, records: 0 });
           bucket.minorUnits += signed;
           bucket.records += 1;
+          const grossTarget = signed < 0n ? debitTotalsByCurrency : creditTotalsByCurrency;
+          const grossBucket = (grossTarget[currency] ??= { minorUnits: 0n, scale, records: 0 });
+          grossBucket.minorUnits += signed < 0n ? -signed : signed;
+          grossBucket.records += 1;
         } catch (error) {
           pushIssue('FIELD_INVALID_NUMERIC', `16 amount is not a BAI2 amount: ${(error as Error).message}`, { field: 'AMOUNT' });
         }
@@ -405,7 +414,7 @@ export function parseBai2(source: Buffer | string, options: Bai2ParseOptions = {
     records,
     issues,
     ...(declaredControl ? { declaredControl } : {}),
-    computedControl: { recordCount: records.length, detailCount, totalsByCurrency },
+    computedControl: { recordCount: records.length, detailCount, totalsByCurrency, creditTotalsByCurrency, debitTotalsByCurrency },
     eol: lines.length === 0 ? null : eol,
     trailingNewline,
     fileHash,

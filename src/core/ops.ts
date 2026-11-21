@@ -6,7 +6,7 @@
  * implementation. Nothing here prints, renders or decides an exit code.
  */
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compileCopybook } from '../copybook/index.js';
 import { CopybookError, type Copybook } from '../copybook/types.js';
@@ -86,7 +86,7 @@ export interface JsonFinding {
 }
 
 export interface Verdict {
-  status: 'PASS' | 'FAIL';
+  status: 'PASS' | 'INCOMPLETE' | 'FAIL';
   fingerprint: string;
   findings: JsonFinding[];
   summary: ReconcileResult['summary'];
@@ -98,11 +98,76 @@ export interface Report {
   tool: string;
   version: string;
   generatedAt: string;
+  /**
+   * Paths are recorded **relative to the repository root** when the file is inside
+   * it, and absolute otherwise. That is what lets `verify` re-derive the report
+   * from any working directory (defect of 2026-11-21: `verify` from another cwd
+   * failed with `ENOENT samples/copybooks/820.cpy`).
+   */
   inputs: CaseInputs;
   files: { payment: FileSummary; bank?: FileSummary };
   verdict?: Verdict;
   explanations?: Explanation[];
   guarantees: Guarantees;
+}
+
+function repoRelative(path: string): string {
+  const root = repoRoot();
+  const absolute = resolve(process.cwd(), path);
+  const rel = relative(root, absolute);
+  if (rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)) return rel.split(sep).join('/');
+  return absolute;
+}
+
+function normaliseFileInput<T extends FileInput>(input: T): T {
+  return {
+    ...input,
+    path: repoRelative(input.path),
+    ...(input.copybookPath ? { copybookPath: repoRelative(input.copybookPath) } : {}),
+  };
+}
+
+/** The inputs as they are recorded in `report.json`. */
+export function recordableInputs(inputs: CaseInputs): CaseInputs {
+  return {
+    ...inputs,
+    payment: normaliseFileInput(inputs.payment),
+    ...(inputs.bank ? { bank: normaliseFileInput(inputs.bank) } : {}),
+  };
+}
+
+function exists(path: string): boolean {
+  return statSyncSafe(path) !== null;
+}
+
+/**
+ * Turn the paths recorded in a report back into paths that can be read now.
+ *
+ * A recorded relative path is tried against the repository root first (the
+ * report's own contract), then against the current directory, then against each
+ * parent of the report itself — so a report that was copied into another checkout
+ * still verifies by its own inputs rather than by where the shell happens to be.
+ */
+export function resolveRecordedInputs(inputs: CaseInputs, reportPath: string): CaseInputs {
+  const candidates = (path: string): string[] => {
+    if (isAbsolute(path)) return exists(path) ? [path] : [path];
+    const list = [resolve(repoRoot(), path), resolve(process.cwd(), path)];
+    let dir = dirname(resolve(process.cwd(), reportPath));
+    for (let depth = 0; depth < 8; depth += 1) {
+      list.push(resolve(dir, path));
+      const parent = dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+    return list;
+  };
+  const pick = (path: string): string => candidates(path).find(exists) ?? candidates(path)[0]!;
+  const one = (input: FileInput): FileInput => ({
+    ...input,
+    path: pick(input.path),
+    ...(input.copybookPath ? { copybookPath: pick(input.copybookPath) } : {}),
+  });
+  return { ...inputs, payment: one(inputs.payment), ...(inputs.bank ? { bank: one(inputs.bank) } : {}) };
 }
 
 /** Convert a value to JSON-safe data: bigint → decimal string, buffers dropped. */
@@ -287,12 +352,21 @@ export function reconcileSources(
 export function buildReport(inputs: CaseInputs, options: { includeVerdict?: boolean } = {}): Report {
   const includeVerdict = options.includeVerdict ?? true;
   const { parsed, result } = reconcileCase(inputs);
+  // `inputs` and `files` record the same normalised paths, so a re-derivation from
+  // those recorded paths compares equal instead of tripping over `a/b` vs `/repo/a/b`.
+  const recorded = recordableInputs(inputs);
+  const files: Report['files'] = {
+    payment: { ...parsed.files.payment, path: recorded.payment.path, copybookPath: recorded.payment.copybookPath ?? null },
+    ...(parsed.files.bank && recorded.bank
+      ? { bank: { ...parsed.files.bank, path: recorded.bank.path, copybookPath: recorded.bank.copybookPath ?? null } }
+      : {}),
+  };
   const report: Report = {
     tool: TOOL_NAME,
     version: TOOL_VERSION,
     generatedAt: new Date().toISOString(),
-    inputs,
-    files: parsed.files,
+    inputs: recorded,
+    files,
     ...(includeVerdict ? { verdict: verdictOf(result) } : {}),
     guarantees: loadGuarantees(),
   };
@@ -433,7 +507,9 @@ export function verifyReport(pathOrDir: string): VerifyOutcome {
   const { report, path } = loadReport(pathOrDir);
   const before = statSync(path);
   const bytesBefore = readFileSync(path);
-  const recomputed = buildReport(report.inputs);
+  // Recorded paths may be repository-relative; resolve them before re-deriving so
+  // `verify` gives the same answer from any working directory.
+  const recomputed = buildReport(resolveRecordedInputs(report.inputs, path));
   const bytesAfter = readFileSync(path);
   const after = statSync(path);
 

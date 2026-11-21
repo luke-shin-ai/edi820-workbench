@@ -168,7 +168,7 @@ export function renderPage(): string {
     </div>
 
     <h3>Drop your own files</h3>
-    <div class="drop" id="dropFile"><strong>Drop a payment file</strong>text is read in the browser · never written</div>
+    <div class="drop" id="dropFile"><strong>Drop a payment file</strong>bytes are read in the browser · never written</div>
     <div class="drop" id="dropCopybook"><strong>Drop its copybook</strong>fixed-width only</div>
     <div class="small muted" id="dropped" style="margin-top:6px"></div>
 
@@ -300,12 +300,14 @@ export function renderPage(): string {
 
   function droppedRequest() {
     var body = {
-      fileText: state.droppedFile.text,
+      fileBase64: bytesToBase64(state.droppedFile.bytes),
       fileName: state.droppedFile.name,
       format: el('selBankFormat').value === 'bai2' && state.droppedFile.name.indexOf('bai2') >= 0 ? 'bai2' : 'fixed'
     };
-    if (state.droppedCopybook) body.copybookText = state.droppedCopybook.text;
-    else body.copybookPath = el('selCopybook').value || 'samples/copybooks/820.cpy';
+    if (state.droppedCopybook) {
+      body.copybookBase64 = bytesToBase64(state.droppedCopybook.bytes);
+      body.copybookName = state.droppedCopybook.name;
+    } else body.copybookPath = el('selCopybook').value || 'samples/copybooks/820.cpy';
     return body;
   }
 
@@ -438,9 +440,10 @@ export function renderPage(): string {
     el('fp').textContent = 'fingerprint ' + view.fingerprint.slice(0, 16) + '…';
     var status = el('status');
     status.textContent = view.status;
-    status.className = 'chip ' + (view.status === 'PASS' ? 'pass' : 'fail');
+    status.className = 'chip ' + (view.status === 'PASS' ? 'pass' : view.status === 'INCOMPLETE' ? 'warn' : 'fail');
     el('verdictMeta').textContent = view.files.payment.details + ' details · ' + view.files.payment.format +
       (view.files.bank ? ' + bank ' + view.files.bank.details + ' details (' + view.files.bank.format + ')' : '') +
+      (view.summary.blockingParseIssues ? ' · ' + view.summary.blockingParseIssues + ' blocking parse issue(s)' : '') +
       ' · ' + view.files.payment.path;
     el('cDet').textContent = view.files.payment.details;
     el('cFind').textContent = view.findings.length;
@@ -450,7 +453,9 @@ export function renderPage(): string {
     var totalsBody = '';
     for (var i = 0; i < view.totals.length; i++) {
       var t = view.totals[i];
-      totalsBody += '<tr><td>' + esc(t.currency) + '</td><td>' + esc(t.declared) + '</td><td>' + esc(t.computed) +
+      var basis = t.basis ? '<div class="small muted">' + esc(t.basis) +
+        (t.credits || t.debits ? ' · credits ' + esc(t.credits || '0') + ' / debits ' + esc(t.debits || '0') : '') + '</div>' : '';
+      totalsBody += '<tr><td>' + esc(t.currency) + basis + '</td><td>' + esc(t.declared) + '</td><td>' + esc(t.computed) +
         '</td><td class="' + (t.delta.charAt(0) === '-' ? 'neg' : '') + '">' + esc(t.delta) + '</td></tr>';
     }
     el('totals').querySelector('tbody').innerHTML = totalsBody || '<tr><td colspan="4" class="muted">no declared total</td></tr>';
@@ -522,6 +527,26 @@ export function renderPage(): string {
     runWith({ filePath: 'samples/data/820-bad.txt', copybookPath: 'samples/copybooks/820.cpy', format: 'fixed', bankPath: 'samples/data/823-bank.txt', bankCopybookPath: 'samples/copybooks/823.cpy', bankFormat: 'fixed', window: { start: '2026-11-18', end: '2026-11-20' } });
   });
 
+  function bytesToBase64(bytes) {
+    var binary = '';
+    var chunk = 0x8000;
+    for (var i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+
+  function readFileBytes(file) {
+    return file.arrayBuffer().then(function (buffer) {
+      return { name: file.name, bytes: new Uint8Array(buffer) };
+    });
+  }
+
+  function describeDropped() {
+    el('dropped').textContent = (state.droppedFile ? 'file: ' + state.droppedFile.name + ' · ' + state.droppedFile.bytes.length + ' bytes' : '') +
+      (state.droppedCopybook ? ' · copybook: ' + state.droppedCopybook.name : '');
+  }
+
   function wireDrop(zone, key, accept) {
     var node = el(zone);
     node.addEventListener('dragover', function (e) { e.preventDefault(); node.classList.add('over'); });
@@ -531,10 +556,7 @@ export function renderPage(): string {
       node.classList.remove('over');
       var file = e.dataTransfer.files[0];
       if (!file) return;
-      file.text().then(function (text) {
-        state[key] = { name: file.name, text: text };
-        el('dropped').textContent = (state.droppedFile ? 'file: ' + state.droppedFile.name : '') + (state.droppedCopybook ? ' · copybook: ' + state.droppedCopybook.name : '');
-      });
+      readFileBytes(file).then(function (read) { state[key] = read; describeDropped(); });
     });
     node.addEventListener('click', function () {
       var input = document.createElement('input');
@@ -543,10 +565,7 @@ export function renderPage(): string {
       input.onchange = function () {
         var file = input.files[0];
         if (!file) return;
-        file.text().then(function (text) {
-          state[key] = { name: file.name, text: text };
-          el('dropped').textContent = (state.droppedFile ? 'file: ' + state.droppedFile.name : '') + (state.droppedCopybook ? ' · copybook: ' + state.droppedCopybook.name : '');
-        });
+        readFileBytes(file).then(function (read) { state[key] = read; describeDropped(); });
       };
       input.click();
     });

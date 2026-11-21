@@ -210,6 +210,8 @@ describe('finding order and fingerprint normalisation', () => {
       declared: '128455000',
       computed: '128445000',
       delta: '-10000',
+      basis: 'signed detail total',
+      credits: '128445000',
     });
   });
 });

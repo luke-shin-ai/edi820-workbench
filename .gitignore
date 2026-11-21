@@ -2,6 +2,11 @@ node_modules/
 dist/
 out/*
 !out/.gitkeep
+# The one committed report: the AgentStop hook re-derives it on any clone, so the
+# "same inputs, same verdict" claim has something to check out of the box.
+!out/evidence/
+out/evidence/*
+!out/evidence/report.json
 .DS_Store
 *.log
 
@@ -18,6 +23,13 @@ strategy.md
 procedure-status.md
 rules-and-specs.md
 credit-application-draft.md
+
+# External-LLM review packets, raw reviews and the Korean review summary:
+# they contain scoring strategy and would look like self-marketing inside the
+# public repository.
+reviews-820/
+gcp-hermes-grand-prize-review.md
+제출검토-한글요약.md
 
 # local scratch (tool runs, temporary reports)
 .tmp/
