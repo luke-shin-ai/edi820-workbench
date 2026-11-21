@@ -1,0 +1,37 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "parser-tests-on-save",
+      "description": "Run unit + property tests whenever the parser, copybook compiler, reconciler or a sample copybook changes. Keeps the deterministic core honest while the agent edits.",
+      "trigger": "PostFileSave",
+      "matcher": "\\.(ts|mjs)$|copybooks/.*\\.cpy$",
+      "action": {
+        "type": "command",
+        "command": "npx vitest run test/unit test/pbt --reporter=dot 2>&1 | tail -20",
+        "timeout": 300
+      }
+    },
+    {
+      "name": "verify-after-agent-stop",
+      "description": "Re-derive the verdict of the last output directory and compare fingerprints; reports drift instead of trusting the previous run's claim.",
+      "trigger": "AgentStop",
+      "matcher": ".*",
+      "action": {
+        "type": "command",
+        "command": "npx tsx src/cli/index.ts verify out/ || echo 'verify: no output dir yet (expected before T5.1)'",
+        "timeout": 120
+      }
+    },
+    {
+      "name": "append-evidence-on-task",
+      "description": "Append one line to EVIDENCE.md when a spec task completes, so the build record is produced by the workflow rather than written up afterwards.",
+      "trigger": "PostTaskExecution",
+      "action": {
+        "type": "command",
+        "command": "node scripts/append-evidence.mjs",
+        "timeout": 30
+      }
+    }
+  ]
+}
