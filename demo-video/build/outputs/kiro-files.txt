@@ -1,0 +1,13 @@
+$ git ls-files .kiro
+.kiro/agents/reviewer.json
+.kiro/hooks/parser-guardrails.json
+.kiro/specs/edi820-importer/design.md
+.kiro/specs/edi820-importer/requirements.md
+.kiro/specs/edi820-importer/tasks.md
+.kiro/steering/conventions.md
+.kiro/steering/finance-file-conventions.md
+.kiro/steering/product.md
+.kiro/steering/structure.md
+.kiro/steering/tech.md
+
+$ ls -R .kiro | head

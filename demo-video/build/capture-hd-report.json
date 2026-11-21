@@ -1,0 +1,47 @@
+{
+  "pass": {
+    "status": "PASS",
+    "fp": "fingerprint b373f3a5a9f372f0…",
+    "matched": "10",
+    "find": "0",
+    "total": "CURRENCY\tDECLARED\tSUMMED\tDELTA\nUSD\t128455000\t128455000\t0"
+  },
+  "fail": {
+    "status": "FAIL",
+    "fp": "fingerprint a69a9c1d132ae435…",
+    "count": 4,
+    "codes": [
+      "CONTROL_TOTAL_MISMATCH",
+      "DATE_OUT_OF_WINDOW",
+      "REF_UNMATCHED",
+      "REF_UNMATCHED"
+    ],
+    "row0": {
+      "note": "AMOUNT S9(11)V99 at bytes 24–36 of record 10 (1-based) · payment file",
+      "hl": "000012845500{"
+    },
+    "row1": {
+      "note": "VALUE-DATE 9(8) at bytes 40–47 of record 2 (1-based) · payment file",
+      "hl": "20261114"
+    },
+    "row3": {
+      "note": "REFERENCE X(15) at bytes 48–62 of record 9 (1-based) · payment file",
+      "hl": "NWP-2611-0011··"
+    }
+  },
+  "packed": {
+    "status": "PASS",
+    "fp": "fingerprint f8f832190673302e…",
+    "total": "CURRENCY\tDECLARED\tSUMMED\tDELTA\nUSD\t128455000\t128455000\t0"
+  },
+  "bai2": {
+    "status": "FAIL",
+    "fp": "fingerprint a368eef71074bc1f…",
+    "codes": [
+      "CONTROL_TOTAL_MISMATCH",
+      "REF_UNMATCHED",
+      "REF_UNMATCHED"
+    ]
+  },
+  "pageErrors": []
+}

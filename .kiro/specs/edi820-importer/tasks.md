@@ -47,9 +47,13 @@
   - **Delivered:** `src/mcp/{server,main}.ts` — `parse_file`, `reconcile`, `explain_findings`, `verify` over newline-delimited JSON-RPC on stdio, each returning the same JSON the CLI writes. 9 tests including a real stdio session (`initialize` → `tools/list` → `tools/call parse_file`) and a `-32700` recovery.
 
 ## Phase 6 — Kiro evidence and submission
-- [ ] T6.1 `docs/copybook-to-spec.md`: the actual conversion story (what the spec filled in, what it got wrong, what steering changed).
-- [ ] T6.2 Write-up answering **all nine** Kiro questions (IDE/CLI/Web/Crew, custom agents, hooks, spec-driven, steering, MCP, PBT, powers) — including what did not help.
-- [ ] T6.3 `review.md`: self-scoring on the five 20% criteria with the submitted build.
-- [ ] T6.4 Demo video ≤ 3 min (English subtitles), YouTube public.
-- [ ] T6.5 Blog post + social post with `#KiroweenHackathon26` at the start.
-- [ ] T6.6 Final Devpost submission before **2026-12-04 23:00 KST** (8 hours of buffer).
+- [x] T6.1 `docs/copybook-to-spec.md`: the actual conversion story (what the spec filled in, what it got wrong, what steering changed).
+  - **Delivered:** rewritten around the compiler's own output (`demo-video/build/dump-copybook.mjs`): three byte contracts (100/88/80 bytes, AMOUNT at 24–36, 24–30, 25–38), the seven questions a copybook cannot answer and where each answer was written, the four Kiro questions answered (including "the IDE spec flow was not run"), and three things the conversion got wrong.
+- [x] T6.2 Write-up answering **all nine** Kiro questions (IDE/CLI/Web/Crew, custom agents, hooks, spec-driven, steering, MCP, PBT, powers) — including what did not help.
+  - **Delivered:** `devpost-submission-draft.md`. Eight official topics from the rules plus the vibe-coding comparison (the ninth asked-for question), each tied to a file; form fields filled; a closing list of five claims the submission does not make.
+- [x] T6.3 `review.md`: self-scoring on the five 20% criteria with the submitted build.
+  - **Delivered:** checklist status against rules §5, five scores averaging 8.0 (Impact 8.0, Implementation 7.0, Design 8.5, Innovation 8.0, Presentation 8.5), five repairs applied in the same pass (README video and judge path, empty/error captures, claim ledger, evidence table repaired), four residual risks, next actions by owner.
+- [x] T6.4 Demo video < 3 min (English subtitles), YouTube public.
+  - **Delivered:** `demo-video/820-demo-en.mp4` — 2:41.13, 1920×1080 30 fps, 17.14 MB, English narration + burned subtitles, `.srt` with 31 cues. **YouTube upload not done** (a public upload in the account holder's name).
+- [ ] T6.5 Blog post + social post with `#KiroweenHackathon26` at the start. Not attempted in this run: both are public posts under the account holder's name.
+- [ ] T6.6 Final Devpost submission before **2026-12-04 23:00 KST** (8 hours of buffer). The form text is ready in `devpost-submission-draft.md`; the entry itself is the account holder's act.

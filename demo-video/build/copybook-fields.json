@@ -1,0 +1,193 @@
+{
+  "820.cpy": {
+    "recordLength": 100,
+    "fields": [
+      {
+        "name": "REC-TYPE",
+        "start": 1,
+        "length": 1,
+        "type": "string"
+      },
+      {
+        "name": "ORIG-ID",
+        "start": 2,
+        "length": 10,
+        "type": "string"
+      },
+      {
+        "name": "RECEIVER-ID",
+        "start": 12,
+        "length": 10,
+        "type": "string"
+      },
+      {
+        "name": "TXN-TYPE",
+        "start": 22,
+        "length": 2,
+        "type": "string"
+      },
+      {
+        "name": "AMOUNT",
+        "start": 24,
+        "length": 13,
+        "type": "zoned-decimal",
+        "sign": "trailing-overpunch"
+      },
+      {
+        "name": "CURRENCY",
+        "start": 37,
+        "length": 3,
+        "type": "string"
+      },
+      {
+        "name": "VALUE-DATE",
+        "start": 40,
+        "length": 8,
+        "type": "unsigned-int"
+      },
+      {
+        "name": "REFERENCE",
+        "start": 48,
+        "length": 15,
+        "type": "string"
+      },
+      {
+        "name": "REC-COUNT",
+        "start": 63,
+        "length": 6,
+        "type": "unsigned-int"
+      },
+      {
+        "name": "FILLER",
+        "start": 69,
+        "length": 32,
+        "type": "filler"
+      }
+    ]
+  },
+  "820-packed.cpy": {
+    "recordLength": 88,
+    "fields": [
+      {
+        "name": "REC-TYPE",
+        "start": 1,
+        "length": 1,
+        "type": "string"
+      },
+      {
+        "name": "ORIG-ID",
+        "start": 2,
+        "length": 10,
+        "type": "string"
+      },
+      {
+        "name": "RECEIVER-ID",
+        "start": 12,
+        "length": 10,
+        "type": "string"
+      },
+      {
+        "name": "TXN-TYPE",
+        "start": 22,
+        "length": 2,
+        "type": "string"
+      },
+      {
+        "name": "AMOUNT",
+        "start": 24,
+        "length": 7,
+        "type": "packed-decimal"
+      },
+      {
+        "name": "CURRENCY",
+        "start": 31,
+        "length": 3,
+        "type": "string"
+      },
+      {
+        "name": "VALUE-DATE",
+        "start": 34,
+        "length": 8,
+        "type": "unsigned-int"
+      },
+      {
+        "name": "REFERENCE",
+        "start": 42,
+        "length": 15,
+        "type": "string"
+      },
+      {
+        "name": "REC-COUNT",
+        "start": 57,
+        "length": 6,
+        "type": "unsigned-int"
+      },
+      {
+        "name": "FILLER",
+        "start": 63,
+        "length": 26,
+        "type": "filler"
+      }
+    ]
+  },
+  "823.cpy": {
+    "recordLength": 80,
+    "fields": [
+      {
+        "name": "REC-TYPE",
+        "start": 1,
+        "length": 1,
+        "type": "string"
+      },
+      {
+        "name": "ORIG-ID",
+        "start": 2,
+        "length": 10,
+        "type": "string"
+      },
+      {
+        "name": "RECEIVER-ID",
+        "start": 12,
+        "length": 10,
+        "type": "string"
+      },
+      {
+        "name": "CURRENCY",
+        "start": 22,
+        "length": 3,
+        "type": "string"
+      },
+      {
+        "name": "AMOUNT",
+        "start": 25,
+        "length": 14,
+        "type": "signed-int",
+        "sign": "leading-separate"
+      },
+      {
+        "name": "VALUE-DATE",
+        "start": 39,
+        "length": 8,
+        "type": "unsigned-int"
+      },
+      {
+        "name": "BANK-REF",
+        "start": 47,
+        "length": 15,
+        "type": "string"
+      },
+      {
+        "name": "REC-COUNT",
+        "start": 62,
+        "length": 6,
+        "type": "unsigned-int"
+      },
+      {
+        "name": "FILLER",
+        "start": 68,
+        "length": 13,
+        "type": "filler"
+      }
+    ]
+  }
+}

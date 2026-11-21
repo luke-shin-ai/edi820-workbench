@@ -1,0 +1,13 @@
+$  npx vitest run
+ ✓ test/pbt/reconcile.pbt.test.ts (3 tests) 104ms
+ ✓ test/pbt/bai2.pbt.test.ts (3 tests) 98ms
+ ✓ test/pbt/explain.pbt.test.ts (5 tests) 153ms
+ ✓ test/regressions/overpunch-and-width.test.ts (6 tests) 4ms
+ ✓ test/pbt/amounts.pbt.test.ts (3 tests) 42ms
+ ✓ test/pbt/copybook.pbt.test.ts (3 tests) 63ms
+
+ Test Files  17 passed (17)
+      Tests  222 passed (222)
+   Start at  15:25:29
+   Duration  13.42s (transform 477ms, setup 0ms, collect 4.52s, tests 2.23s, environment 3ms, prepare 2.47s)
+

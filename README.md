@@ -2,7 +2,7 @@
 
 > Kiroween 2026 · **Resurrection** category · built with Kiro (spec-driven, steering, hooks, MCP, PBT)
 
-> **Build status (2026-11-21):** stages 1 and 2 are implemented and green — L1 (copybook compiler + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (grounded explainer)**, and all four surfaces (**CLI, web screen, MCP server, BAI2**). `npx tsc --noEmit` is clean and `npx vitest run` is **222 tests / 17 files** (194 unit, 22 property-based, 6 regression), up from 148 before T4/T5. Stage 3 (T6: write-up, video, blog, Devpost submission) is what remains.
+> **Build status (2026-11-21):** stages 1 to 3 are done except publishing. L1 (copybook compiler + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (grounded explainer)**, all four surfaces (**CLI, web screen, MCP server, BAI2**), the Kiro write-up, the self review and the **2:41 English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **222 tests / 17 files** (194 unit, 22 property-based, 6 regression). Publishing the repository, uploading the video and submitting the Devpost entry are the account holder's acts and remain open; see `review.md` §5.
 
 Corporate payment files never died. The people and tools that could read them did.
 
@@ -19,6 +19,13 @@ Corporate payment files never died. The people and tools that could read them di
 
 The verdict is **deterministic and re-verifiable** (`820 verify`); the model never decides whether numbers match, and by default it is not called at all.
 
+## Watch it
+
+`demo-video/820-demo-en.mp4` — 2 minutes 41 seconds, 1920x1080, English narration and burned-in
+subtitles, no music. It shows the raw file, the copybook, a PASS verdict, a file with four defects,
+the byte range behind each finding, `verify` re-deriving the same fingerprint, the guarantee
+boundary, and the `.kiro` tree. Script and shot list: `demo-video/build/README.md`.
+
 ## Run it
 
 ```bash
@@ -27,6 +34,22 @@ npm test                       # 222 tests: npx vitest run
 npx tsc --noEmit               # strict typecheck, 0 errors
 npm run demo:cli               # parse + reconcile six scenarios (820/823/fixed/COMP-3/BAI2), exit 0 if all PASS
 ```
+
+### Three minutes, one judge
+
+```bash
+npm install
+npx tsx src/cli/main.ts reconcile --copybook samples/copybooks/820.cpy \
+  --file samples/data/820-bad.txt --bank samples/data/823-bank.txt \
+  --bank-copybook samples/copybooks/823.cpy --window 2026-11-18..2026-11-20 --out out/judge
+# verdict: FAIL   findings: 4   fingerprint: a69a9c1d…   exit code 2
+npx tsx src/cli/main.ts verify out/judge
+# RESULT: identical — same inputs, same verdict   (report bytes and mtime unchanged)
+npm run web -- --port 8720     # then open http://127.0.0.1:8720/ and press "Sample FAIL"
+```
+
+No network, no credentials, no hosted service: the screen binds to `127.0.0.1` because payment files
+should not leave the machine they arrived on.
 
 ### CLI
 
@@ -57,6 +80,11 @@ npm run web -- --port 8720     # then open http://127.0.0.1:8720/
 ![PASS](docs/images/ui-pass.png)
 ![FAIL with a highlighted byte range](docs/images/ui-fail.png)
 
+Empty state and error state are real captures of the same screen, not mockups:
+
+![Empty state](docs/images/ui-empty.png)
+![Error state: an unreadable sample path is reported, not swallowed](docs/images/ui-error.png)
+
 Binds to `127.0.0.1` only; files never leave the machine and dropped files are parsed from the request body without being written anywhere.
 
 ### MCP server (4 tools)
@@ -86,6 +114,10 @@ BAI2 has no fixed width and no copybook. Rather than fake a layout for a comma-d
 - `.kiro/agents/reviewer.json` — adversarial cross-review agent
 - `EVIDENCE.md` — the append-only build log those hooks produced, including the defects the build found in itself (overpunch table off by one, implied decimals dropped when encoding, a blank reference silently dropped, BAI2 record counting, invalid HTML in the field legend)
 - `docs/copybook-to-spec.md` — how a legacy spec document became a Kiro spec (what it got right, what it got wrong)
+- `docs/kiro-cli-validation.md` — the Kiro CLI session, the agent validation, and the reviewer run that was confidently wrong
+- `review.md` — self scoring on the five criteria, with what a cold judge would still mark down
+- `devpost-submission-draft.md` — the submission text and the write-up, including the claims this
+  project does **not** make
 
 ## What this guarantees / does not guarantee
 See [`docs/guarantees.md`](docs/guarantees.md), which is parsed and printed by `820 verify` and shown in both strips of the web screen. Short version: it guarantees format interpretation, exact arithmetic, reference reconciliation, reproducibility and explanation grounding; it does **not** guarantee legal or accounting adequacy — that stays with a human, on purpose.

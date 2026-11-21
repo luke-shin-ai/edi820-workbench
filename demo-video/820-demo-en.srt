@@ -1,0 +1,124 @@
+1
+00:00:00,600 --> 00:00:02,882
+Corporate payment files still arrive like this.
+
+2
+00:00:02,962 --> 00:00:06,255
+One hundred bytes per record. No field names, no separators.
+
+3
+00:00:06,335 --> 00:00:12,328
+What each byte means lives in a COBOL copybook, and the people who could read it are retiring.
+
+4
+00:00:13,208 --> 00:00:14,616
+This is that copybook.
+
+5
+00:00:14,696 --> 00:00:19,080
+Amount: eleven digits, two implied decimals, sign folded into the last digit.
+
+6
+00:00:19,160 --> 00:00:25,032
+It defines bytes and widths. It says nothing about what must be true of the numbers.
+
+7
+00:00:25,912 --> 00:00:30,578
+820 reads the file through the copybook.
+
+8
+00:00:30,658 --> 00:00:37,358
+Ten payment details, one trailer. Declared 1,284,550.00, summed the same.
+
+9
+00:00:37,438 --> 00:00:42,104
+Ten references matched. Zero findings. Verdict: pass.
+
+10
+00:00:42,984 --> 00:00:45,966
+Now a file with defects. Four findings.
+
+11
+00:00:46,046 --> 00:00:51,654
+Control total short by 100.00. One record of 99 bytes instead of 100.
+
+12
+00:00:51,734 --> 00:00:56,904
+Two references with no bank counterpart. One value date outside the window.
+
+13
+00:00:56,984 --> 00:00:58,216
+Exit code two.
+
+14
+00:00:59,096 --> 00:01:04,006
+Select a finding and the screen shows the bytes behind it.
+
+15
+00:01:04,086 --> 00:01:10,358
+Record 2, value date, bytes 40 to 47: 2026, 11, 14. Outside the window.
+
+16
+00:01:10,438 --> 00:01:13,080
+The claim is checkable, not asserted.
+
+17
+00:01:13,960 --> 00:01:16,841
+The same screen says where the guarantee stops.
+
+18
+00:01:16,921 --> 00:01:19,803
+It does not judge legal or accounting adequacy.
+
+19
+00:01:19,883 --> 00:01:26,096
+No exception without a reason, an expiry date and a compensating control. That stays with a human.
+
+20
+00:01:26,976 --> 00:01:32,231
+Verify re-runs the deterministic layers from the recorded inputs.
+
+21
+00:01:32,311 --> 00:01:38,752
+Same fingerprint, same verdict, and the report file is not touched.
+
+22
+00:01:39,632 --> 00:01:45,529
+Property based tests hold the parser: any generated file comes back byte identical.
+
+23
+00:01:45,609 --> 00:01:54,264
+222 tests. They found real defects, including an overpunch table that mapped A to zero instead of plus one.
+
+24
+00:01:55,144 --> 00:02:02,444
+Three byte layouts share one reconciler. Trailing overpunch. Packed decimal with no line breaks.
+
+25
+00:02:02,524 --> 00:02:10,352
+And BAI2, a comma delimited bank statement with no copybook, read by its own reader.
+
+26
+00:02:11,232 --> 00:02:17,362
+Kiro is in the repository, not in the pitch. The spec in .kiro was the contract for every layer.
+
+27
+00:02:17,442 --> 00:02:21,938
+Steering files set the parsing rules. Hooks and a reviewer agent sit beside them.
+
+28
+00:02:22,018 --> 00:02:24,879
+With read tools the reviewer found two real defects.
+
+29
+00:02:24,959 --> 00:02:29,128
+Without them, it wrote a confident review of code it had never opened.
+
+30
+00:02:30,008 --> 00:02:37,875
+For a finance team this replaces retyping a payment file into a spreadsheet.
+
+31
+00:02:37,955 --> 00:02:40,320
+820. Resurrection. Apache 2.0.
+

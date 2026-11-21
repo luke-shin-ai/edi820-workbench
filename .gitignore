@@ -21,3 +21,18 @@ credit-application-draft.md
 
 # local scratch (tool runs, temporary reports)
 .tmp/
+
+# The video ships through the submission's YouTube link; the encoded file and the
+# render intermediates stay out of the repository (they are reproducible with
+# demo-video/build/README.md and are 100+ MB).
+demo-video/*.mp4
+demo-video/screenshots/
+demo-video/build/plates/
+demo-video/build/segs/
+demo-video/build/tts/
+demo-video/build/*.wav
+demo-video/build/*.ass
+demo-video/build/video_only.mp4
+
+# python caches from the video build scripts
+__pycache__/
