@@ -116,7 +116,7 @@ function controlFindings(result: ParseResult, label: string): Finding[] {
         field: copybook.control?.countField,
         declared,
         computed,
-        // Signed as "what the file actually contains minus what it declares" (CONCEPT.md §2-1).
+        // Signed as "what the file actually contains minus what it declares" (see design.md §10.5).
         delta: computed - declared,
         detail: `${label} control count declares ${declared} records but ${computed} detail records were read`,
       });

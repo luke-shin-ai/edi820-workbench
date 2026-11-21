@@ -4,7 +4,7 @@
 > (`scripts/append-evidence.mjs`). Until the hook fires inside a Kiro session, the same script is
 > invoked by hand with the same payload shape — the rows are identical either way.
 > Format: `YYYY-MM-DD HH:MM | task | command | result | commit`
-> Test counts are from `npx vitest run` (146 tests: 126 unit, 14 property, 6 regression).
+> Test counts are from `npx vitest run` (148 tests: 128 unit, 14 property, 6 regression).
 
 | when | task | command | result | commit |
 |---|---|---|---|---|
@@ -24,7 +24,7 @@
 | 2026-11-21 13:45 | T3.2 | `npx tsx scripts/demo-reconcile.mjs` | 820-bad vs 823-bank: `REF_UNMATCHED` ×2 — 820-only `NWP-2611-0011`, bank-only `NWP-2611-0010`; good pair 10/10 matched | fffd2db |
 | 2026-11-21 13:45 | T3.3 | `npx tsx scripts/demo-reconcile.mjs` | `DATE_OUT_OF_WINDOW` at record 2 (2026-11-14 vs window 2026-11-18..2026-11-20, tolerance 0d); tolerance 4d accepts it | fffd2db |
 | 2026-11-21 13:45 | T3.4 | `npx vitest run test/pbt/reconcile` + demo | 3 properties / 550 cases; two runs give identical fingerprints (S1 `b373f3a5…`, S3 `a69a9c1d…`) | 6ea5bba |
-| 2026-11-21 13:45 | Kiro-CLI | `kiro-cli whoami`, `agent list`, `agent validate --path .kiro/agents/reviewer.json`, `chat --agent reviewer --no-interactive --model qwen3-coder-next` | Builder ID `yotta0704@gmail.com`; `reviewer` discovered as a workspace agent; validate exit 0 (broken config exits 1); one smoke turn answered `READY` | 6dfa9aa |
+| 2026-11-21 13:45 | Kiro-CLI | `kiro-cli whoami`, `agent list`, `agent validate --path .kiro/agents/reviewer.json`, `chat --agent reviewer --no-interactive --model qwen3-coder-next` | Builder ID session on the account the credits were requested for (address redacted here; it is in the workspace's non-public `procedure-status.md`); `reviewer` discovered as a workspace agent; validate exit 0 (broken config exits 1); one smoke turn answered `READY` | 6df9aa |
 | 2026-11-21 13:45 | TYPE | `npx tsc --noEmit` | 0 errors (strict + noUncheckedIndexedAccess) | 6ea5bba |
 | 2026-11-21 13:58 | REVIEW-3 | `kiro-cli chat --agent reviewer --model claude-haiku-4.5 --trust-tools=read,grep,glob` | reviewer read `reconciler.ts` and `decode.ts` (tool log present); 1 real MINOR (matched-count derived from a detail string) | pending commit |
 | 2026-11-21 14:00 | FIX-REVIEW | `npx vitest run test/unit/reconcile` | blank reference now reported as `REF_UNMATCHED` instead of being skipped; matched count tracked explicitly; 148 tests pass, tsc clean | pending commit |

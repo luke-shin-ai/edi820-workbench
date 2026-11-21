@@ -2,7 +2,7 @@
 
 > Kiroween 2026 · **Resurrection** category · built with Kiro (spec-driven, steering, hooks, MCP, PBT)
 
-> **Build status (2026-11-21):** the deterministic core is implemented and green — L1 (copybook compiler + fixed-width parser) and L2 (reconciler) run against three synthetic layouts, with 146 tests passing (126 unit, 14 property-based, 6 regression) and byte-identical round-trip on all five fixtures. L3 (explainer), the CLI, the web screen and the MCP server are the next tasks (T4–T6); the `820 parse|reconcile|explain|verify` commands below are the CLI contract they will implement.
+> **Build status (2026-11-21):** the deterministic core is implemented and green — L1 (copybook compiler + fixed-width parser) and L2 (reconciler) run against three synthetic layouts, with 148 tests passing (128 unit, 14 property-based, 6 regression) and byte-identical round-trip on all five fixtures. L3 (explainer), the CLI, the web screen and the MCP server are the next tasks (T4–T6); the `820 parse|reconcile|explain|verify` commands below are the CLI contract they will implement.
 
 Corporate payment files never died. The people and tools that could read them did.
 

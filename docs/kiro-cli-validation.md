@@ -13,10 +13,12 @@ kiro-cli 3.5.0
 
 $ kiro-cli whoami
 Logged in with Builder ID
-Email: yotta0704@gmail.com
+Email: ya***@gmail.com        # redacted in this file; the exact address lives in the
+                             # workspace's non-public procedure-status.md
 ```
 
-The email matches the account the credits were requested for (§2/§4 of `procedure-status.md`).
+The email matches the account the credits were requested for. The address is redacted here because
+this repository is destined to be public and a personal mailbox does not need to be in it.
 Note for the write-up: the session is a **Builder ID** session, not an `app.kiro.dev` Google
 web session — both resolve to the same Kiro account email, and the CLI is the surface the
 submission needs (the web IDE requires Pro).
