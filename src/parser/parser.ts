@@ -26,6 +26,7 @@ export type IssueCode =
   | 'COPYBOOK_UNPARSABLE'
   | 'COPYBOOK_OVERLAP'
   | 'UNSUPPORTED_STRUCTURE'
+  | 'REDEFINES_VIEW_UNMATCHED'
   | 'SPEC_MISSING'
   | 'CURRENCY_SCALE_MISMATCH'
   | 'BAI2_STRUCTURE'
@@ -69,6 +70,11 @@ export interface TypedRecord {
   spans?: Record<string, { start: number; length: number }>;
   issues: ParseIssue[];
   isTrailer: boolean;
+  /**
+   * Active `REDEFINES` layout per region (region name → layout name), when the
+   * copybook declares views. Absent for a copybook without `REDEFINES`.
+   */
+  views?: Record<string, string>;
 }
 
 export interface ControlDeclaration {
@@ -196,6 +202,55 @@ export function parseFile(input: ParseInput): ParseResult {
 
   const dateFormat = copybook.semantics.dateFormat ?? 'CCYYMMDD';
 
+  /**
+   * Which layout of each `REDEFINES` region this record uses.
+   *
+   * The rule is the copybook's, not the parser's: each layout declares the
+   * discriminator field and value that select it (`* @view`). A record whose
+   * discriminator matches no layout is reported, and its shared bytes stay
+   * undecoded, so the run cannot earn a PASS on a guess.
+   */
+  const activeLayouts = (raw: string, index: number, issuesOut: ParseIssue[]): Record<string, string> => {
+    const active: Record<string, string> = {};
+    if (!copybook.views || copybook.views.length === 0) return active;
+    const regions = new Map<string, typeof copybook.views>();
+    for (const view of copybook.views) {
+      const list = regions.get(view.region);
+      if (list) list.push(view);
+      else regions.set(view.region, [view]);
+    }
+    for (const [regionName, layouts] of regions) {
+      const hits: string[] = [];
+      for (const layout of layouts) {
+        const discriminator = layout.typeField
+          ? copybook.fields.find((field) => field.name === layout.typeField)
+          : undefined;
+        if (!discriminator) continue;
+        const value = raw.slice(discriminator.start - 1, discriminator.start - 1 + discriminator.length).trim();
+        if ((layout.values ?? []).some((candidate) => candidate === value)) hits.push(layout.layout);
+      }
+      if (hits.length === 1) {
+        active[regionName] = hits[0]!;
+        continue;
+      }
+      const discriminatorName = layouts[0]?.typeField ?? '(none)';
+      const discriminator = copybook.fields.find((field) => field.name === discriminatorName);
+      const seen = discriminator ? raw.slice(discriminator.start - 1, discriminator.start - 1 + discriminator.length).trim() : '';
+      const declared = layouts.map((layout) => `${layout.layout}=${(layout.values ?? []).join('/')}`).join(', ');
+      issuesOut.push({
+        code: 'REDEFINES_VIEW_UNMATCHED',
+        recordIndex: index,
+        field: discriminatorName,
+        actual: seen,
+        detail:
+          hits.length === 0
+            ? `record ${index}: ${discriminatorName} reads ${JSON.stringify(seen)}, which selects no layout of the shared bytes ${regionName} (declared: ${declared})`
+            : `record ${index}: ${discriminatorName} reads ${JSON.stringify(seen)}, which selects more than one layout (${hits.join(', ')})`,
+      });
+    }
+    return active;
+  };
+
   rawRecords.forEach((raw, index) => {
     const recordIssues: ParseIssue[] = [];
     if (raw.length !== copybook.recordLength) {
@@ -211,8 +266,15 @@ export function parseFile(input: ParseInput): ParseResult {
 
     const values: Record<string, ParsedValue> = {};
     const slices: Record<string, string> = {};
+    const views = activeLayouts(raw, index, recordIssues);
 
     for (const field of copybook.fields) {
+      // A group has no bytes of its own; only the active layout's fields are read.
+      if (field.group) continue;
+      if (field.region !== undefined) {
+        const active = views[field.region];
+        if (active !== field.layout) continue;
+      }
       const slice = raw.slice(field.start - 1, field.start - 1 + field.length);
       slices[field.name] = slice;
       if (slice.length < field.length) {
@@ -239,7 +301,20 @@ export function parseFile(input: ParseInput): ParseResult {
     }
 
     // Attach the currency to the amount: minor units are meaningless without it.
-    const { amount: amountField, currency: currencyField, valueDate } = copybook.semantics;
+    // On a control trailer the declared total and its currency may live in the
+    // trailer's own `REDEFINES` layout, so `@control` names them when it does.
+    // `@control typeField` must sit outside any region (the compiler enforces it), so
+    // its slice is always present.
+    const isTrailerRecord = copybook.control
+      ? (slices[copybook.control.typeField] ?? '').trim() === copybook.control.trailerValue
+      : false;
+    const amountField = isTrailerRecord && copybook.control?.totalField
+      ? copybook.control.totalField
+      : copybook.semantics.amount;
+    const currencyField = isTrailerRecord && copybook.control?.currencyField
+      ? copybook.control.currencyField
+      : copybook.semantics.currency;
+    const valueDate = copybook.semantics.valueDate;
     if (amountField) {
       const raw = values[amountField];
       const currency = currencyField ? String(values[currencyField] ?? '').trim() : '';
@@ -277,12 +352,19 @@ export function parseFile(input: ParseInput): ParseResult {
       }
     }
 
-    const isTrailer = copybook.control
-      ? (slices[copybook.control.typeField] ?? '').trim() === copybook.control.trailerValue
-      : false;
+    const isTrailer = isTrailerRecord;
 
     issues.push(...recordIssues);
-    records.push({ index, raw, length: raw.length, values, slices, issues: recordIssues, isTrailer });
+    records.push({
+      index,
+      raw,
+      length: raw.length,
+      values,
+      slices,
+      issues: recordIssues,
+      isTrailer,
+      ...(Object.keys(views).length > 0 ? { views } : {}),
+    });
   });
 
   // Declared control values come from the trailer record, via the copybook spec.
@@ -339,6 +421,12 @@ export function parseFile(input: ParseInput): ParseResult {
       `recordLength:${copybook.recordLength}`,
       `records:${records.map((r) => sha256(r.raw)).join(',')}`,
       `issues:${issues.map((i) => `${i.code}@${i.recordIndex ?? '-'}:${i.field ?? '-'}`).join(',')}`,
+      // Only a copybook with `REDEFINES` contributes this component, so a fingerprint
+      // of a copybook without views is unchanged by the feature (regression: the six
+      // sample scenarios keep the fingerprints they had before).
+      ...(copybook.views && copybook.views.length > 0
+        ? [`views:${records.map((r) => (r.views ? Object.entries(r.views).map(([k, v]) => `${k}=${v}`).join('+') : '-')).join(',')}`]
+        : []),
       declaredControl
         ? `declared:${declaredControl.count?.toString() ?? '-'}/${declaredControl.total?.minorUnits.toString() ?? '-'}${declaredControl.total?.currency ?? ''}`
         : 'declared:-',

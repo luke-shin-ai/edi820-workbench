@@ -33,7 +33,7 @@ export interface Explanation {
   suggestedFix: string;
   /** Built here from the finding, never from model output. */
   citation: string;
-  /** Adapter that produced the draft (`mock`, `kiro-cli`, `openai-compatible`, `none`). */
+  /** Adapter that produced the draft (`grounded`, `kiro-cli`, `openai-compatible`, `none`). */
   adapter: string;
   /** Numeric literals in the accepted text, in order of appearance. */
   citedValues: string[];

@@ -1,8 +1,8 @@
 # Devpost submission draft: 「820」
 
 Working draft for the Devpost form and the Kiro write-up. Everything here is answerable from the
-repository. Nothing here claims a Kiro feature that was not executed and recorded; where a claim
-would be a stretch, the last section says so.
+repository. Nothing claims a Kiro feature that was not executed and recorded, and the closing
+section states the five boundaries this submission keeps on purpose.
 
 Form fields are marked **[form]**. The write-up answers are marked **[write-up]**.
 
@@ -38,8 +38,11 @@ a back office that cannot read it retypes the file into a spreadsheet.
 layers:
 
 1. **Parser.** Types every record at the copybook's byte offsets: trailing overpunch, leading
-   separate sign, COMP-3 packed decimal with no line breaks, implied decimals. Amounts are `bigint`
-   minor units with an ISO 4217 currency. No floating point anywhere.
+   separate sign, COMP-3 packed decimal with no line breaks, implied decimals. A copybook that
+   declares `REDEFINES` (the same hundred bytes are the payment in one layout and the trailer in
+   another) is read as a region: exactly the layout its discriminator selects, and an unmatched
+   record is reported instead of guessed. Amounts are `bigint` minor units with an ISO 4217
+   currency. No floating point anywhere.
 2. **Reconciler.** Compares control totals per currency, record counts, payment references and value
    dates against a settlement window, and emits coded findings with signed deltas.
 3. **Explainer.** An optional agent layer that narrates a finding, and is only allowed to cite
@@ -55,14 +58,15 @@ Three surfaces share one core: a CLI with exit codes 0/2/3, a web screen with th
 byte-offset evidence, and an MCP server with five tools. The web screen has two builds. One is
 served locally on `127.0.0.1`. The other is a static, client-side build in `docs/demo` that runs
 the same parser, reconciler, BAI2 reader, explainer and register compiled for the browser, so a
-judge can click through the six scenarios with no server at all.
+judge can click through the eight scenarios with no server at all, the two `REDEFINES` ones
+included.
 
 All sample data is synthetic, from a fictional company. No customer, bank or employer data is used.
 
 ## [form] Links
 
 - Repository: to be published (public GitHub, Apache-2.0, `.kiro/` at the root)
-- Video: `demo-video/820-demo-en.mp4`, 2 minutes 52 seconds, English narration and subtitles
+- Video: `demo-video/820-demo-en.mp4`, 2 minutes 58 seconds, English narration and subtitles
 - Working application: the static build in `docs/demo/index.html` ("Runs in this tab"). It is the
   same engine compiled for the browser, so nothing is uploaded and the verdict still comes from
   code. Publishing that folder on GitHub Pages or Cloudflare Pages is one deploy and is the
@@ -208,12 +212,15 @@ prints the same values, which is the point: the agent and the CLI are not two im
 
 ### 7. Property-based testing
 
-Seven property suites, 29 property tests, 284 tests in total.
+Seven property suites, 30 property tests, 300 tests in total.
 
 - **Round trip:** parse a generated fixed-width file, serialize it, and the bytes are identical,
   including CRLF, a missing final newline, and a binary COMP-3 stream with no newlines at all.
 - **Copybook compilation:** 500 generated copybooks compile to contiguous field starts from 1, and
   the field widths sum to the record length.
+- **`REDEFINES`:** for generated two-layout copybooks, both layouts cover the same byte range, a
+  record written through one layout parses back with that layout's fields and none of the other's,
+  and a discriminator that selects no layout is reported rather than decoded.
 - **Amounts:** typed values re-encode to the same bytes across overpunch, separate sign and packed
   decimal encodings. This property found a real bug: the encoder sized values by integer digits only,
   so implied decimals were dropped.
@@ -237,10 +244,21 @@ copybook dialect page, which is the document a finance team would actually read 
 
 ### 9. What the video shows
 
-Two minutes forty one, English narration and burned-in subtitles, no music. A raw 100-byte record
-file, the copybook that explains it, a PASS verdict on ten payments totalling 1,284,550.00 USD, then
-a file with four defects and the byte range behind each finding. It ends on `verify` re-deriving the
-same fingerprint, the guarantee boundary, and the `.kiro` tree.
+Two minutes fifty eight, English narration and burned-in subtitles, no music. It opens on Kiro, not
+on a logo:
+
+- **0:00 to 0:25** the hook log from the session that implemented the exception register (a file
+  save ran the tests, the stop hook re-derived the newest verdict) and the reviewer agent calling
+  the project's own MCP server from that same session.
+- **0:25** the product arrives on a copybook: this bank copybook gives one 100-byte area two
+  meanings, the payment and the trailer declared with `REDEFINES`, drawn with the compiler's own
+  byte ranges (2 to 101, twice) and the rule that picks one (`REC-TYPE` = P or T).
+- **0:40** a trailer record read through its own layout: `TOTAL-AMOUNT` at bytes 22 to 34, the
+  detail fields that share those bytes absent from the record.
+- **0:52** a PASS on ten payments totalling 1,284,550.00 USD, then a file with four defects and the
+  byte range behind each finding, then the BAI2 delta with its credits and debits named.
+- **1:50** a waiver in the exception register that leaves the verdict at FAIL, `verify` re-deriving
+  the same fingerprint, 300 tests (30 of them properties), the session evidence, and an end card.
 
 ---
 
@@ -261,11 +279,12 @@ narrates and a layer that proves.
 
 ## [form] Accomplishments
 
-- 284 tests, 29 of them properties over generated inputs, with seven regressions kept from real
-  failures, including a truncated record that used to reach `PASS` with zero findings and now
-  yields `INCOMPLETE` and exit 2.
-- Three byte layouts (trailing overpunch, COMP-3, leading separate sign) and three formats (820, 823,
-  BAI2) through one reconciler.
+- 300 tests, 30 of them properties over generated inputs, with a regression file for every failure
+  the build found in itself, including a truncated record that used to reach `PASS` with zero
+  findings (now `INCOMPLETE`, exit 2) and a `REDEFINES` record whose type byte was damaged in
+  transit (now reported, its bytes left undecoded).
+- Three byte layouts (trailing overpunch, COMP-3, leading separate sign), one `REDEFINES` region
+  with two active layouts, and three formats (820, 823, BAI2) through one reconciler.
 - A verdict anyone can re-derive: `verify` prints both fingerprints and the first differing field
   path, and does not touch the report.
 - An agent layer that cannot invent a number, and costs zero credits by default.
@@ -274,7 +293,7 @@ narrates and a layer that proves.
   editing any entry afterwards breaks the chain at that sequence number.
 - One engine in three places: the CLI, the local screen and a static browser build share the
   parser and the reconciler, and the static build's fingerprints are asserted equal to the CLI's
-  for all six sample scenarios (`scripts/check-static.py`).
+  for all eight sample scenarios (`scripts/check-static.py`).
 - A public statement of the boundary (`docs/guarantees.md`) that is part of the product: it is shown
   in both strips of the screen and printed by the CLI.
 
@@ -285,23 +304,51 @@ narrates and a layer that proves.
   evidence rows itself.
 - A host-side witness: two independent runs of the same file on different machines, compared by
   fingerprint.
-- Streaming parse for files larger than memory, and a copybook dialect report for banks that send
-  `REDEFINES`.
+- Streaming parse for files larger than memory, and `OCCURS DEPENDING ON`, which changes every
+  offset after it and therefore needs a decided rule rather than a parser tweak.
 
 ---
 
-## Claims this submission does not make
+## How the Kiro pieces fit, and the five lines this submission does not cross
 
-Written here so a judge does not have to find them.
+Six Kiro surfaces were used as one loop, not as six features in a list:
 
-1. Kiro did not generate the whole project. It implemented layer 4 (the exception register, its CLI
-   commands, its MCP tool and 38 tests) from spec task T7.1 in one session, and the earlier layers
-   were built in this workspace alongside Kiro CLI sessions and the steering files. `EVIDENCE.md`
-   says which rows came from which.
-2. `PostTaskExecution` was not observed firing. The other two hooks were, and the log is in the
-   repository.
-3. Kiro powers were not used.
-4. The hosted URL is not live yet. The static build exists and is verified in a browser; deploying
-   it is the account holder's act.
-5. The video is 2:52 and the audio is synthesised. Nobody has watched it end to end with a human
-   ear.
+- **Spec** (`.kiro/specs/edi820-importer/`): the copybooks became 24 EARS requirements, a design
+  that records a delta for every decision that changed while building, and tasks whose last line is
+  a command. Layer 4, the exception register, was then implemented from task T7.1 inside a Kiro
+  session.
+- **Steering** (`.kiro/steering/`): five files carry the rules that make the spec bite: money is
+  never a float, never re-synchronise silently, no model in the verdict path. One of them overruled
+  the design draft (delta 1, `bigint` minor units), which is the clearest evidence that steering was
+  read rather than filed.
+- **Custom agent** (`.kiro/agents/reviewer.json`): an adversarial reviewer with read, grep and glob
+  grants. Its first pass, without tools, produced confident nonsense with citations; once it could
+  read, it found two real defects that are now fixed and tested. The explainer layer is built on the
+  same lesson: confidence is not evidence.
+- **Hooks** (`.kiro/hooks/parser-guardrails.json`): `PostFileSave` runs the unit and property suites
+  while an agent edits, the stop hook re-derives the newest verdict and reports fingerprint drift,
+  and `PostTaskExecution` appends the evidence row. The firings from that session are in
+  `out/hook-log.txt` and quoted in `docs/kiro-session-evidence.md`.
+- **MCP** (`src/mcp/`, `.kiro/settings/mcp.json`): the deterministic engine as five tools, attached
+  to the reviewer agent, so the review session called `@820/reconcile`, `@820/verify` and
+  `@820/exceptions` and received the engine's own answer instead of a description of the code.
+- **CLI V3**: the surface that ran headless and could be replayed: `kiro-cli chat --no-interactive`
+  with the custom agent, `agent validate`, and tool grants varied on purpose.
+
+The loop, in one sentence: the spec said what must be true, steering said what is forbidden, the
+agent tried to break both, the hooks ran the proofs, and the MCP server gave the agent the same
+numbers the command line prints.
+
+Five boundaries are stated here so a judge does not have to find them:
+
+1. **Scope of generation.** Kiro implemented layer 4 (the exception register, its CLI commands, its
+   MCP tool, 38 tests) from spec task T7.1 in one session. The earlier layers were built in this
+   workspace with the spec as the contract, alongside the CLI sessions and the steering files.
+   `EVIDENCE.md` marks which rows came from which session.
+2. **`PostTaskExecution`.** It was not observed firing: the spec task was passed as a prompt rather
+   than through the task runner. The other two hooks were observed, and their log is committed.
+3. **Kiro powers.** Not used. Nothing here depends on a bundled power.
+4. **Hosting.** The static build is verified in a browser and is not deployed yet. Publishing it is
+   the account holder's act, and the URL is not claimed until it is live.
+5. **The video.** It is 2:57 with a synthesised voice, so nobody has watched it end to end with a
+   human ear, and the IDE surface (as opposed to the CLI) was not part of the build.

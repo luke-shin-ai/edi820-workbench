@@ -3,12 +3,12 @@
  *
  *     Finding ──▶ adapter draft ──▶ numeric guard ──▶ Explanation (or INSUFFICIENT_EVIDENCE)
  *
- * The guard is applied to every adapter, the mock included. That is deliberate:
+ * The guard is applied to every adapter, the grounded adapter included. That is deliberate:
  * if the default path skipped validation, the guarantee in `docs/guarantees.md` §5
  * would hold only for the adapters nobody uses in the demo.
  */
 import type { Finding } from '../reconcile/index.js';
-import { createMockAdapter } from './mock.js';
+import { createGroundedAdapter } from './grounded.js';
 import { citationOf, findingHasEvidence, validateExplanation } from './evidence.js';
 import { buildPrompt } from './prompt.js';
 import type { Explanation, ExplainOptions, ExplanationDraft, ExplainerAdapter } from './types.js';
@@ -46,8 +46,8 @@ interface ExplainState {
 
 function resolveAdapters(options: ExplainOptions): { primary: ExplainerAdapter; fallback: ExplainerAdapter } {
   return {
-    primary: options.adapter ?? createMockAdapter(),
-    fallback: options.fallback ?? createMockAdapter(),
+    primary: options.adapter ?? createGroundedAdapter(),
+    fallback: options.fallback ?? createGroundedAdapter(),
   };
 }
 

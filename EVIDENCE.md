@@ -5,8 +5,8 @@
 > invoked by hand with the same payload shape — the rows are identical either way, and this note
 > says which way it was.
 > Format: `YYYY-MM-DD HH:MM | task | command | result | commit`
-> Test counts are from `npx vitest run`: **284 tests / 21 files** after the static demo (2026-11-21 19:00);
-> 275 / 20 after T7.1, 222 / 17 at T5, 148 before T4/T5.
+> Test counts are from `npx vitest run`: **300 tests / 22 files** after the `REDEFINES` work
+> (2026-11-21 20:05); 284 / 21 after the static demo, 275 / 20 after T7.1, 222 / 17 at T5, 148 before T4/T5.
 
 | when | task | command | result | commit |
 |---|---|---|---|---|
@@ -55,6 +55,14 @@
 | 2026-11-21 18:41 | DEMO-CHECK | `python3 scripts/check-static.py` (Chromium, 1920x1080) | 6 scenarios: verdict and fingerprint equal the CLI for all six (S1 `c459b81b…`, S2 `85646a69…`, S3 `7af64454…`, S4 `071371bf…`, S5 `923e8f7e…`, S6 `84fd2c5e…`); a dropped COMP-3 file parses as bytes; a waiver shows WAIVED while the badge stays FAIL; release reopens; re-derive prints identical; 0 requests after load; 0 console/page errors | 6af46e6 |
 | 2026-11-21 18:55 | VIDEO | `python3 demo-video/build/{plates,make_tts,build}.py` | new opening from the hook log and the MCP client run, static demo plates for PASS/FAIL/evidence/BAI2, a register scene, 2:52.30, 19.51 MB, 38 cues, 0 em dashes | (this commit) |
 | 2026-11-21 18:58 | DOCS | — | README, `devpost-submission-draft.md`, `review.md` re-scored (7.6, from the cold 6.4), this file, `demo-video/build/README.md` updated to the shipped state; `samples/data/DEFECTS.md`, `.kiro/steering/finance-file-conventions.md` corrected earlier in `13ef2ec` | (this commit) |
+| 2026-11-21 20:00 | T8.1 | `npx tsx demo-video/build/dump-copybook.mjs` | `820-redefines.cpy` compiles to 101 bytes: one 100-byte region (`PAYMENT-DETAIL`, bytes 2-101) with two layouts, `PAYMENT-TRAILER` activated by `REC-TYPE=T`, detail by `P`; the compiler refuses an unbound `REDEFINES` (`COPYBOOK_SEMANTICS`), a wider redefining item and a discriminator inside its own region (`COPYBOOK_REDEFINES`) | (this commit) |
+| 2026-11-21 20:01 | T8.2 | `npx vitest run test/unit/copybook test/pbt/copybook` | 27 copybook tests (group items, region offsets, overlap only across layouts, refusal paths) + 4 properties, including 120 generated two-layout copybooks where both layouts cover the same bytes and only the selected one is decoded | (this commit) |
+| 2026-11-21 20:01 | T8.3 | `npx tsx scripts/gen-fixtures.mjs` | `820-redefines-good.txt` and `820-redefines-bad.txt` (11 × 101 bytes); DEFECTS.md regenerated with both | (this commit) |
+| 2026-11-21 20:02 | T8.4 | `npx vitest run test/unit/fixtures test/regressions/redefines-view` | good pair PASS; bad pair FAIL with one finding (`CONTROL_TOTAL_MISMATCH` on `TOTAL-AMOUNT`, delta 100.00 USD); the six pre-existing scenario fingerprints unchanged (`c459b81b…`, `85646a69…`, `7af64454…`, `071371bf…`, `923e8f7e…`, `84fd2c5e…`); a damaged `REC-TYPE` is `REDEFINES_VIEW_UNMATCHED` and blocks a PASS | (this commit) |
+| 2026-11-21 20:03 | UI | `npx vitest run test/unit/explain test/unit/cli` | the default explainer is named `grounded` everywhere (adapter, CLI `--adapter`, MCP enum, screen label `L3 · grounded`); no `L3 · mock` string remains in `src/` | (this commit) |
+| 2026-11-21 20:08 | DEMO-CHECK | `python3 scripts/check-static.py` (Chromium, 1920x1080) | 8 scenarios: verdict and fingerprint equal the CLI for all eight (S7 `344591ae…`, S8 `426cc093…`); the `REDEFINES` trailer is sliced by `REC-TYPE, ORIG-ID-T, RECEIVER-ID-T, TOTAL-AMOUNT, TOTAL-CURRENCY, REC-COUNT, FILLER` while its neighbour is still sliced by the detail layout; dropped COMP-3, waiver/release, re-derive, 0 requests after load, 0 console/page errors | (this commit) |
+| 2026-11-21 20:20 | VIDEO | `python3 demo-video/build/{plates,make_tts,build}.py` | 2:57.67, 19.01 MB, 1920×1080 30 fps + AAC, 40 cues; new shot 3 is the `REDEFINES` copybook plate, new shot 3b is the trailer read through its layout; tests plate reads 300; subtitles restyled with a box; 0 em dashes, 0 en dashes, 0 emoji | (this commit) |
+| 2026-11-21 20:26 | DOCS | — | README, `devpost-submission-draft.md` (§9 rewritten to the 2:57 cut; closing section now leads with how spec, steering, agent, hooks, MCP and CLI combine), `review.md` re-scored, `제출검토-한글요약.md`, `docs/copybook-dialect.md` §4-5, `docs/guarantees.md`, `.kiro/specs/.../design.md` §14, `samples/README.md` | (this commit) |
 | 2026-11-21 16:06 | TYPE+TEST | `npx tsc --noEmit && npx vitest run` | 0 errors; 222 passed (222) in 17 files | c65a45f |
 
 ## Demo run (the numbers the video shows)
@@ -69,6 +77,8 @@
 | S4 `820-good` + `823-bad` | **FAIL**, 3 findings | bank trailer declares 10 / 1,284,550.00, 9 records arrived: count −1, total −45,000.00, 1 unmatched reference |
 | S5 `820-good` + `bai2-good` | **PASS** | comma-delimited statement; 03/100 total credits = summed details; 10/10 references matched |
 | S6 `820-good` + `bai2-bad` | **FAIL**, 3 findings | control total −79,025.00 USD (missing detail + a bank-side debit fee), `REF_UNMATCHED` both directions (`NWP-2611-0010` 820-only, `BANK-FEE-2611` bank-only) |
+| S7 `820-redefines-good` + `823-bank` | **PASS** | the bank dialect: 10 details read through `PAYMENT-DETAIL`, the trailer through `PAYMENT-TRAILER` (`REDEFINES`), declared total 1,284,550.00 USD = summed |
+| S8 `820-redefines-bad` + `823-bank` | **FAIL**, 1 finding | the trailer layout declares 1,284,450.00 USD against a detail sum of 1,284,550.00: `CONTROL_TOTAL_MISMATCH` on `TOTAL-AMOUNT`, delta 100.00 USD |
 
 ## Defects found by the build itself (not planted in fixtures)
 

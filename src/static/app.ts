@@ -50,6 +50,8 @@ const SCENARIOS: Scenario[] = [
   { id: 'S4', name: '820-good + 823-bad', payment: '820-good.txt', copybook: '820.cpy', bank: '823-bad.txt', bankCopybook: '823.cpy', expect: 'FAIL' },
   { id: 'S5', name: '820-good + BAI2 good', payment: '820-good.txt', copybook: '820.cpy', bank: 'bai2-good.txt', bankFormat: 'bai2', expect: 'PASS' },
   { id: 'S6', name: '820-good + BAI2 bad', payment: '820-good.txt', copybook: '820.cpy', bank: 'bai2-bad.txt', bankFormat: 'bai2', expect: 'FAIL' },
+  { id: 'S7', name: '820-redefines good + 823-bank', payment: '820-redefines-good.txt', copybook: '820-redefines.cpy', bank: '823-bank.txt', bankCopybook: '823.cpy', expect: 'PASS' },
+  { id: 'S8', name: '820-redefines bad + 823-bank', payment: '820-redefines-bad.txt', copybook: '820-redefines.cpy', bank: '823-bank.txt', bankCopybook: '823.cpy', expect: 'FAIL' },
 ];
 
 interface RunState {
@@ -63,9 +65,11 @@ const state: {
   run: RunState | null;
   ledger: Ledger;
   selected: number;
+  /** Record whose layout the evidence panel shows when no finding is selected. */
+  spotlight: { side: 'payment' | 'bank'; index: number } | null;
   droppedFile: { name: string; bytes: Uint8Array } | null;
   droppedCopybook: { name: string; bytes: Uint8Array } | null;
-} = { run: null, ledger: emptyLedger(), selected: -1, droppedFile: null, droppedCopybook: null };
+} = { run: null, ledger: emptyLedger(), selected: -1, spotlight: null, droppedFile: null, droppedCopybook: null };
 
 const el = <T extends HTMLElement>(id: string): T => document.getElementById(id) as unknown as T;
 
@@ -169,6 +173,7 @@ async function present(
   });
   state.run = { view, findings: result.findings, fingerprint: result.fingerprint, scenarioId };
   state.selected = result.findings.length > 0 ? 0 : -1;
+  state.spotlight = null;
   render();
 }
 
@@ -224,7 +229,9 @@ function renderRecords(): void {
   el('records').innerHTML = view.records
     .map(
       (record) =>
-        `<li class="${record.issues.length ? 'issue' : record.isTrailer ? 'trailer' : ''}" data-side="${record.side}" data-index="${record.index}">${record.side[0]}${String(record.index).padStart(3, '0')}  ${esc(record.raw)}</li>`,
+        `<li class="${record.issues.length ? 'issue' : record.isTrailer ? 'trailer' : ''}${
+          state.spotlight && state.spotlight.side === record.side && state.spotlight.index === record.index ? ' on' : ''
+        }" data-side="${record.side}" data-index="${record.index}">${record.side[0]}${String(record.index).padStart(3, '0')}  ${esc(record.raw)}</li>`,
     )
     .join('');
 }
@@ -313,10 +320,11 @@ function renderEvidence(): void {
   if (!view) return;
   const finding = state.selected >= 0 ? view.findings[state.selected] : undefined;
   if (!finding) {
-    el('evidenceNote').textContent = view.findings.length === 0
-      ? `No findings. Record ${firstDetail('payment')} sliced by its own spec — every field at its declared byte offset.`
-      : 'Pick a finding to highlight the field it names.';
-    const record = view.records.find((entry) => entry.side === 'payment' && entry.index === firstDetail('payment'));
+    const spot = state.spotlight ?? { side: 'payment' as const, index: firstDetail('payment') };
+    const record = view.records.find((entry) => entry.side === spot.side && entry.index === spot.index);
+    el('evidenceNote').textContent = record
+      ? `${record.side} record ${record.index} sliced by its own spec — every field at the declared byte offset${record.isTrailer ? ' (control trailer)' : ''}.`
+      : 'Pick a record below to read its layout.';
     if (!record) return;
     el('bytes').innerHTML = [...record.raw]
       .map((char, index) => `<span class="byte" title="byte ${index + 1}">${char === ' ' ? '·' : esc(char)}</span>`)
@@ -411,8 +419,12 @@ function wire(): void {
     render();
   });
 
-  el('records').addEventListener('click', () => {
+  el('records').addEventListener('click', (event) => {
+    const item = (event.target as HTMLElement).closest('li[data-index]') as HTMLElement | null;
     state.selected = -1;
+    if (item) {
+      state.spotlight = { side: item.dataset.side as 'payment' | 'bank', index: Number(item.dataset.index) };
+    }
     render();
   });
 

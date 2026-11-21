@@ -112,7 +112,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
       type: 'object',
       properties: {
         reportPath: { type: 'string', description: 'Directory holding report.json, or the file itself.' },
-        adapter: { type: 'string', enum: ['mock', 'kiro-cli', 'openai'] },
+        adapter: { type: 'string', enum: ['grounded', 'kiro-cli', 'openai'] },
         maxLiveCalls: { type: 'integer', minimum: 0, description: 'Maximum live model calls (default 0).' },
       },
       required: ['reportPath'],
@@ -197,7 +197,7 @@ async function callTool(name: string, params: Record<string, unknown>): Promise<
       const reportPath = str(params, 'reportPath');
       if (!reportPath) throw new AppError('USAGE', 'reportPath is required');
       const { report } = loadReport(reportPath);
-      const adapter = adapterByName(str(params, 'adapter') ?? 'mock');
+      const adapter = adapterByName(str(params, 'adapter') ?? 'grounded');
       const maxLiveCalls = typeof params.maxLiveCalls === 'number' ? params.maxLiveCalls : 0;
       const run = await explainReport(report, { adapter, maxLiveCalls });
       return { liveCalls: run.liveCalls, budgetLimited: run.budgetLimited, explanations: run.explanations };

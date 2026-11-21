@@ -1,7 +1,7 @@
 /**
  * L3 adapters.
  *
- * `mock` writes the explanation from the finding with deterministic templates and
+ * `grounded` writes the explanation from the finding with deterministic templates and
  * is the default: it can be reviewed, it costs nothing, and it cannot invent a
  * number. The two live adapters exist so the same guard can be demonstrated in
  * front of a real model, but nothing here calls out unless a caller names the
@@ -9,10 +9,10 @@
  */
 import { spawn } from 'node:child_process';
 import { parseDraft } from './prompt.js';
-import { createMockAdapter } from './mock.js';
+import { createGroundedAdapter } from './grounded.js';
 import type { ExplanationDraft, ExplainerAdapter } from './types.js';
 
-export { createMockAdapter } from './mock.js';
+export { createGroundedAdapter } from './grounded.js';
 
 /** Injectable process runner, so the adapter's protocol is testable without Kiro installed. */
 export interface ProcessRunner {
@@ -106,8 +106,8 @@ export function createOpenAiCompatibleAdapter(options: OpenAiCompatibleOptions):
 /** Resolve an adapter name from the CLI/environment without making a call. */
 export function adapterByName(name: string): ExplainerAdapter {
   switch (name) {
-    case 'mock':
-      return createMockAdapter();
+    case 'grounded':
+      return createGroundedAdapter();
     case 'kiro-cli':
       return createKiroCliAdapter();
     case 'openai': {
@@ -120,6 +120,6 @@ export function adapterByName(name: string): ExplainerAdapter {
       return createOpenAiCompatibleAdapter({ baseUrl, apiKey, model });
     }
     default:
-      throw new Error(`unknown adapter "${name}" (mock | kiro-cli | openai)`);
+      throw new Error(`unknown adapter "${name}" (grounded | kiro-cli | openai)`);
   }
 }

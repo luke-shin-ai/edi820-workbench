@@ -51,14 +51,31 @@ SHOTS = [
         zoom=(1.03, 1.09),
         focus=(0.40, 0.30),
         narration=(
-            "What each byte means lives in a COBOL copybook. Amount is eleven digits with two "
-            "implied decimals, and the sign is folded into the last digit. The copybook defines "
-            "bytes and widths. It says nothing about what must be true of the numbers."
+            "What each byte means lives in a COBOL copybook. This bank copybook gives a record "
+            "one area of a hundred bytes and two meanings: the payment, and the trailer, "
+            "declared with REDEFINES. The type byte picks the layout, and the copybook must say so."
         ),
         cues=[
             "What each byte means lives in a COBOL copybook.",
-            "Eleven digits, two implied decimals, sign folded into the last digit.",
-            "It defines bytes and widths, not what must be true of the numbers.",
+            "One area of a hundred bytes, two meanings: the payment, and the trailer declared with REDEFINES.",
+            "The type byte picks the layout, and the copybook must say so.",
+        ],
+    ),
+    dict(
+        id="s03b",
+        plate="static-redefines",
+        accent="#D29922",
+        zoom=(1.04, 1.11),
+        focus=(0.62, 0.26),
+        narration=(
+            "Here is the trailer, read through its own layout: total amount at bytes twenty two "
+            "to thirty four, and the record count. The detail fields that share those bytes are "
+            "not decoded at all for this record."
+        ),
+        cues=[
+            "Here is the trailer, read through its own layout.",
+            "Total amount at bytes 22 to 34, and the record count.",
+            "The detail fields sharing those bytes are not decoded for this record.",
         ],
     ),
     dict(
@@ -173,14 +190,13 @@ SHOTS = [
         zoom=(1.02, 1.07),
         focus=(0.35, 0.45),
         narration=(
-            "Two hundred eighty four tests, property based where it matters. A truncated record "
-            "used to pass with zero findings. It now reports incomplete and exits non zero, and a "
-            "report verifies from any working directory."
+            "Three hundred tests, property based where it matters. A truncated record used to "
+            "pass with zero findings; it now reports incomplete and exits non zero. A report "
+            "verifies from any working directory."
         ),
         cues=[
-            "284 tests, property based where it matters.",
-            "A truncated record used to pass with zero findings.",
-            "It now reports incomplete and exits non zero.",
+            "300 tests, property based where it matters.",
+            "A truncated record used to pass with zero findings; it now reports incomplete.",
             "A report verifies from any working directory.",
         ],
     ),

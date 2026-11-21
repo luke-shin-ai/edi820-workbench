@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { compileCopybook } from '../../src/copybook/index.js';
+import { parseFile } from '../../src/parser/index.js';
+import { encodeRecord } from '../../src/parser/serialize.js';
 
 /**
  * T1.3 — property: for any copybook the compiler accepts, the fields tile the
@@ -40,6 +42,84 @@ const copybookArb = fc
       ...fields.map((pic, i) => `           ${String(5).padStart(2, '0')}  ${`F${i}`.padEnd(10)}   PIC ${pic}.`),
     ].join('\n'),
   );
+
+describe('REDEFINES — generated two-layout copybooks keep one byte range', () => {
+  const widths = fc.array(fc.integer({ min: 1, max: 9 }), { minLength: 1, maxLength: 4 });
+
+  const twoLayoutCopybook = fc.tuple(widths, widths).map(([a, b]) => {
+    const total = a.reduce((sum, n) => sum + n, 0);
+    const used = b.reduce((sum, n) => sum + n, 0);
+    if (used > total) return null;
+    const pad = total - used;
+    const lines = [
+      '      * @view layout=A typeField=T value=A',
+      '      * @view layout=B typeField=T value=B',
+      '       01  R.',
+      '           05  T   PIC X(1).',
+      '           05  BODY.',
+      '               10  A.',
+      ...a.map((n, i) => `                   15  F${i}  PIC X(${n}).`),
+      '               10  B   REDEFINES A.',
+      ...b.map((n, i) => `                   15  G${i}  PIC X(${n}).`),
+      ...(pad > 0 ? [`                   15  FILLER PIC X(${pad}).`] : []),
+    ];
+    return { text: lines.join('\n'), total };
+  });
+
+  it('both layouts cover the same bytes and exactly one is decoded per record', () => {
+    fc.assert(
+      fc.property(twoLayoutCopybook, (generated) => {
+        fc.pre(generated !== null);
+        const { text, total } = generated!;
+        const cb = compileCopybook(text);
+        expect(cb.recordLength).toBe(total + 1);
+        const [first, second] = cb.views ?? [];
+        expect(first).toBeDefined();
+        expect(second).toBeDefined();
+        expect([first!.start, first!.length]).toEqual([second!.start, second!.length]);
+        expect(first!.length).toBe(total);
+
+        // A record written through layout A is read back with A's fields only.
+        const aValues = Object.fromEntries((first!.fields as string[])
+          .map((name) => cb.fields.find((field) => field.name === name))
+          .filter((field) => field !== undefined && !field.group && field.type !== 'filler')
+          .map((field) => [field!.name, 'x'.repeat(field!.length)]));
+        const recordA = encodeRecord(cb, { T: 'A', ...aValues });
+        expect(recordA.length).toBe(cb.recordLength);
+        const parsedA = parseFile({ copybook: cb, source: recordA });
+        expect(parsedA.issues).toEqual([]);
+        expect(parsedA.records[0]!.views?.[first!.region]).toBe('A');
+        for (const name of Object.keys(aValues)) expect(parsedA.records[0]!.values[name]).toBeDefined();
+        for (const name of second!.fields) {
+          const field = cb.fields.find((entry) => entry.name === name);
+          if (!field || field.group) continue;
+          expect(parsedA.records[0]!.values[name]).toBeUndefined();
+        }
+      }),
+      { numRuns: 120 },
+    );
+  });
+
+  it('a record whose discriminator matches no layout is refused, not guessed', () => {
+    const cb = compileCopybook(
+      [
+        '      * @view layout=A typeField=T value=A',
+        '      * @view layout=B typeField=T value=B',
+        '       01  R.',
+        '           05  T   PIC X(1).',
+        '           05  BODY.',
+        '               10  A.',
+        '                   15  F0  PIC X(4).',
+        '               10  B   REDEFINES A.',
+        '                   15  G0  PIC X(4).',
+      ].join('\n'),
+    );
+    const parsed = parseFile({ copybook: cb, source: 'Zxxxx' });
+    expect(parsed.issues.map((issue) => issue.code)).toEqual(['REDEFINES_VIEW_UNMATCHED']);
+    expect(parsed.records[0]!.values['F0']).toBeUndefined();
+    expect(parsed.records[0]!.values['G0']).toBeUndefined();
+  });
+});
 
 describe('T1.3 — generated copybooks tile their record exactly', () => {
   it('starts are contiguous from 1 and recordLength equals the sum of lengths', () => {

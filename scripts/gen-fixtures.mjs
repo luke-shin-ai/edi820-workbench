@@ -20,6 +20,7 @@ const read = (p) => readFileSync(join(root, p), 'utf8');
 const cob820 = compileCopybook(read('samples/copybooks/820.cpy'));
 const cob823 = compileCopybook(read('samples/copybooks/823.cpy'));
 const cob820Packed = compileCopybook(read('samples/copybooks/820-packed.cpy'));
+const cobRedefines = compileCopybook(read('samples/copybooks/820-redefines.cpy'));
 
 const CURRENCY = 'USD';
 const SCALE = 2;
@@ -97,6 +98,36 @@ function trailer823(cob, count, totalCents) {
   });
 }
 
+/**
+ * The bank dialect: one 100-byte area, two layouts (`PAYMENT-DETAIL` / `PAYMENT-TRAILER`,
+ * the latter declared with REDEFINES). The encoder picks the layout from the values it
+ * is given, so a detail record and a trailer are written through different views of the
+ * same bytes.
+ */
+function redefinesDetail(cob, payment) {
+  return encodeRecord(cob, {
+    'REC-TYPE': 'P',
+    'ORIG-ID': 'NWPAY00001',
+    'RECEIVER-ID': payment.receiver.slice(0, 10),
+    'TXN-TYPE': payment.txn,
+    AMOUNT: amount(payment.cents),
+    CURRENCY,
+    'VALUE-DATE': BigInt(payment.date),
+    REFERENCE: payment.reference,
+  });
+}
+
+function redefinesTrailer(cob, count, totalCents) {
+  return encodeRecord(cob, {
+    'REC-TYPE': 'T',
+    'ORIG-ID-T': 'NWPAY00001',
+    'RECEIVER-ID-T': 'BANK-STLMT',
+    'TOTAL-AMOUNT': amount(totalCents),
+    'TOTAL-CURRENCY': CURRENCY,
+    'REC-COUNT': count,
+  });
+}
+
 /** 820-bad: four planted defects, each listed in samples/data/DEFECTS.md. */
 const BAD_PAYMENTS = PAYMENTS.map((p, i) => {
   if (i === 7) return { ...p, cents: 4_490_000n }; // ② total −100.00
@@ -138,6 +169,19 @@ const packedRecords = [
   trailer820(cob820Packed, GOOD_COUNT, GOOD_TOTAL_CENTS),
 ];
 writeFileSync(join(outDir, '820-packed-good.txt'), Buffer.from(packedRecords.join(''), 'latin1'));
+
+// ③b 820-redefines-good: the same payments through the bank dialect with REDEFINES
+const redefinesGood = writeLines('820-redefines-good.txt', [
+  ...PAYMENTS.map((p) => redefinesDetail(cobRedefines, p)),
+  redefinesTrailer(cobRedefines, GOOD_COUNT, GOOD_TOTAL_CENTS),
+]);
+
+// ③c 820-redefines-bad: the trailer layout (same bytes, other REDEFINES view) declares
+// the total 100.00 short while every detail is correct.
+const redefinesBad = writeLines('820-redefines-bad.txt', [
+  ...PAYMENTS.map((p) => redefinesDetail(cobRedefines, p)),
+  redefinesTrailer(cobRedefines, GOOD_COUNT, GOOD_TOTAL_CENTS - 10_000n),
+]);
 
 // ④ 823-bank: the bank side of the good pair (all references echo)
 const bank823 = writeLines('823-bank.txt', [
@@ -200,6 +244,8 @@ that drifts from its documented defect fails the build.
 | | | ③a record index 8 amount is 127,999.99 and ③b record index 9 is 79,000.01 with reference \`NWP-2611-0011\` (one cent reallocated between them, so the total still differs by exactly −100.00) | \`REF_UNMATCHED\` 820-only for \`…0011\` and bank-only for \`…0010\` — the amount+date fallback must **not** paper over a broken reference |
 | | | ④ record index 2 value date is 2026-11-14, before the settlement window | \`DATE_OUT_OF_WINDOW\` (window 2026-11-18..2026-11-20) |
 | \`820-packed-good.txt\` | ${packedRecords.length} | none — same payments as \`820-good.txt\`, COMP-3 amounts, no line breaks | verdict \`PASS\` against \`823-bank.txt\` |
+| \`820-redefines-good.txt\` | ${redefinesGood.length} | none — the bank dialect: one 100-byte area with two layouts, \`PAYMENT-TRAILER REDEFINES PAYMENT-DETAIL\` | verdict \`PASS\` against \`823-bank.txt\`; the trailer's \`TOTAL-AMOUNT\` is read through the redefining layout, not through \`AMOUNT\` |
+| \`820-redefines-bad.txt\` | ${redefinesBad.length} | the trailer layout declares 1,284,450.00 while the detail layout sums to 1,284,550.00 | \`CONTROL_TOTAL_MISMATCH\` delta +100.00 USD, on a field that exists only in the REDEFINES layout |
 | \`823-bad.txt\` | ${bankBad.length} | trailer declares 10 records / full total, one detail record missing | \`CONTROL_COUNT_MISMATCH\` (10 vs 9) + \`CONTROL_TOTAL_MISMATCH\` delta −45,000.00 USD |
 | \`bai2-good.txt\` + \`820-good.txt\` | ${bai2Good.length} | none — comma-delimited statement, detail reference = 820 reference | verdict \`PASS\` (the 03/100 declared credit total equals the detail sum) |
 | \`bai2-bad.txt\` | ${bai2Bad.length} | ① the detail for \`NWP-2611-0010\` is missing | \`REF_UNMATCHED\` 820-only for \`…0010\` |
@@ -220,6 +266,8 @@ for (const [name, lines] of [
   ['820-good.txt', good820],
   ['820-bad.txt', bad820],
   ['820-packed-good.txt', packedRecords],
+  ['820-redefines-good.txt', redefinesGood],
+  ['820-redefines-bad.txt', redefinesBad],
   ['823-bank.txt', bank823],
   ['823-bad.txt', bankBad],
   ['bai2-good.txt', bai2Good],

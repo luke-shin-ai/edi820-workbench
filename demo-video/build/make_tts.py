@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import wave
 
 import imageio_ffmpeg
@@ -31,8 +32,18 @@ def duration_of(path):
 
 
 def synth(text, out_mp3):
-    subprocess.run([os.path.join(ROOT, ".local/bin/edge-tts"), "--voice", VOICE,
-                    "--rate=" + RATE, "--text", text, "--write-media", out_mp3], check=True)
+    """Edge TTS occasionally returns no audio; retry rather than ship a silent shot."""
+    last = None
+    for attempt in range(6):
+        result = subprocess.run([os.path.join(ROOT, ".local/bin/edge-tts"), "--voice", VOICE,
+                                 "--rate=" + RATE, "--text", text, "--write-media", out_mp3],
+                                capture_output=True, text=True)
+        if result.returncode == 0 and os.path.exists(out_mp3) and os.path.getsize(out_mp3) > 1000:
+            return
+        last = result
+        print("  retry", attempt + 1, (result.stderr or "").strip().split("\n")[-1][:90], flush=True)
+        time.sleep(2 + attempt)
+    raise SystemExit("TTS failed for: %s (%s)" % (out_mp3, last.stderr[-300:] if last else "no result"))
 
 
 durs = {}

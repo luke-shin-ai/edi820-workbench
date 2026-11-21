@@ -12,7 +12,7 @@ import { compileCopybook } from '../../src/copybook/index.js';
 import { parseFile } from '../../src/parser/index.js';
 import { formatAmount, reconcile, type Finding } from '../../src/reconcile/index.js';
 import {
-  createMockAdapter,
+  createGroundedAdapter,
   evidenceVocabulary,
   explainFinding,
   explainFindings,
@@ -173,7 +173,7 @@ describe('R5.3 — INSUFFICIENT_EVIDENCE', () => {
 });
 
 describe('the default adapter explains every fixture finding without inventing numbers', () => {
-  it('mock explanations all pass the guard', async () => {
+  it('grounded explanations all pass the guard', async () => {
     const findings = badFindings();
     expect(findings.length).toBeGreaterThanOrEqual(4);
     const { explanations, liveCalls } = await explainFindings(findings);
@@ -181,7 +181,7 @@ describe('the default adapter explains every fixture finding without inventing n
     expect(explanations).toHaveLength(findings.length);
     for (const explanation of explanations) {
       expect(explanation.status).toBe('EXPLAINED');
-      expect(explanation.adapter).toBe('mock');
+      expect(explanation.adapter).toBe('grounded');
       expect(explanation.rejection).toBeUndefined();
     }
   });
@@ -226,7 +226,7 @@ describe('credit discipline — live adapters are opt-in and budgeted', () => {
     expect(adapters.calls).toBe(0);
     expect(result.liveCalls).toBe(0);
     expect(result.budgetLimited).toBe(badFindings().length);
-    expect(result.explanations.every((e) => e.adapter === 'mock')).toBe(true);
+    expect(result.explanations.every((e) => e.adapter === 'grounded')).toBe(true);
     expect(result.explanations[0]?.note).toContain('live-call budget 0 exhausted');
   });
 
@@ -250,9 +250,9 @@ describe('credit discipline — live adapters are opt-in and budgeted', () => {
       },
     };
     const explanation = await explainFinding(totalMismatch(badFindings()), { adapter: failing, maxLiveCalls: 1 });
-    expect(explanation.adapter).toBe('mock');
+    expect(explanation.adapter).toBe('grounded');
     expect(explanation.note).toContain('HTTP 429');
     expect(explanation.status).toBe('EXPLAINED');
-    expect(createMockAdapter().name).toBe('mock');
+    expect(createGroundedAdapter().name).toBe('grounded');
   });
 });

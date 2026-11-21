@@ -23,130 +23,138 @@ Reconcile, verify, exceptions. Same engine as the command line.
 A fingerprint is a check, not a claim.
 
 7
-00:00:25,912 --> 00:00:30,270
+00:00:25,912 --> 00:00:29,457
 What each byte means lives in a COBOL copybook.
 
 8
-00:00:30,350 --> 00:00:35,694
-Eleven digits, two implied decimals, sign folded into the last digit.
+00:00:29,537 --> 00:00:35,902
+One area of a hundred bytes, two meanings: the payment, and the trailer declared with REDEFINES.
 
 9
-00:00:35,774 --> 00:00:42,104
-It defines bytes and widths, not what must be true of the numbers.
+00:00:35,982 --> 00:00:40,736
+The type byte picks the layout, and the copybook must say so.
 
 10
-00:00:42,984 --> 00:00:49,382
-This screen runs in the browser tab. No server, no upload.
+00:00:41,616 --> 00:00:44,729
+Here is the trailer, read through its own layout.
 
 11
-00:00:49,462 --> 00:00:52,916
-Same code, compiled for the page.
+00:00:44,809 --> 00:00:48,631
+Total amount at bytes 22 to 34, and the record count.
 
 12
-00:00:52,996 --> 00:00:58,216
-Ten details. Declared 1,284,550.00, summed the same. Verdict pass.
+00:00:48,711 --> 00:00:52,888
+The detail fields sharing those bytes are not decoded for this record.
 
 13
-00:00:59,096 --> 00:01:01,829
-Now a file with defects. Four findings.
+00:00:53,768 --> 00:01:00,166
+This screen runs in the browser tab. No server, no upload.
 
 14
-00:01:01,909 --> 00:01:07,053
-Control total short by 100.00. One record of 99 bytes instead of 100.
+00:01:00,246 --> 00:01:03,700
+Same code, compiled for the page.
 
 15
-00:01:07,133 --> 00:01:11,875
-Two references with no bank counterpart. One value date outside the window.
+00:01:03,780 --> 00:01:09,000
+Ten details. Declared 1,284,550.00, summed the same. Verdict pass.
 
 16
-00:01:11,955 --> 00:01:13,080
-Exit code two.
+00:01:09,880 --> 00:01:12,613
+Now a file with defects. Four findings.
 
 17
-00:01:13,960 --> 00:01:18,215
-Select a finding and the screen shows the bytes behind it.
+00:01:12,693 --> 00:01:17,837
+Control total short by 100.00. One record of 99 bytes instead of 100.
 
 18
-00:01:18,295 --> 00:01:23,732
-Record 2, value date, bytes 40 to 47: 2026, 11, 14. Outside the window.
+00:01:17,917 --> 00:01:22,659
+Two references with no bank counterpart. One value date outside the window.
 
 19
-00:01:23,812 --> 00:01:26,096
-The claim is checkable, not asserted.
+00:01:22,739 --> 00:01:23,864
+Exit code two.
 
 20
-00:01:26,976 --> 00:01:31,868
-BAI2 is a bank statement with no copybook, read by its own reader.
+00:01:24,744 --> 00:01:28,999
+Select a finding and the screen shows the bytes behind it.
 
 21
-00:01:31,948 --> 00:01:36,075
-One credit is missing and there is a 25.00 bank fee.
+00:01:29,079 --> 00:01:34,516
+Record 2, value date, bytes 40 to 47: 2026, 11, 14. Outside the window.
 
 22
-00:01:36,155 --> 00:01:38,752
-Delta -79,025.00: credits 1,205,550.00 minus debits 25.00.
+00:01:34,596 --> 00:01:36,880
+The claim is checkable, not asserted.
 
 23
-00:01:39,632 --> 00:01:42,004
-A model cannot clear a finding.
+00:01:37,760 --> 00:01:42,652
+BAI2 is a bank statement with no copybook, read by its own reader.
 
 24
-00:01:42,084 --> 00:01:46,091
-A person records an exception: owner, reason, compensating control, expiry.
+00:01:42,732 --> 00:01:46,859
+One credit is missing and there is a 25.00 bank fee.
 
 25
-00:01:46,171 --> 00:01:49,769
-Append only and hash chained. The verdict stays fail.
+00:01:46,939 --> 00:01:49,536
+Delta -79,025.00: credits 1,205,550.00 minus debits 25.00.
 
 26
-00:01:49,849 --> 00:01:54,264
-A release puts the finding back in front of a human.
+00:01:50,416 --> 00:01:52,788
+A model cannot clear a finding.
 
 27
-00:01:55,144 --> 00:02:01,944
-Verify re-runs the deterministic layers from the recorded inputs.
+00:01:52,868 --> 00:01:56,875
+A person records an exception: owner, reason, compensating control, expiry.
 
 28
-00:02:02,024 --> 00:02:10,352
-Same fingerprint, same verdict, and the report file is not touched.
+00:01:56,955 --> 00:02:00,553
+Append only and hash chained. The verdict stays fail.
 
 29
-00:02:11,232 --> 00:02:15,211
-284 tests, property based where it matters.
+00:02:00,633 --> 00:02:05,048
+A release puts the finding back in front of a human.
 
 30
-00:02:15,291 --> 00:02:20,430
-A truncated record used to pass with zero findings.
+00:02:05,928 --> 00:02:12,728
+Verify re-runs the deterministic layers from the recorded inputs.
 
 31
-00:02:20,510 --> 00:02:25,069
-It now reports incomplete and exits non zero.
+00:02:12,808 --> 00:02:21,136
+Same fingerprint, same verdict, and the report file is not touched.
 
 32
-00:02:25,149 --> 00:02:29,128
-A report verifies from any working directory.
+00:02:22,016 --> 00:02:25,184
+300 tests, property based where it matters.
 
 33
-00:02:30,008 --> 00:02:32,650
-The exception register was implemented by Kiro from spec task 7.1.
+00:02:25,264 --> 00:02:31,216
+A truncated record used to pass with zero findings; it now reports incomplete.
 
 34
-00:02:32,730 --> 00:02:35,124
-Transcript, hook firings and MCP calls are in the repository.
+00:02:31,296 --> 00:02:34,464
+A report verifies from any working directory.
 
 35
-00:02:35,204 --> 00:02:37,598
-The repairs made afterwards are listed beside them, not hidden.
+00:02:35,344 --> 00:02:37,986
+The exception register was implemented by Kiro from spec task 7.1.
 
 36
-00:02:37,678 --> 00:02:40,320
-Steering files set the rules, and the spec was the contract.
+00:02:38,066 --> 00:02:40,460
+Transcript, hook firings and MCP calls are in the repository.
 
 37
-00:02:41,200 --> 00:02:49,067
-For a finance team this replaces retyping a payment file into a spreadsheet.
+00:02:40,540 --> 00:02:42,934
+The repairs made afterwards are listed beside them, not hidden.
 
 38
-00:02:49,147 --> 00:02:51,512
+00:02:43,014 --> 00:02:45,656
+Steering files set the rules, and the spec was the contract.
+
+39
+00:02:46,536 --> 00:02:54,403
+For a finance team this replaces retyping a payment file into a spreadsheet.
+
+40
+00:02:54,483 --> 00:02:56,848
 820. Resurrection. Apache 2.0.
 

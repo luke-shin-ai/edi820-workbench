@@ -130,6 +130,162 @@
       }
     ]
   },
+  "820-redefines.cpy": {
+    "recordLength": 101,
+    "views": [
+      {
+        "region": "PAYMENT-DETAIL",
+        "layout": "PAYMENT-DETAIL",
+        "start": 2,
+        "length": 100,
+        "typeField": "REC-TYPE",
+        "values": [
+          "P"
+        ]
+      },
+      {
+        "region": "PAYMENT-DETAIL",
+        "layout": "PAYMENT-TRAILER",
+        "start": 2,
+        "length": 100,
+        "typeField": "REC-TYPE",
+        "values": [
+          "T"
+        ]
+      }
+    ],
+    "fields": [
+      {
+        "name": "REC-TYPE",
+        "start": 1,
+        "length": 1,
+        "type": "string"
+      },
+      {
+        "name": "RECORD-BODY",
+        "start": 2,
+        "length": 100,
+        "type": "string",
+        "group": true
+      },
+      {
+        "name": "PAYMENT-DETAIL",
+        "start": 2,
+        "length": 100,
+        "type": "string",
+        "group": true,
+        "layout": "PAYMENT-DETAIL"
+      },
+      {
+        "name": "ORIG-ID",
+        "start": 2,
+        "length": 10,
+        "type": "string",
+        "layout": "PAYMENT-DETAIL"
+      },
+      {
+        "name": "RECEIVER-ID",
+        "start": 12,
+        "length": 10,
+        "type": "string",
+        "layout": "PAYMENT-DETAIL"
+      },
+      {
+        "name": "TXN-TYPE",
+        "start": 22,
+        "length": 2,
+        "type": "string",
+        "layout": "PAYMENT-DETAIL"
+      },
+      {
+        "name": "AMOUNT",
+        "start": 24,
+        "length": 13,
+        "type": "zoned-decimal",
+        "sign": "trailing-overpunch",
+        "layout": "PAYMENT-DETAIL"
+      },
+      {
+        "name": "CURRENCY",
+        "start": 37,
+        "length": 3,
+        "type": "string",
+        "layout": "PAYMENT-DETAIL"
+      },
+      {
+        "name": "VALUE-DATE",
+        "start": 40,
+        "length": 8,
+        "type": "unsigned-int",
+        "layout": "PAYMENT-DETAIL"
+      },
+      {
+        "name": "REFERENCE",
+        "start": 48,
+        "length": 15,
+        "type": "string",
+        "layout": "PAYMENT-DETAIL"
+      },
+      {
+        "name": "FILLER",
+        "start": 63,
+        "length": 39,
+        "type": "filler",
+        "layout": "PAYMENT-DETAIL"
+      },
+      {
+        "name": "PAYMENT-TRAILER",
+        "start": 2,
+        "length": 100,
+        "type": "string",
+        "group": true,
+        "layout": "PAYMENT-TRAILER"
+      },
+      {
+        "name": "ORIG-ID-T",
+        "start": 2,
+        "length": 10,
+        "type": "string",
+        "layout": "PAYMENT-TRAILER"
+      },
+      {
+        "name": "RECEIVER-ID-T",
+        "start": 12,
+        "length": 10,
+        "type": "string",
+        "layout": "PAYMENT-TRAILER"
+      },
+      {
+        "name": "TOTAL-AMOUNT",
+        "start": 22,
+        "length": 13,
+        "type": "zoned-decimal",
+        "sign": "trailing-overpunch",
+        "layout": "PAYMENT-TRAILER"
+      },
+      {
+        "name": "TOTAL-CURRENCY",
+        "start": 35,
+        "length": 3,
+        "type": "string",
+        "layout": "PAYMENT-TRAILER"
+      },
+      {
+        "name": "REC-COUNT",
+        "start": 38,
+        "length": 6,
+        "type": "unsigned-int",
+        "layout": "PAYMENT-TRAILER"
+      },
+      {
+        "name": "FILLER",
+        "start": 44,
+        "length": 58,
+        "type": "filler",
+        "layout": "PAYMENT-TRAILER"
+      }
+    ]
+  },
   "823.cpy": {
     "recordLength": 80,
     "fields": [

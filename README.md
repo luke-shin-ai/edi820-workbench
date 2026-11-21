@@ -2,7 +2,7 @@
 
 > Kiroween 2026 · **Resurrection** category · built with Kiro (spec-driven, steering, hooks, MCP, PBT)
 
-> **Build status (2026-11-21):** every layer is implemented and verified locally. L1 (copybook compiler + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **2:52 English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **284 tests / 21 files** (unit, property-based and regression). Publishing the repository, hosting the static build, uploading the video and submitting the Devpost entry are the account holder's acts and remain open; see `review.md` §5.
+> **Build status (2026-11-21):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **2:57 English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **300 tests / 22 files** (unit, property-based and regression). Publishing the repository, hosting the static build, uploading the video and submitting the Devpost entry are the account holder's acts and remain open; see `review.md` §5.
 
 Corporate payment files never died. The people and tools that could read them did.
 
@@ -12,9 +12,9 @@ Corporate payment files never died. The people and tools that could read them di
 
 | Layer | What it does | AI? | Where |
 |---|---|---|---|
-| L1 parser | types every record exactly per the copybook or the BAI2 layout (position, length, sign, implied decimals) | no | `src/copybook`, `src/parser`, `src/bai2` |
+| L1 parser | types every record exactly per the copybook or the BAI2 layout (position, length, sign, implied decimals), including `REDEFINES` regions where one byte range has two layouts | no | `src/copybook`, `src/parser`, `src/bai2` |
 | L2 reconciler | control totals, counts, references, date windows → coded findings with signed `bigint` deltas | no | `src/reconcile` |
-| L3 explainer | explains each finding in plain language, citing only numbers L1/L2 produced; anything else becomes `INSUFFICIENT_EVIDENCE` | agent, optional | `src/explain` |
+| L3 explainer | explains each finding in plain language, citing only numbers L1/L2 produced; anything else becomes `INSUFFICIENT_EVIDENCE`. Default is the `grounded` template: deterministic, zero credits | agent, optional | `src/explain` |
 | L4 register | records a human decision per finding: owner, reason, compensating control, expiry, hash chained and append only | human | `src/exception` |
 
 The verdict is **deterministic and re-verifiable** (`820 verify`); the model never decides whether numbers match, and by default it is not called at all. A waiver never turns a verdict green: the register says what a person accepted, beside the answer the code produced.
@@ -23,11 +23,11 @@ Verdicts: `PASS` (every check agreed), `INCOMPLETE` (a parse issue left bytes un
 
 ## Watch it
 
-`demo-video/820-demo-en.mp4`, 2 minutes 52 seconds, 1920x1080, English narration and burned-in subtitles, no music. It opens with the hook log from a real Kiro session and the reviewer agent's MCP calls, then the static browser demo (PASS, four findings, the bytes behind a finding), the BAI2 delta with its credit and debit parts, the exception register with a waiver recorded, `verify`, the test suite, and what the session did. Script and shot list: `demo-video/build/README.md`.
+`demo-video/820-demo-en.mp4`, 2 minutes 57 seconds, 1920x1080, English narration and burned-in subtitles, no music. It opens with the hook log from a real Kiro session and the reviewer agent's MCP calls, then the bank copybook with its two `REDEFINES` layouts, the trailer read through its own layout, the static browser demo (PASS, four findings, the bytes behind a finding), the BAI2 delta with its credit and debit parts, the exception register with a waiver recorded, `verify`, the test suite, and what the session did. Script and shot list: `demo-video/build/README.md`.
 
 ## Try it with no server
 
-`docs/demo/index.html` is a static build of the same engine: the parser, the reconciler, the BAI2 reader, the L3 template narrator and the L4 register compiled for the browser by `esbuild`. Six scenarios run with one click, a dropped file is read as bytes (`arrayBuffer`, so a COMP-3 amount survives), the register accepts a waiver and a release, and `Re-derive and compare` re-runs the case and prints the fingerprint. Nothing is uploaded: after the two files load, no request leaves the tab.
+`docs/demo/index.html` is a static build of the same engine: the parser, the reconciler, the BAI2 reader, the L3 grounded explainer and the L4 register compiled for the browser by `esbuild`. Eight scenarios run with one click (the two `REDEFINES` ones included), a dropped file is read as bytes (`arrayBuffer`, so a COMP-3 amount survives), the register accepts a waiver and a release, and `Re-derive and compare` re-runs the case and prints the fingerprint. Nothing is uploaded: after the two files load, no request leaves the tab.
 
 ![Static demo, PASS](docs/images/demo-s1.png)
 ![Static demo, four findings](docs/images/demo-s3.png)
@@ -41,9 +41,9 @@ python3 scripts/check-static.py       # Chromium at 1920: every scenario's finge
 
 ```bash
 npm install
-npm test                       # 284 tests: npx vitest run
+npm test                       # 300 tests: npx vitest run
 npm run typecheck              # tsc --noEmit for node + for the browser build, 0 errors
-npm run demo:cli               # parse + reconcile six scenarios (820/823/fixed/COMP-3/BAI2)
+npm run demo:cli               # parse + reconcile eight scenarios (820/823/fixed/COMP-3/REDEFINES/BAI2)
 npm run evidence               # write out/evidence/report.json, the report the hook re-derives
 ```
 
@@ -75,7 +75,7 @@ npm run cli -- reconcile --copybook samples/copybooks/820.cpy --file samples/dat
 # BAI2: no copybook, just --format bai2
 npm run cli -- reconcile --copybook samples/copybooks/820.cpy --file samples/data/820-good.txt \
                                   --bank samples/data/bai2-bad.txt --bank-format bai2 --out out/demo
-npm run cli -- explain   --findings out/demo            # L3, deterministic adapter, 0 credits
+npm run cli -- explain   --findings out/demo            # L3, grounded template, 0 credits
 npm run cli -- verify    out/demo                       # re-derive + compare, read-only
 
 # L4: the human decision, recorded
@@ -124,6 +124,10 @@ node scripts/mcp-call.mjs    # a real client: initialize, tools/list, reconcile,
 
 Each returns the same JSON the CLI writes, because all three surfaces call `src/core/ops.ts`. The reviewer agent in `.kiro/agents/reviewer.json` calls these tools, and `.kiro/settings/mcp.json` registers the server for the workspace.
 
+## `REDEFINES` is read, not guessed
+
+A bank copybook does not give the control trailer its own bytes. It gives the record one 100-byte area and declares the trailer as a second description of that area, `PAYMENT-TRAILER REDEFINES PAYMENT-DETAIL`. The compiler reads that as a region with two layouts. COBOL does not say which record type uses which layout, so the copybook must: one `* @view layout=... typeField=REC-TYPE value=P|T` per layout, and a `REDEFINES` with no such rule is refused (`COPYBOOK_SEMANTICS`) instead of read as whichever layout fits. At parse time exactly the selected layout is decoded; the other layout's field names are absent from the record, and a record whose type byte matches no layout is `REDEFINES_VIEW_UNMATCHED`, which cannot earn a PASS. `samples/copybooks/820-redefines.cpy` is the sample, `docs/copybook-dialect.md` §4 the rule book, and `test/regressions/redefines-view.test.ts` pins both the behaviour and the six pre-existing scenario fingerprints.
+
 ## BAI2 is read, not disguised
 
 BAI2 has no fixed width and no copybook. Rather than fake a layout for a comma-delimited format, `src/bai2` is a dedicated reader for records `01/02/03/16/49/88/98/99` that produces the same `ParseResult` the reconciler already understands: amounts as `bigint` minor units with the currency's exponent, direction from the type code (`100–399` credit, `400–699` debit), per-record field offsets for the evidence panel, and its own checks of the account, group and file trailers. A `03` code `100` declares *total credits*, while the detail records it is compared against net credits against debits, so the reader keeps gross credit and debit totals per currency and every delta names both parts. See [`docs/bai2.md`](docs/bai2.md).
@@ -139,10 +143,10 @@ BAI2 has no fixed width and no copybook. Rather than fake a layout for a comma-d
 - `docs/copybook-to-spec.md` — how a legacy spec document became a Kiro spec (what it got right, what it got wrong)
 - `docs/kiro-cli-validation.md` — the earlier CLI session, the agent validation, and the reviewer run that was confidently wrong
 - `review.md` — self scoring on the five criteria, with what a cold judge would still mark down
-- `devpost-submission-draft.md` — the submission text and the write-up, including the claims this project does **not** make
+- `devpost-submission-draft.md` — the submission text and the write-up, including how spec, steering, the custom agent, hooks, MCP and the CLI combine, and the five boundaries the submission keeps
 
 ## What this guarantees / does not guarantee
-See [`docs/guarantees.md`](docs/guarantees.md), which is parsed and printed by `820 verify` and shown in both strips of the screen. Short version: it guarantees format interpretation, exact arithmetic, reference reconciliation, reproducibility and explanation grounding; it does **not** guarantee legal or accounting adequacy, and whether an exception is acceptable is a human's call, on purpose.
+See [`docs/guarantees.md`](docs/guarantees.md), which is parsed and printed by `820 verify` and shown in both strips of the screen. Short version: it guarantees format interpretation (including one active layout per `REDEFINES` region), exact arithmetic, reference reconciliation, reproducibility and explanation grounding; it does **not** guarantee legal or accounting adequacy, and whether an exception is acceptable is a human's call, on purpose.
 
 ## Data
 

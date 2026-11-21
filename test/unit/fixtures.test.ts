@@ -20,6 +20,7 @@ const cob820 = compileCopybook(readText('samples/copybooks/820.cpy'));
 const cob823 = compileCopybook(readText('samples/copybooks/823.cpy'));
 const cobPacked = compileCopybook(readText('samples/copybooks/820-packed.cpy'));
 const cobPackedSource = readText('samples/copybooks/820-packed.cpy');
+const cobRedefines = compileCopybook(readText('samples/copybooks/820-redefines.cpy'));
 
 const WINDOW = { settlementWindow: { start: '2026-11-18', end: '2026-11-20' } };
 
@@ -30,6 +31,8 @@ describe('T0.3 — the fixture set matches its documented defects', () => {
       '820-bad.txt',
       '820-good.txt',
       '820-packed-good.txt',
+      '820-redefines-bad.txt',
+      '820-redefines-good.txt',
       '823-bad.txt',
       '823-bank.txt',
       'DEFECTS.md',
@@ -42,6 +45,8 @@ describe('T0.3 — the fixture set matches its documented defects', () => {
     expect(sizes['820-packed-good.txt']).toBe(11 * 88); // no line breaks
     expect(sizes['823-bank.txt']).toBe(11 * 80 + 11);
     expect(sizes['823-bad.txt']).toBe(10 * 80 + 10);
+    expect(sizes['820-redefines-good.txt']).toBe(11 * 101 + 11); // 11 records × 101 bytes + 11 newlines
+    expect(sizes['820-redefines-bad.txt']).toBe(11 * 101 + 11);
   });
 
   it('820-good + 823-bank reconcile to PASS', () => {
@@ -80,6 +85,40 @@ describe('T0.3 — the fixture set matches its documented defects', () => {
     expect(cobPackedSource).toContain('COMP-3');
   });
 
+  it('820-redefines-good reads the trailer through its own REDEFINES layout and passes', () => {
+    const payment = parseFile({ copybook: cobRedefines, source: readBuf('samples/data/820-redefines-good.txt') });
+    expect(payment.issues).toEqual([]);
+    // Ten details activated the detail layout; the last record activated the trailer layout.
+    expect(payment.records.map((record) => record.views?.['PAYMENT-DETAIL'])).toEqual([
+      ...Array.from({ length: 10 }, () => 'PAYMENT-DETAIL'),
+      'PAYMENT-TRAILER',
+    ]);
+    // The two layouts are read at the same byte range, and neither leaks into the other.
+    expect(payment.records[0]!.values['TOTAL-AMOUNT']).toBeUndefined();
+    expect(payment.records[10]!.values['AMOUNT']).toBeUndefined();
+    expect(payment.records[10]!.values['TOTAL-AMOUNT']).toMatchObject({ minorUnits: 128_455_000n, currency: 'USD' });
+    const result = reconcile({
+      payment,
+      bank: parseFile({ copybook: cob823, source: readBuf('samples/data/823-bank.txt') }),
+      options: WINDOW,
+    });
+    expect(result.status).toBe('PASS');
+    expect(result.findings).toEqual([]);
+  });
+
+  it('820-redefines-bad finds the trailer total that the redefining layout declares', () => {
+    const payment = parseFile({ copybook: cobRedefines, source: readBuf('samples/data/820-redefines-bad.txt') });
+    expect(payment.issues).toEqual([]);
+    const result = reconcile({
+      payment,
+      bank: parseFile({ copybook: cob823, source: readBuf('samples/data/823-bank.txt') }),
+      options: WINDOW,
+    });
+    expect(result.status).toBe('FAIL');
+    expect(result.findings.map((f) => `${f.code}:${f.field ?? ''}`)).toEqual(['CONTROL_TOTAL_MISMATCH:TOTAL-AMOUNT']);
+    expect(formatAmount(result.findings[0]!.delta as never)).toBe('100.00 USD');
+  });
+
   it('823-bad declares ten records and loses one', () => {
     const result = reconcile({
       payment: parseFile({ copybook: cob820, source: readBuf('samples/data/820-good.txt') }),
@@ -98,6 +137,8 @@ describe('T0.3 — the fixture set matches its documented defects', () => {
       ['samples/data/820-good.txt', cob820],
       ['samples/data/820-bad.txt', cob820],
       ['samples/data/820-packed-good.txt', cobPacked],
+      ['samples/data/820-redefines-good.txt', cobRedefines],
+      ['samples/data/820-redefines-bad.txt', cobRedefines],
       ['samples/data/823-bank.txt', cob823],
       ['samples/data/823-bad.txt', cob823],
     ];

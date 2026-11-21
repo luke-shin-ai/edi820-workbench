@@ -138,74 +138,113 @@ def plate_raw_file():
 
 
 def plate_copybook():
+    """The bank copybook: one 100-byte area, two layouts, and the rule that picks one.
+
+    Byte ranges come from the compiler's own dump (`copybook-fields.json`), so the plate
+    cannot disagree with the parser. The two layouts are tinted differently because that
+    is the point of the shot.
+    """
     c = Canvas()
-    fields = json.load(open(os.path.join(WORK, "copybook-fields.json")))["820.cpy"]["fields"]
-    by_name = {f["name"]: f for f in fields}
-    text = open(os.path.join(ROOT, "samples/copybooks/820.cpy"), "r", encoding="utf-8").read().split("\n")
+    book = json.load(open(os.path.join(WORK, "copybook-fields.json")))["820-redefines.cpy"]
+    fields = book["fields"]
+    views = {v["layout"]: v for v in book["views"]}
+    by_layout = {}
+    for f in fields:
+        if f.get("layout") and not f.get("group"):
+            by_layout.setdefault(f["layout"], []).append(f)
+
+    text = open(os.path.join(ROOT, "samples/copybooks/820-redefines.cpy"), "r", encoding="utf-8").read().split("\n")
+    first = next(i for i, line in enumerate(text) if "@framing" in line) - 1
+    text = text[first:]
+
+    DETAIL_INK = (150, 192, 240)
+    TRAILER_INK = (233, 184, 116)
+
+    def wrap(line, width=96):
+        out = []
+        while len(line) > width:
+            cut = line.rfind(" ", 0, width)
+            cut = cut if cut > 60 else width
+            out.append(line[:cut])
+            line = "        " + line[cut:].lstrip()
+        out.append(line)
+        return out
 
     rows = []
+    seen = set()
     for raw in text:
         if not raw.strip():
             continue
         line = raw.replace("\t", "    ")
         stripped = line.strip()
         colour = INK
-        field = None
+        field_start = None
         if stripped.startswith("*"):
-            colour = DIM if "@" not in stripped else BLUE
+            colour = BLUE if "@" in stripped else DIM
         else:
             parts = stripped.split()
             if len(parts) >= 2 and parts[0].isdigit():
                 name = parts[1].rstrip(".")
-                field = by_name.get(name)
-                colour = (222, 233, 244) if field else (170, 185, 200)
-        max_chars = 84
-        chunks = []
-        while len(line) > max_chars:
-            cut = line.rfind(" ", 0, max_chars)
-            cut = cut if cut > 50 else max_chars
-            chunks.append(line[:cut])
-            line = "       " + line[cut:].lstrip()
-        chunks.append(line)
+                if name in ("PAYMENT-DETAIL", "PAYMENT-TRAILER"):
+                    colour = (222, 233, 244)
+                else:
+                    pick = None
+                    for f in fields:
+                        if f["name"] == name and (f["name"], f["start"]) not in seen:
+                            pick = f
+                            break
+                    if pick is not None:
+                        seen.add((pick["name"], pick["start"]))
+                        field_start = (pick["start"], pick["length"], pick.get("layout"))
+                        colour = (DETAIL_INK if pick.get("layout") == "PAYMENT-DETAIL"
+                                  else TRAILER_INK if pick.get("layout") == "PAYMENT-TRAILER"
+                                  else (170, 185, 200))
+                    else:
+                        colour = (170, 185, 200)
+        chunks = wrap(line)
         for k, chunk in enumerate(chunks):
-            rows.append((chunk, colour, field if k == 0 else None))
+            rows.append((chunk, colour, field_start if k == 0 else None))
 
-    c.card((54, 104, 1192, 962), fill=(11, 16, 24))
-    y = 138
-    f = font(MONO_R, 17.5)
-    for line, colour, field in rows:
-        c.text((78, y), line, f, colour)
-        if field:
-            start, length = field["start"], field["length"]
-            c.text((1014, y + 3), "%d-%d" % (start, start + length - 1), font(MONO_R, 14), (120, 155, 190))
-        y += 29.5
-    c.text((1014, 918), "bytes", font(MONO_R, 13), (95, 112, 132))
+    c.card((54, 104, 1174, 966), fill=(11, 16, 24))
+    y = 132
+    f = font(MONO_R, 15.5)
+    for line, colour, field_start in rows:
+        c.text((72, y), line, f, colour)
+        if field_start:
+            start, length, layout = field_start
+            c.text((1006, y + 3), "%d-%d" % (start, start + length - 1), font(MONO_R, 13.5),
+                   DETAIL_INK if layout == "PAYMENT-DETAIL" else TRAILER_INK if layout == "PAYMENT-TRAILER" else (120, 155, 190))
+        y += 26.0
+    c.text((1006, 936), "bytes", font(MONO_R, 13), (95, 112, 132))
 
-    c.card((1224, 104, W - 54, 962), fill=(13, 19, 29), stroke=(52, 62, 80))
-    c.text((1254, 140), "COMPILED", font(SANS_B, 22), MUTED)
-    c.text((1254, 180), "record length 100 bytes", font(MONO_R, 22), GREEN)
-    c.text((1254, 214), "10 fields, no overlap", font(MONO_R, 22), GREEN)
+    c.card((1206, 104, W - 54, 966), fill=(13, 19, 29), stroke=(52, 62, 80))
+    c.text((1234, 130), "COMPILED", font(SANS_B, 21), MUTED)
+    c.text((1234, 166), "record length 101 bytes", font(MONO_R, 20), GREEN)
+    c.text((1234, 194), "one 100-byte area, two layouts", font(MONO_R, 20), GREEN)
 
-    c.text((1254, 288), "NOT IN THE COPYBOOK", font(SANS_B, 22), AMBER)
-    items = ["Is a short record re-synchronised,", "or reported?",
-             "Are totals compared per currency?", "Is a reference match exact or fuzzy?",
-             "May the agent explain a finding", "with no evidence at all?"]
-    y = 328
-    for it in items:
-        c.text((1254, y), it, font(SANS_R, 21), (196, 210, 226))
-        y += 34
-    c.text((1254, 550), "Those are requirements.", font(SANS_B, 22), INK)
-    c.text((1254, 586), "They are the part that lived in", font(SANS_R, 21), MUTED)
-    c.text((1254, 616), "people's heads.", font(SANS_R, 21), MUTED)
+    c.text((1234, 240), "THE SAME BYTES, TWICE", font(SANS_B, 19), AMBER)
+    y = 272
+    for layout, colour in (("PAYMENT-DETAIL", DETAIL_INK), ("PAYMENT-TRAILER", TRAILER_INK)):
+        view = views[layout]
+        c.text((1234, y), layout, font(MONO_B, 17), colour)
+        c.text((1234, y + 22), "bytes %d-%d  when %s = %s" % (view["start"], view["start"] + view["length"] - 1,
+                                                              view["typeField"], "/".join(view["values"])),
+               font(MONO_R, 16), (176, 194, 212))
+        y += 44
+        for fld in by_layout[layout]:
+            c.text((1252, y), "%s %d-%d" % (fld["name"], fld["start"], fld["start"] + fld["length"] - 1),
+                   font(MONO_R, 15), (150, 166, 184))
+            y += 20
+        y += 22
 
-    c.text((1254, 700), "Answered, and written down:", font(SANS_B, 21), BLUE)
-    for i, (k, v) in enumerate([("R2.2", "report, never re-synchronise"),
-                                ("R4.1", "totals compared per currency"),
-                                ("R5.3", "no evidence, no explanation")]):
-        c.text((1254, 744 + i * 48), k, font(MONO_B, 20), (208, 222, 236))
-        c.text((1310, 744 + i * 48), v, font(MONO_R, 19), (180, 198, 216))
+    c.text((1234, y + 6), "WHY IT IS SAFE TO READ", font(SANS_B, 19), BLUE)
+    y2 = y + 42
+    for line in ["One record, one layout: the type byte", "chooses it, and the other layout's fields",
+                 "are never decoded.", "A REDEFINES with no @view rule is refused."]:
+        c.text((1234, y2), line, font(SANS_R, 17.5), (196, 210, 226))
+        y2 += 25
 
-    c.chip("2 / THE COPYBOOK   samples/copybooks/820.cpy", "#6BA8FF")
+    c.chip("2 / THE COPYBOOK   samples/copybooks/820-redefines.cpy", "#6BA8FF")
     return c.save("p02_copybook")
 
 
@@ -258,6 +297,11 @@ def plate_static_evidence():
 
 def plate_static_bai2():
     return static_plate("demo-s6.png", "p17_static_bai2")
+
+
+def plate_static_redefines():
+    """The trailer record of S7, sliced by the layout that REDEFINES the detail."""
+    return static_plate("demo-s7-trailer.png", "p19_static_redefines")
 
 
 def plate_static_l4():
@@ -416,9 +460,10 @@ def plate_verify():
 
 def plate_tests():
     raw = [ln for ln in open(os.path.join(OUTPUTS, "tests.txt"), encoding="utf-8").read().split("\n") if ln.strip()]
-    lines = raw[:13]
+    # Keep the tail: the last file lines and the summary that carries the count.
+    lines = raw[-13:]
     return terminal(lines, "p08_tests", "8 / PROPERTY BASED TESTS   npx vitest run", "#3FB950",
-                    "npx vitest run", hl=("Tests  284",))
+                    "npx vitest run", hl=("Tests  300",))
 
 
 def plate_bai2():
@@ -511,6 +556,7 @@ BUILDERS = {
     "static-fail": plate_static_fail,
     "static-evidence": plate_static_evidence,
     "static-bai2": plate_static_bai2,
+    "static-redefines": plate_static_redefines,
     "static-l4": plate_static_l4,
     "raw-file": plate_raw_file,
     "copybook": plate_copybook,

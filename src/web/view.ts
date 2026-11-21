@@ -106,13 +106,22 @@ function recordView(
           text: record.raw.slice(span.start - 1, span.start - 1 + span.length),
           pic: 'BAI2 field',
         }))
-      : result.copybook.fields.map((field) => ({
-          name: field.name,
-          start: field.start,
-          length: field.length,
-          text: record.slices[field.name] ?? '',
-          pic: field.pic,
-        }));
+      : result.copybook.fields
+          // A group item owns no bytes, and an inactive `REDEFINES` layout reads none,
+          // so the layout panel shows only what this record was actually sliced by.
+          .filter(
+            (field) =>
+              !field.group &&
+              record.slices[field.name] !== undefined &&
+              (field.region === undefined || record.views?.[field.region] === field.layout),
+          )
+          .map((field) => ({
+            name: field.name,
+            start: field.start,
+            length: field.length,
+            text: record.slices[field.name] ?? '',
+            pic: field.pic,
+          }));
   return {
     index: record.index,
     side,

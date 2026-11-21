@@ -65,7 +65,7 @@ Usage:
                 [--bank-copybook <path> | --bank-format bai2]
                 [--window YYYY-MM-DD..YYYY-MM-DD] [--tolerance <days>]
                 [--out <dir>] [--json]
-  820 explain   --findings <report.json|dir> [--adapter mock|kiro-cli|openai]
+  820 explain   --findings <report.json|dir> [--adapter grounded|kiro-cli|openai]
                 [--max-live <n>] [--out <dir>] [--json]
   820 verify    <report.json|dir> [--json]
   820 exceptions <report.json|dir> [--ledger <path>] [--today YYYY-MM-DD] [--json]
@@ -391,7 +391,7 @@ export async function runCli(argv: string[], streams: Streams = defaultStreams):
         const target = flagString(args, 'findings') ?? args.positional[0];
         if (!target) throw new AppError('USAGE', '--findings <report.json|dir> is required');
         const { report, path } = loadReport(target);
-        const adapterName = flagString(args, 'adapter') ?? 'mock';
+        const adapterName = flagString(args, 'adapter') ?? 'grounded';
         const maxLiveRaw = flagString(args, 'max-live');
         const maxLiveCalls = maxLiveRaw === undefined ? 0 : Number(maxLiveRaw);
         if (!Number.isInteger(maxLiveCalls) || maxLiveCalls < 0) throw new AppError('USAGE', '--max-live must be a non-negative integer');
@@ -492,6 +492,22 @@ export async function runCli(argv: string[], streams: Streams = defaultStreams):
             inputs: {
               payment: { path: join(root, 'samples/data/820-good.txt'), copybookPath: join(root, 'samples/copybooks/820.cpy') },
               bank: { path: join(root, 'samples/data/bai2-bad.txt'), format: 'bai2' },
+              settlementWindow: { start: '2026-11-18', end: '2026-11-20' },
+            },
+          },
+          {
+            name: 'S7 820-redefines-good + 823-bank',
+            inputs: {
+              payment: { path: join(root, 'samples/data/820-redefines-good.txt'), copybookPath: join(root, 'samples/copybooks/820-redefines.cpy') },
+              bank: { path: join(root, 'samples/data/823-bank.txt'), copybookPath: join(root, 'samples/copybooks/823.cpy') },
+              settlementWindow: { start: '2026-11-18', end: '2026-11-20' },
+            },
+          },
+          {
+            name: 'S8 820-redefines-bad + 823-bank',
+            inputs: {
+              payment: { path: join(root, 'samples/data/820-redefines-bad.txt'), copybookPath: join(root, 'samples/copybooks/820-redefines.cpy') },
+              bank: { path: join(root, 'samples/data/823-bank.txt'), copybookPath: join(root, 'samples/copybooks/823.cpy') },
               settlementWindow: { start: '2026-11-18', end: '2026-11-20' },
             },
           },

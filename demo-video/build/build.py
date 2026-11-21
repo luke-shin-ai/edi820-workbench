@@ -82,6 +82,7 @@ PLATE_FILE = {
     "static-fail": "p15_static_fail",
     "static-evidence": "p16_static_evidence",
     "static-bai2": "p17_static_bai2",
+    "static-redefines": "p19_static_redefines",
     "static-l4": "p18_static_l4",
     "raw-file": "p01_raw",
     "copybook": "p02_copybook",
@@ -141,7 +142,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,Liberation Sans,36,&H00F5F8FC,&H000000FF,&H00000000,&H9E0A0E16,0,0,0,0,100,100,0,0,1,3,0,2,90,90,48,1
+Style: Cap,Liberation Sans,36,&H00F5F8FC,&H000000FF,&H00000000,&H98090F18,0,0,0,0,100,100,0,0,3,9,0,2,120,120,84,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -233,7 +234,7 @@ def stage_assemble():
                     "-vf", "subtitles=%s" % ass_path.replace(":", "\\:"),
                     "-map", "0:v", "-map", "1:a",
                     "-c:v", "libx264", "-preset", "medium", "-crf", "25",
-                    "-maxrate", "860k", "-bufsize", "1720k", "-pix_fmt", "yuv420p",
+                    "-maxrate", "800k", "-bufsize", "1600k", "-pix_fmt", "yuv420p",
                     "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart",
                     "-shortest", final], check=True)
     print("final", final, "dur", round(probe_duration(final), 2),

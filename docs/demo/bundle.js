@@ -79,12 +79,29 @@
     if (!saw9) fail(`no data characters in PICTURE ${raw}`, line);
     return { kind: "numeric", stringLength: 0, signed, digits, decimals };
   }
+  var REDEFINES_RE = /\sREDEFINES\s+(?:IS\s+)?([A-Z0-9][A-Z0-9_-]*)\b/i;
+  function parseGroupClauses(raw, line) {
+    let rest = ` ${raw.replace(/\s+/g, " ").trim()} `;
+    let redefines;
+    const match = REDEFINES_RE.exec(rest);
+    if (match) {
+      redefines = (match[1] ?? "").toUpperCase();
+      rest = rest.replace(REDEFINES_RE, " ");
+    }
+    rest = rest.trim().replace(/\.$/, "").trim();
+    if (rest.length > 0) fail(`unrecognised clause "${rest}" on a group item`, line);
+    return { ...redefines ? { redefines } : {} };
+  }
   function parseClauses(raw, line) {
     let rest = ` ${raw.replace(/\s+/g, " ").trim()} `;
     const result = { usage: "display" };
+    const redefinesMatch = REDEFINES_RE.exec(rest);
+    if (redefinesMatch) {
+      result.redefines = (redefinesMatch[1] ?? "").toUpperCase();
+      rest = rest.replace(REDEFINES_RE, " ");
+    }
     const unsupported = [
-      [/\sREDEFINES\s+[A-Z0-9_-]+/i, "REDEFINES"],
-      [/\sOCCURS\s+\d+/i, "OCCURS"],
+      [/\sOCCURS\b/i, "OCCURS (fixed or DEPENDING ON)"],
       [/\s(COMP|COMPUTATIONAL|COMP-1|COMP-2|COMPUTATIONAL-1|COMPUTATIONAL-2|BINARY|INDEX)(?![0-9-])/i, "binary COMP usage"]
     ];
     const usageRe = /\sUSAGE\s+(?:IS\s+)?(DISPLAY|COMP-3|COMPUTATIONAL-3|PACKED-DECIMAL|COMP|COMPUTATIONAL|BINARY|COMP-1|COMP-2)\b/i;
@@ -160,14 +177,79 @@
     return digitCount + separate;
   }
   function compileCopybook(text) {
+    if (/[\u0080-\u00ff]/.test(text)) {
+      throw new CopybookError(
+        "UNSUPPORTED_STRUCTURE",
+        "this copybook contains non-ASCII bytes, so it is probably EBCDIC; \u300C820\u300D reads ASCII transliterations only"
+      );
+    }
     const lines = text.replace(/\r\n/g, "\n").split("\n");
     const fields = [];
     const notes = [];
     const semantics = {};
+    const regions = /* @__PURE__ */ new Map();
+    const viewRules = /* @__PURE__ */ new Map();
     let control;
     let framing = "line";
     let recordName = "";
-    let anyExplicit = false;
+    const frames = [];
+    let cursor = 1;
+    const closeFrames = (level) => {
+      while (frames.length > 0 && frames[frames.length - 1].level >= level) {
+        const frame = frames.pop();
+        const contentLength = cursor - frame.start;
+        if (contentLength < 1) {
+          throw new CopybookError(
+            "COPYBOOK_REDEFINES",
+            `group item ${frame.name} declares no fields, so its width is zero (copybook line ${frame.group.line})`,
+            { line: frame.group.line, fields: [frame.name] }
+          );
+        }
+        frame.group.length = contentLength;
+        if (frame.regionEnd !== void 0) {
+          if (contentLength > frame.regionEnd - frame.start) {
+            throw new CopybookError(
+              "COPYBOOK_REDEFINES",
+              `${frame.name} is ${contentLength} bytes, wider than the ${frame.regionEnd - frame.start} bytes it redefines (copybook line ${frame.group.line})`,
+              { line: frame.group.line, fields: [frame.name] }
+            );
+          }
+          cursor = Math.max(cursor, frame.regionEnd);
+        }
+      }
+    };
+    const registerInLayout = (regionName, layoutName, fieldName) => {
+      const region = regions.get(regionName);
+      const list = region.layouts.get(layoutName);
+      if (list) list.push(fieldName);
+      else region.layouts.set(layoutName, [fieldName]);
+    };
+    const regionFor = (redefined, line) => {
+      const existing = regions.get(redefined.name);
+      if (existing) return existing;
+      const region = { name: redefined.name, start: redefined.start, length: redefined.length, layouts: /* @__PURE__ */ new Map() };
+      regions.set(redefined.name, region);
+      const rangeStart = redefined.start;
+      const rangeEnd = redefined.start + redefined.length;
+      for (const field of fields) {
+        if (field.group && frames.some((frame) => frame.name === field.name)) continue;
+        const enclosingGroup = field.group === true && field.name !== redefined.name && field.start <= rangeStart && field.start + field.length >= rangeEnd;
+        if (enclosingGroup) continue;
+        if (field.start >= rangeStart && field.start + field.length <= rangeEnd) {
+          field.region ?? (field.region = redefined.name);
+          field.layout ?? (field.layout = redefined.name);
+          if (field.region === redefined.name) registerInLayout(redefined.name, redefined.name, field.name);
+        }
+      }
+      if (!region.layouts.has(redefined.name)) {
+        throw new CopybookError(
+          "COPYBOOK_REDEFINES",
+          `REDEFINES ${redefined.name} names an item with no fields inside it (copybook line ${line})`,
+          { line }
+        );
+      }
+      return region;
+    };
     const directiveValuesFor = (name2, body, line) => directiveValues(body, line, name2.toLowerCase() === "framing");
     lines.forEach((lineText, idx) => {
       const line = idx + 1;
@@ -213,40 +295,136 @@
             framing = mode;
             return;
           }
+          case "view": {
+            const layout = values.layout?.toUpperCase();
+            const typeField = (values.typefield ?? values.discriminator)?.toUpperCase();
+            const rawValues = values.value ?? values.values;
+            if (!layout || !typeField || rawValues === void 0) {
+              fail("@view requires layout, typeField and value (e.g. `@view layout=TRAILER typeField=REC-TYPE value=T`)", line);
+            }
+            const list = rawValues.split(",").map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+            if (list.length === 0) fail(`@view ${layout} declares no value`, line);
+            viewRules.set(layout, { typeField, values: list });
+            return;
+          }
           default:
             notes.push(`copybook line ${line}: directive @${name3.slice(1)} ignored`);
             return;
         }
       }
-      const noPic = NO_PIC_RE.exec(lineText);
-      if (noPic && !/PIC/i.test(lineText)) {
-        const level2 = Number(noPic[1]);
-        const name3 = noPic[2];
-        if (level2 === 1) {
-          recordName = name3;
+      const hasPic = /PIC\s+/i.test(lineText);
+      let level;
+      let name2;
+      let remainder = "";
+      let clauses = { usage: "display" };
+      const bare = hasPic ? null : NO_PIC_RE.exec(lineText);
+      if (bare) {
+        level = Number(bare[1]);
+        name2 = bare[2];
+        if (level === 1) {
+          recordName = name2;
           return;
         }
-        if (level2 === 88) return;
-        fail(`group/section line "${lineText.trim()}" has no PIC clause`, line);
+        if (level === 88) return;
+      } else {
+        const match = FIELD_RE.exec(lineText);
+        if (!match) fail(`line is not a field definition: "${lineText.trim()}"`, line);
+        level = Number(match[1]);
+        name2 = match[2];
+        remainder = match[3];
+        if (!NAME_RE.test(name2)) fail(`invalid field name "${name2}"`, line);
+        if (!hasPic) {
+          const groupClauses = parseGroupClauses(remainder, line);
+          clauses = { usage: "display", ...groupClauses };
+        }
       }
-      const match = FIELD_RE.exec(lineText);
-      if (!match) fail(`line is not a field definition: "${lineText.trim()}"`, line);
-      const level = Number(match[1]);
-      const name2 = match[2];
-      const remainder = match[3];
-      if (!NAME_RE.test(name2)) fail(`invalid field name "${name2}"`, line);
-      const picIndex = remainder.search(/PIC\s+/i);
-      if (picIndex < 0) fail(`field ${name2} has no PIC clause`, line);
-      const afterPic = remainder.slice(picIndex).replace(/^PIC\s+/i, "");
-      const picTokenMatch = /^(\S+?)\.?(\s|$)/.exec(afterPic);
-      if (!picTokenMatch) fail(`field ${name2} has an empty PIC clause`, line);
-      const picToken = (picTokenMatch[1] ?? "").replace(/\.$/, "");
-      const picture = parsePicture(picToken, line);
-      const clauses = parseClauses(afterPic.slice(picTokenMatch[0].length), line);
-      if (picture.kind === "string" && clauses.usage === "comp-3") fail(`COMP-3 requires a numeric PICTURE (field ${name2})`, line);
-      if (picture.kind === "string" && clauses.sign) fail(`SIGN requires a numeric PICTURE (field ${name2})`, line);
-      if (picture.kind === "numeric" && clauses.usage === "display" && (picture.signed || clauses.sign) && !clauses.sign) {
-        fail(`signed field ${name2} must declare its sign convention (SIGN LEADING/ TRAILING SEPARATE or SIGN TRAILING OVERPUNCH)`, line);
+      closeFrames(level);
+      let picture;
+      if (hasPic) {
+        const picIndex = remainder.search(/PIC\s+/i);
+        if (picIndex < 0) fail(`field ${name2} has no PIC clause`, line);
+        const afterPic = remainder.slice(picIndex).replace(/^PIC\s+/i, "");
+        const picTokenMatch = /^(\S+?)\.?(\s|$)/.exec(afterPic);
+        if (!picTokenMatch) fail(`field ${name2} has an empty PIC clause`, line);
+        const picToken = (picTokenMatch[1] ?? "").replace(/\.$/, "");
+        picture = parsePicture(picToken, line);
+        clauses = parseClauses(afterPic.slice(picTokenMatch[0].length), line);
+        if (picture.kind === "string" && clauses.usage === "comp-3") fail(`COMP-3 requires a numeric PICTURE (field ${name2})`, line);
+        if (picture.kind === "string" && clauses.sign) fail(`SIGN requires a numeric PICTURE (field ${name2})`, line);
+        if (picture.kind === "numeric" && clauses.usage === "display" && (picture.signed || clauses.sign) && !clauses.sign) {
+          fail(`signed field ${name2} must declare its sign convention (SIGN LEADING/ TRAILING SEPARATE or SIGN TRAILING OVERPUNCH)`, line);
+        }
+      }
+      let redefined;
+      if (clauses.redefines) {
+        redefined = fields.find((field2) => field2.name === clauses.redefines);
+        if (!redefined) {
+          throw new CopybookError(
+            "COPYBOOK_REDEFINES",
+            `REDEFINES names ${clauses.redefines}, which is not declared before this line (copybook line ${line})`,
+            { line }
+          );
+        }
+        if (redefined.level !== level) {
+          throw new CopybookError(
+            "COPYBOOK_REDEFINES",
+            `REDEFINES ${redefined.name} must be at the same level-number (${redefined.level}), not ${level} (copybook line ${line})`,
+            { line, fields: [redefined.name, name2] }
+          );
+        }
+        if (frames.some((frame) => frame.name === redefined.name)) {
+          throw new CopybookError(
+            "COPYBOOK_REDEFINES",
+            `REDEFINES ${redefined.name} names a group that is still open, so its width is not known yet (copybook line ${line})`,
+            { line, fields: [redefined.name, name2] }
+          );
+        }
+        if (redefined.length < 1) {
+          throw new CopybookError(
+            "COPYBOOK_REDEFINES",
+            `REDEFINES ${redefined.name} names an item with no width (copybook line ${line})`,
+            { line }
+          );
+        }
+        regionFor(redefined, line);
+      }
+      const parent = frames[frames.length - 1];
+      const start = clauses.position ?? (redefined ? redefined.start : cursor);
+      if (!hasPic && clauses.position !== void 0) fail(`group item ${name2} cannot declare POSITION`, line);
+      if (!picture) {
+        const group = {
+          name: name2,
+          level,
+          start,
+          length: 0,
+          type: "string",
+          pic: "GROUP",
+          signed: false,
+          usage: "display",
+          explicitPosition: false,
+          line,
+          group: true,
+          ...redefined ? { redefines: redefined.name } : {}
+        };
+        if (redefined) {
+          group.region = redefined.name;
+          group.layout = name2;
+        } else if (parent?.region) {
+          group.region = parent.region;
+          group.layout = parent.layout;
+        }
+        if (group.region) registerInLayout(group.region, group.layout, name2);
+        fields.push(group);
+        cursor = start;
+        frames.push({
+          name: name2,
+          level,
+          start,
+          group,
+          ...group.region ? { region: group.region, layout: group.layout } : {},
+          ...redefined ? { regionEnd: redefined.start + redefined.length } : {}
+        });
+        return;
       }
       const signed = picture.signed || clauses.sign !== void 0;
       const usage = clauses.usage;
@@ -259,12 +437,18 @@
       else if (picture.decimals > 0) type = "implied-decimal";
       else type = "unsigned-int";
       const length = picture.kind === "string" ? picture.stringLength : numericWidth(picture, usage, clauses.sign);
+      if (redefined && length > redefined.length) {
+        throw new CopybookError(
+          "COPYBOOK_REDEFINES",
+          `${name2} is ${length} bytes, wider than the ${redefined.length} bytes it redefines (${redefined.name}) (copybook line ${line})`,
+          { line, fields: [redefined.name, name2] }
+        );
+      }
       const normalisedPic = picture.kind === "string" ? `X(${picture.stringLength})` : `${picture.signed ? "S" : ""}9(${picture.digits})${picture.decimals > 0 ? `V${"9".repeat(picture.decimals)}` : ""}`;
-      if (clauses.position !== void 0) anyExplicit = true;
-      fields.push({
+      const field = {
         name: name2,
         level,
-        start: clauses.position ?? 0,
+        start,
         length,
         type,
         pic: normalisedPic,
@@ -273,46 +457,59 @@
         ...clauses.sign ? { sign: clauses.sign } : {},
         usage,
         explicitPosition: clauses.position !== void 0,
-        line
-      });
+        line,
+        ...redefined ? { redefines: redefined.name } : {}
+      };
+      if (redefined) {
+        field.region = redefined.name;
+        field.layout = name2;
+      } else if (parent?.region) {
+        field.region = parent.region;
+        field.layout = parent.layout;
+      }
+      if (field.region) registerInLayout(field.region, field.layout, field.name);
+      fields.push(field);
+      cursor = start + length;
+      if (redefined) cursor = redefined.start + redefined.length;
     });
-    if (fields.length === 0) {
+    closeFrames(0);
+    if (!fields.some((field) => !field.group)) {
       throw new CopybookError("COPYBOOK_UNPARSABLE", "copybook declares no fields");
     }
-    let cursor = 1;
-    for (const field of fields) {
-      if (!field.explicitPosition) field.start = cursor;
-      cursor = field.start + field.length;
-    }
-    const ordered = [...fields].sort((a, b) => a.start - b.start || a.length - b.length);
-    for (let i = 1; i < ordered.length; i += 1) {
-      const prev = ordered[i - 1];
-      const cur = ordered[i];
-      const prevEnd = prev.start + prev.length;
-      if (cur.start < prevEnd) {
+    const leaves = fields.filter((field) => !field.group);
+    for (let i = 0; i < leaves.length; i += 1) {
+      for (let j = i + 1; j < leaves.length; j += 1) {
+        const a = leaves[i];
+        const b = leaves[j];
+        const overlaps = a.start < b.start + b.length && b.start < a.start + a.length;
+        if (!overlaps) continue;
+        const sharedRegion = a.region !== void 0 && a.region === b.region && a.layout !== b.layout;
+        if (sharedRegion) continue;
         throw new CopybookError(
           "COPYBOOK_OVERLAP",
-          `fields ${prev.name} (bytes ${prev.start}-${prevEnd - 1}) and ${cur.name} (bytes ${cur.start}-${cur.start + cur.length - 1}) overlap (copybook line ${cur.line})`,
-          { line: cur.line, fields: [prev.name, cur.name] }
+          `fields ${a.name} (bytes ${a.start}-${a.start + a.length - 1}) and ${b.name} (bytes ${b.start}-${b.start + b.length - 1}) overlap (copybook line ${b.line})`,
+          { line: b.line, fields: [a.name, b.name] }
         );
       }
-      if (cur.start > prevEnd) {
-        notes.push(`bytes ${prevEnd}-${cur.start - 1} are not covered by any field`);
-      }
     }
-    const recordLength = Math.max(...fields.map((f) => f.start + f.length - 1));
-    const fieldNames = new Set(fields.map((f) => f.name));
+    const intervals = fields.map((field) => [field.start, field.start + field.length - 1]).sort((x, y) => x[0] - y[0]);
+    let covered = 0;
+    for (const [start, end] of intervals) {
+      if (start > covered + 1) notes.push(`bytes ${covered + 1}-${start - 1} are not covered by any field`);
+      covered = Math.max(covered, end);
+    }
+    const recordLength = Math.max(...fields.map((field) => field.start + field.length - 1));
     const fieldOf = (name2, key) => {
-      const field = fields.find((f) => f.name === name2);
+      const field = fields.find((entry) => entry.name === name2 && !entry.group);
       if (!field) {
-        throw new CopybookError("COPYBOOK_SEMANTICS", `@semantics ${key}=${name2} does not name a field in this copybook`);
+        throw new CopybookError("COPYBOOK_SEMANTICS", `@${key} names ${name2}, which is not a field in this copybook`);
       }
       return field;
     };
     for (const key of ["amount", "currency", "valueDate", "reference", "transactionType"]) {
       const name2 = semantics[key];
       if (!name2) continue;
-      const field = fieldOf(name2, key);
+      const field = fieldOf(name2, `semantics ${key}`);
       if (key === "currency" || key === "reference" || key === "transactionType") {
         if (field.type !== "string") {
           throw new CopybookError("COPYBOOK_SEMANTICS", `@semantics ${key}=${name2} must name an alphabetic field, but ${name2} is ${field.type}`);
@@ -326,13 +523,81 @@
       }
     }
     if (control) {
-      const typeField = fieldOf(control.typeField, "control.typeField");
+      const typeField = fieldOf(control.typeField, "control typeField");
       if (typeField.type !== "string") {
         throw new CopybookError("COPYBOOK_SEMANTICS", `@control typeField=${control.typeField} must be alphabetic`);
       }
-      if (control.countField) fieldOf(control.countField, "control.countField");
-      if (control.totalField) fieldOf(control.totalField, "control.totalField");
-      if (control.currencyField) fieldOf(control.currencyField, "control.currencyField");
+      if (control.countField) fieldOf(control.countField, "control countField");
+      if (control.totalField) fieldOf(control.totalField, "control totalField");
+      if (control.currencyField) fieldOf(control.currencyField, "control currencyField");
+    }
+    const views = [];
+    for (const region of regions.values()) {
+      for (const [layoutName, layoutFieldNames] of region.layouts) {
+        const rule = viewRules.get(layoutName);
+        if (!rule) {
+          throw new CopybookError(
+            "COPYBOOK_SEMANTICS",
+            `REDEFINES layout ${layoutName} has no activation rule: add '* @view layout=${layoutName} typeField=<field> value=<value>' naming the record type that selects it`
+          );
+        }
+        views.push({
+          region: region.name,
+          layout: layoutName,
+          start: region.start,
+          length: region.length,
+          fields: [...layoutFieldNames],
+          typeField: rule.typeField,
+          values: rule.values
+        });
+      }
+    }
+    if (views.length > 0) {
+      for (const view of views) {
+        const typeField = fields.find((field) => field.name === view.typeField && !field.group);
+        if (!typeField) {
+          throw new CopybookError("COPYBOOK_SEMANTICS", `@view ${view.layout} names typeField=${view.typeField}, which is not a field`);
+        }
+        if (typeField.type !== "string") {
+          throw new CopybookError("COPYBOOK_SEMANTICS", `@view ${view.layout} typeField=${view.typeField} must be alphabetic`);
+        }
+        if (typeField.region !== void 0) {
+          throw new CopybookError(
+            "COPYBOOK_SEMANTICS",
+            `@view ${view.layout} typeField=${view.typeField} sits inside a REDEFINES region, so it cannot choose the layout`
+          );
+        }
+      }
+      const selected = /* @__PURE__ */ new Map();
+      for (const view of views) {
+        for (const value of view.values ?? []) {
+          const key = `${view.typeField}\0${value}`;
+          const previous = selected.get(key);
+          if (previous && previous !== view.layout) {
+            throw new CopybookError(
+              "COPYBOOK_SEMANTICS",
+              `@view: value ${value} of ${view.typeField} selects both ${previous} and ${view.layout}`
+            );
+          }
+          selected.set(key, view.layout);
+        }
+      }
+    } else if (viewRules.size > 0) {
+      const unknown = [...viewRules.keys()][0];
+      throw new CopybookError(
+        "COPYBOOK_SEMANTICS",
+        `@view layout=${unknown} does not name a layout of any REDEFINES region in this copybook`
+      );
+    }
+    for (const region of regions.values()) {
+      const layouts = [...region.layouts.keys()];
+      if (layouts.length < 2) {
+        const only = layouts[0] ?? region.name;
+        throw new CopybookError(
+          "COPYBOOK_REDEFINES",
+          `REDEFINES region ${region.name} has one layout (${only}) and describes nothing; remove the clause or add the redefining item`
+        );
+      }
     }
     if (semantics.amount && !semantics.currency) {
       notes.push("@semantics declares an amount but no currency field: amounts will carry an empty currency");
@@ -348,6 +613,7 @@
       semantics,
       ...control ? { control } : {},
       framing,
+      ...views.length > 0 ? { views } : {},
       notes,
       source: text.replace(/\r\n/g, "\n")
     };
@@ -714,6 +980,41 @@
     const issues = [];
     const records = [];
     const dateFormat = copybook.semantics.dateFormat ?? "CCYYMMDD";
+    const activeLayouts = (raw, index, issuesOut) => {
+      const active = {};
+      if (!copybook.views || copybook.views.length === 0) return active;
+      const regions = /* @__PURE__ */ new Map();
+      for (const view of copybook.views) {
+        const list = regions.get(view.region);
+        if (list) list.push(view);
+        else regions.set(view.region, [view]);
+      }
+      for (const [regionName, layouts] of regions) {
+        const hits = [];
+        for (const layout of layouts) {
+          const discriminator2 = layout.typeField ? copybook.fields.find((field) => field.name === layout.typeField) : void 0;
+          if (!discriminator2) continue;
+          const value = raw.slice(discriminator2.start - 1, discriminator2.start - 1 + discriminator2.length).trim();
+          if ((layout.values ?? []).some((candidate) => candidate === value)) hits.push(layout.layout);
+        }
+        if (hits.length === 1) {
+          active[regionName] = hits[0];
+          continue;
+        }
+        const discriminatorName = layouts[0]?.typeField ?? "(none)";
+        const discriminator = copybook.fields.find((field) => field.name === discriminatorName);
+        const seen = discriminator ? raw.slice(discriminator.start - 1, discriminator.start - 1 + discriminator.length).trim() : "";
+        const declared = layouts.map((layout) => `${layout.layout}=${(layout.values ?? []).join("/")}`).join(", ");
+        issuesOut.push({
+          code: "REDEFINES_VIEW_UNMATCHED",
+          recordIndex: index,
+          field: discriminatorName,
+          actual: seen,
+          detail: hits.length === 0 ? `record ${index}: ${discriminatorName} reads ${JSON.stringify(seen)}, which selects no layout of the shared bytes ${regionName} (declared: ${declared})` : `record ${index}: ${discriminatorName} reads ${JSON.stringify(seen)}, which selects more than one layout (${hits.join(", ")})`
+        });
+      }
+      return active;
+    };
     rawRecords.forEach((raw, index) => {
       const recordIssues = [];
       if (raw.length !== copybook.recordLength) {
@@ -728,7 +1029,13 @@
       }
       const values = {};
       const slices = {};
+      const views = activeLayouts(raw, index, recordIssues);
       for (const field of copybook.fields) {
+        if (field.group) continue;
+        if (field.region !== void 0) {
+          const active = views[field.region];
+          if (active !== field.layout) continue;
+        }
         const slice = raw.slice(field.start - 1, field.start - 1 + field.length);
         slices[field.name] = slice;
         if (slice.length < field.length) {
@@ -752,7 +1059,10 @@
           }
         }
       }
-      const { amount: amountField, currency: currencyField, valueDate } = copybook.semantics;
+      const isTrailerRecord = copybook.control ? (slices[copybook.control.typeField] ?? "").trim() === copybook.control.trailerValue : false;
+      const amountField = isTrailerRecord && copybook.control?.totalField ? copybook.control.totalField : copybook.semantics.amount;
+      const currencyField = isTrailerRecord && copybook.control?.currencyField ? copybook.control.currencyField : copybook.semantics.currency;
+      const valueDate = copybook.semantics.valueDate;
       if (amountField) {
         const raw2 = values[amountField];
         const currency = currencyField ? String(values[currencyField] ?? "").trim() : "";
@@ -788,9 +1098,18 @@
         } catch {
         }
       }
-      const isTrailer = copybook.control ? (slices[copybook.control.typeField] ?? "").trim() === copybook.control.trailerValue : false;
+      const isTrailer = isTrailerRecord;
       issues.push(...recordIssues);
-      records.push({ index, raw, length: raw.length, values, slices, issues: recordIssues, isTrailer });
+      records.push({
+        index,
+        raw,
+        length: raw.length,
+        values,
+        slices,
+        issues: recordIssues,
+        isTrailer,
+        ...Object.keys(views).length > 0 ? { views } : {}
+      });
     });
     let declaredControl;
     const control = copybook.control;
@@ -843,6 +1162,10 @@
         `recordLength:${copybook.recordLength}`,
         `records:${records.map((r) => sha256(r.raw)).join(",")}`,
         `issues:${issues.map((i) => `${i.code}@${i.recordIndex ?? "-"}:${i.field ?? "-"}`).join(",")}`,
+        // Only a copybook with `REDEFINES` contributes this component, so a fingerprint
+        // of a copybook without views is unchanged by the feature (regression: the six
+        // sample scenarios keep the fingerprints they had before).
+        ...copybook.views && copybook.views.length > 0 ? [`views:${records.map((r) => r.views ? Object.entries(r.views).map(([k, v]) => `${k}=${v}`).join("+") : "-").join(",")}`] : [],
         declaredControl ? `declared:${declaredControl.count?.toString() ?? "-"}/${declaredControl.total?.minorUnits.toString() ?? "-"}${declaredControl.total?.currency ?? ""}` : "declared:-"
       ].join("|")
     );
@@ -1628,16 +1951,16 @@
     };
   }
 
-  // src/explain/mock.ts
+  // src/explain/grounded.ts
   function render(value) {
     if (value === void 0) return "(not declared)";
     if (typeof value === "bigint") return value.toString();
     if (typeof value === "string") return value;
     return formatAmount(value);
   }
-  function createMockAdapter() {
+  function createGroundedAdapter() {
     return {
-      name: "mock",
+      name: "grounded",
       live: false,
       async explain({ finding }) {
         switch (finding.code) {
@@ -1856,8 +2179,8 @@
   }
   function resolveAdapters(options) {
     return {
-      primary: options.adapter ?? createMockAdapter(),
-      fallback: options.fallback ?? createMockAdapter()
+      primary: options.adapter ?? createGroundedAdapter(),
+      fallback: options.fallback ?? createGroundedAdapter()
     };
   }
   async function draftWithBudget(finding, options, state2) {
@@ -1943,7 +2266,9 @@ ${draft.suggestedFix}`, finding);
       length: span.length,
       text: record.raw.slice(span.start - 1, span.start - 1 + span.length),
       pic: "BAI2 field"
-    })) : result.copybook.fields.map((field) => ({
+    })) : result.copybook.fields.filter(
+      (field) => !field.group && record.slices[field.name] !== void 0 && (field.region === void 0 || record.views?.[field.region] === field.layout)
+    ).map((field) => ({
       name: field.name,
       start: field.start,
       length: field.length,
@@ -2290,6 +2615,11 @@ ${draft.suggestedFix}`, finding);
       "bytes": 1248
     },
     {
+      "name": "820-redefines.cpy",
+      "base64": "ICAgICAgKiBOT1JUSFdJTkQgUEFZIC0gRURJIDgyMCBQQVlNRU5UIE9SREVSLCBCQU5LIERJQUxFQ1QgKFNZTlRIRVRJQyBGSVhUVVJFKQogICAgICAqIEZpeGVkIHdpZHRoOiAxMDEgYnl0ZXMgcGVyIHJlY29yZCwgbGluZSBmcmFtaW5nLCBBU0NJSSB0cmFuc2xpdGVyYXRpb24uCiAgICAgICoKICAgICAgKiBUaGlzIGlzIHRoZSBjb3B5Ym9vayBzaGFwZSBhIGJhbmsgYWN0dWFsbHkgc2VuZHM6IHRoZSBvbmUgYnl0ZSBhZnRlciBSRUMtVFlQRQogICAgICAqIGlzIGZvbGxvd2VkIGJ5IGEgMTAwLWJ5dGUgYXJlYSB3aG9zZSBtZWFuaW5nIGRlcGVuZHMgb24gdGhlIHJlY29yZCB0eXBlLgogICAgICAqICAgUCAgLT4gUEFZTUVOVC1ERVRBSUwgICAodGhlIHBheW1lbnQgaXRzZWxmKQogICAgICAqICAgVCAgLT4gUEFZTUVOVC1UUkFJTEVSICAoUkVDLUNPVU5UIGFuZCBUT1RBTC1BTU9VTlQgZm9yIHRoZSBmaWxlKQogICAgICAqIFRoZSB0cmFpbGVyIGlzIGRlY2xhcmVkIHdpdGggUkVERUZJTkVTIGJlY2F1c2UgaXQgb2NjdXBpZXMgdGhlIHNhbWUgMTAwIGJ5dGVzLgogICAgICAqCiAgICAgICogQSBSRURFRklORVMgaXRlbSBpcyBhIGxheW91dCwgbm90IGEgZ3Vlc3M6IGVhY2ggbGF5b3V0IHNheXMsIGluIHRoZSBAdmlldwogICAgICAqIGRpcmVjdGl2ZXMgYmVsb3csIHdoaWNoIHZhbHVlIG9mIFJFQy1UWVBFIHNlbGVjdHMgaXQuIEEgY29weWJvb2sgdGhhdCBkZWNsYXJlcwogICAgICAqIFJFREVGSU5FUyB3aXRob3V0IHRoYXQgcnVsZSBpcyByZWZ1c2VkIGluc3RlYWQgb2YgcmVhZCBhcyB3aGljaGV2ZXIgbGF5b3V0IGZpdHMuCiAgICAgICoKICAgICAgKiBAZnJhbWluZyBsaW5lCiAgICAgICogQHNlbWFudGljcyBhbW91bnQ9QU1PVU5UIGN1cnJlbmN5PUNVUlJFTkNZIHZhbHVlRGF0ZT1WQUxVRS1EQVRFIGRhdGVGb3JtYXQ9Q0NZWU1NREQgcmVmZXJlbmNlPVJFRkVSRU5DRSB0cmFuc2FjdGlvblR5cGU9VFhOLVRZUEUgY3JlZGl0VmFsdWU9QyBkZWJpdFZhbHVlPUQKICAgICAgKiBAY29udHJvbCB0eXBlRmllbGQ9UkVDLVRZUEUgdHJhaWxlclZhbHVlPVQgY291bnRGaWVsZD1SRUMtQ09VTlQgdG90YWxGaWVsZD1UT1RBTC1BTU9VTlQgY3VycmVuY3lGaWVsZD1UT1RBTC1DVVJSRU5DWQogICAgICAqIEB2aWV3IGxheW91dD1QQVlNRU5ULURFVEFJTCB0eXBlRmllbGQ9UkVDLVRZUEUgdmFsdWU9UAogICAgICAqIEB2aWV3IGxheW91dD1QQVlNRU5ULVRSQUlMRVIgdHlwZUZpZWxkPVJFQy1UWVBFIHZhbHVlPVQKICAgICAgKgogICAgICAgMDEgIFBBWU1FTlQtUkVDT1JELgogICAgICAgICAgIDA1ICBSRUMtVFlQRSAgICAgICAgICAgIFBJQyBYKDEpLgogICAgICAgICAgIDA1ICBSRUNPUkQtQk9EWS4KICAgICAgICAgICAgICAgMTAgIFBBWU1FTlQtREVUQUlMLgogICAgICAgICAgICAgICAgICAgMTUgIE9SSUctSUQgICAgICAgICBQSUMgWCgxMCkuCiAgICAgICAgICAgICAgICAgICAxNSAgUkVDRUlWRVItSUQgICAgIFBJQyBYKDEwKS4KICAgICAgICAgICAgICAgICAgIDE1ICBUWE4tVFlQRSAgICAgICAgUElDIFgoMikuCiAgICAgICAgICAgICAgICAgICAxNSAgQU1PVU5UICAgICAgICAgIFBJQyBTOSgxMSlWOTkgU0lHTiBUUkFJTElORyBPVkVSUFVOQ0guCiAgICAgICAgICAgICAgICAgICAxNSAgQ1VSUkVOQ1kgICAgICAgIFBJQyBYKDMpLgogICAgICAgICAgICAgICAgICAgMTUgIFZBTFVFLURBVEUgICAgICBQSUMgOSg4KS4KICAgICAgICAgICAgICAgICAgIDE1ICBSRUZFUkVOQ0UgICAgICAgUElDIFgoMTUpLgogICAgICAgICAgICAgICAgICAgMTUgIEZJTExFUiAgICAgICAgICBQSUMgWCgzOSkuCiAgICAgICAgICAgICAgIDEwICBQQVlNRU5ULVRSQUlMRVIgUkVERUZJTkVTIFBBWU1FTlQtREVUQUlMLgogICAgICAgICAgICAgICAgICAgMTUgIE9SSUctSUQtVCAgICAgICBQSUMgWCgxMCkuCiAgICAgICAgICAgICAgICAgICAxNSAgUkVDRUlWRVItSUQtVCAgIFBJQyBYKDEwKS4KICAgICAgICAgICAgICAgICAgIDE1ICBUT1RBTC1BTU9VTlQgICAgUElDIFM5KDExKVY5OSBTSUdOIFRSQUlMSU5HIE9WRVJQVU5DSC4KICAgICAgICAgICAgICAgICAgIDE1ICBUT1RBTC1DVVJSRU5DWSAgUElDIFgoMykuCiAgICAgICAgICAgICAgICAgICAxNSAgUkVDLUNPVU5UICAgICAgIFBJQyA5KDYpLgogICAgICAgICAgICAgICAgICAgMTUgIEZJTExFUiAgICAgICAgICBQSUMgWCg1OCkuCg==",
+      "bytes": 2218
+    },
+    {
       "name": "820.cpy",
       "base64": "ICAgICAgKiBOT1JUSFdJTkQgUEFZIC0gRURJIDgyMCBQQVlNRU5UIE9SREVSIChTWU5USEVUSUMgRklYVFVSRSAtIE5PVCBSRUFMIEJBTksgREFUQSkKICAgICAgKiBGaXhlZCB3aWR0aDogMTAwIGJ5dGVzIHBlciByZWNvcmQsIGxpbmUgZnJhbWluZywgQVNDSUkgdHJhbnNsaXRlcmF0aW9uLgogICAgICAqIFJlY29yZCB0eXBlczogJ1AnID0gcGF5bWVudCBkZXRhaWwsICdUJyA9IGNvbnRyb2wgdHJhaWxlci4KICAgICAgKiBUaGUgYW1vdW50J3Mgc2lnbiBpcyBhIHRyYWlsaW5nIG92ZXJwdW5jaCBvbiBpdHMgbGFzdCBkaWdpdAogICAgICAqICh7ID0gKzAsIH0gPSAtMCwgQS4uSSA9ICsxLi4rOSwgSi4uUiA9IC0xLi4tOSkuCiAgICAgICogRGViaXQvY3JlZGl0IGRpcmVjdGlvbiBjb21lcyBmcm9tIFRYTi1UWVBFLCBuZXZlciBmcm9tIHRoZSBzaWduIGFsb25lLgogICAgICAqCiAgICAgICogQGZyYW1pbmcgbGluZQogICAgICAqIEBzZW1hbnRpY3MgYW1vdW50PUFNT1VOVCBjdXJyZW5jeT1DVVJSRU5DWSB2YWx1ZURhdGU9VkFMVUUtREFURSBkYXRlRm9ybWF0PUNDWVlNTUREIHJlZmVyZW5jZT1SRUZFUkVOQ0UgdHJhbnNhY3Rpb25UeXBlPVRYTi1UWVBFIGNyZWRpdFZhbHVlPUMgZGViaXRWYWx1ZT1ECiAgICAgICogQGNvbnRyb2wgdHlwZUZpZWxkPVJFQy1UWVBFIHRyYWlsZXJWYWx1ZT1UIGNvdW50RmllbGQ9UkVDLUNPVU5UIHRvdGFsRmllbGQ9QU1PVU5UIGN1cnJlbmN5RmllbGQ9Q1VSUkVOQ1kKICAgICAgKgogICAgICAgMDEgIFBBWU1FTlQtUkVDT1JELgogICAgICAgICAgIDA1ICBSRUMtVFlQRSAgICAgICAgICAgIFBJQyBYKDEpLgogICAgICAgICAgIDA1ICBPUklHLUlEICAgICAgICAgICAgIFBJQyBYKDEwKS4KICAgICAgICAgICAwNSAgUkVDRUlWRVItSUQgICAgICAgICBQSUMgWCgxMCkuCiAgICAgICAgICAgMDUgIFRYTi1UWVBFICAgICAgICAgICAgUElDIFgoMikuCiAgICAgICAgICAgMDUgIEFNT1VOVCAgICAgICAgICAgICAgUElDIFM5KDExKVY5OSBTSUdOIFRSQUlMSU5HIE9WRVJQVU5DSC4KICAgICAgICAgICAwNSAgQ1VSUkVOQ1kgICAgICAgICAgICBQSUMgWCgzKS4KICAgICAgICAgICAwNSAgVkFMVUUtREFURSAgICAgICAgICBQSUMgOSg4KS4KICAgICAgICAgICAwNSAgUkVGRVJFTkNFICAgICAgICAgICBQSUMgWCgxNSkuCiAgICAgICAgICAgMDUgIFJFQy1DT1VOVCAgICAgICAgICAgUElDIDkoNikuCiAgICAgICAgICAgMDUgIEZJTExFUiAgICAgICAgICAgICAgUElDIFgoMzIpLgo=",
       "bytes": 1262
@@ -2317,6 +2647,16 @@ ${draft.suggestedFix}`, finding);
       "bytes": 968
     },
     {
+      "name": "820-redefines-bad.txt",
+      "base64": "UE5XUEFZMDAwMDFHUkVFTkZJRUxEQyAwMDAwMDE1MDAwMDB7VVNEMjAyNjExMThOV1AtMjYxMS0wMDAxICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFIQVJCT1ItRlJFQyAwMDAwMDA5OTA1MDB7VVNEMjAyNjExMThOV1AtMjYxMS0wMDAyICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFCTFVFLVJJREdFQyAwMDAwMDIwMDAwMDB7VVNEMjAyNjExMTlOV1AtMjYxMS0wMDAzICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFDRURBUi1DT05TQyAwMDAwMDA4NzUwMDB7VVNEMjAyNjExMTlOV1AtMjYxMS0wMDA0ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFOT1JUSFNUQVItQyAwMDAwMDEyMDAwMDB7VVNEMjAyNjExMTlOV1AtMjYxMS0wMDA1ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFTVU1NSVQtSEFSQyAwMDAwMDMxMDAwMDB7VVNEMjAyNjExMjBOV1AtMjYxMS0wMDA2ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFMQUtFU0lERS1QQyAwMDAwMDA2NjAwMDB7VVNEMjAyNjExMjBOV1AtMjYxMS0wMDA3ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFQSU5FSFVSU1QtQyAwMDAwMDA0NTAwMDB7VVNEMjAyNjExMjBOV1AtMjYxMS0wMDA4ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFBVExBUy1TVEFGQyAwMDAwMDEyODAwMDB7VVNEMjAyNjExMjBOV1AtMjYxMS0wMDA5ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFSSVZFUlNUT05FQyAwMDAwMDA3OTAwMDB7VVNEMjAyNjExMjBOV1AtMjYxMS0wMDEwICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKVE5XUEFZMDAwMDFCQU5LLVNUTE1UMDAwMDEyODQ0NTAwe1VTRDAwMDAxMCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAK",
+      "bytes": 1122
+    },
+    {
+      "name": "820-redefines-good.txt",
+      "base64": "UE5XUEFZMDAwMDFHUkVFTkZJRUxEQyAwMDAwMDE1MDAwMDB7VVNEMjAyNjExMThOV1AtMjYxMS0wMDAxICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFIQVJCT1ItRlJFQyAwMDAwMDA5OTA1MDB7VVNEMjAyNjExMThOV1AtMjYxMS0wMDAyICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFCTFVFLVJJREdFQyAwMDAwMDIwMDAwMDB7VVNEMjAyNjExMTlOV1AtMjYxMS0wMDAzICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFDRURBUi1DT05TQyAwMDAwMDA4NzUwMDB7VVNEMjAyNjExMTlOV1AtMjYxMS0wMDA0ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFOT1JUSFNUQVItQyAwMDAwMDEyMDAwMDB7VVNEMjAyNjExMTlOV1AtMjYxMS0wMDA1ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFTVU1NSVQtSEFSQyAwMDAwMDMxMDAwMDB7VVNEMjAyNjExMjBOV1AtMjYxMS0wMDA2ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFMQUtFU0lERS1QQyAwMDAwMDA2NjAwMDB7VVNEMjAyNjExMjBOV1AtMjYxMS0wMDA3ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFQSU5FSFVSU1QtQyAwMDAwMDA0NTAwMDB7VVNEMjAyNjExMjBOV1AtMjYxMS0wMDA4ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFBVExBUy1TVEFGQyAwMDAwMDEyODAwMDB7VVNEMjAyNjExMjBOV1AtMjYxMS0wMDA5ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKUE5XUEFZMDAwMDFSSVZFUlNUT05FQyAwMDAwMDA3OTAwMDB7VVNEMjAyNjExMjBOV1AtMjYxMS0wMDEwICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAKVE5XUEFZMDAwMDFCQU5LLVNUTE1UMDAwMDEyODQ1NTAwe1VTRDAwMDAxMCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAK",
+      "bytes": 1122
+    },
+    {
       "name": "823-bad.txt",
       "base64": "RE5XUEFZMDAwMDFHUkVFTkZJRUxEVVNEKzAwMDAwMTUwMDAwMDAyMDI2MTExOE5XUC0yNjExLTAwMDEgIDAwMDAwMCAgICAgICAgICAgICAKRE5XUEFZMDAwMDFIQVJCT1ItRlJFVVNEKzAwMDAwMDk5MDUwMDAyMDI2MTExOE5XUC0yNjExLTAwMDIgIDAwMDAwMCAgICAgICAgICAgICAKRE5XUEFZMDAwMDFCTFVFLVJJREdFVVNEKzAwMDAwMjAwMDAwMDAyMDI2MTExOU5XUC0yNjExLTAwMDMgIDAwMDAwMCAgICAgICAgICAgICAKRE5XUEFZMDAwMDFDRURBUi1DT05TVVNEKzAwMDAwMDg3NTAwMDAyMDI2MTExOU5XUC0yNjExLTAwMDQgIDAwMDAwMCAgICAgICAgICAgICAKRE5XUEFZMDAwMDFOT1JUSFNUQVItVVNEKzAwMDAwMTIwMDAwMDAyMDI2MTExOU5XUC0yNjExLTAwMDUgIDAwMDAwMCAgICAgICAgICAgICAKRE5XUEFZMDAwMDFTVU1NSVQtSEFSVVNEKzAwMDAwMzEwMDAwMDAyMDI2MTEyME5XUC0yNjExLTAwMDYgIDAwMDAwMCAgICAgICAgICAgICAKRE5XUEFZMDAwMDFMQUtFU0lERS1QVVNEKzAwMDAwMDY2MDAwMDAyMDI2MTEyME5XUC0yNjExLTAwMDcgIDAwMDAwMCAgICAgICAgICAgICAKRE5XUEFZMDAwMDFBVExBUy1TVEFGVVNEKzAwMDAwMTI4MDAwMDAyMDI2MTEyME5XUC0yNjExLTAwMDkgIDAwMDAwMCAgICAgICAgICAgICAKRE5XUEFZMDAwMDFSSVZFUlNUT05FVVNEKzAwMDAwMDc5MDAwMDAyMDI2MTEyME5XUC0yNjExLTAwMTAgIDAwMDAwMCAgICAgICAgICAgICAKVE5XUEFZMDAwMDFCQU5LLVNUTE1UVVNEKzAwMDAxMjg0NTUwMDAyMDI2MTEyMENUTC04MjMtVFJBSUxFUjAwMDAxMCAgICAgICAgICAgICAK",
       "bytes": 810
@@ -2340,15 +2680,16 @@ ${draft.suggestedFix}`, finding);
   var GUARANTEES = {
     "guaranteed": [
       "Format interpretation \u2014 each field is sliced exactly at the copybook's byte position and length; no trimming, no re-synchronisation.",
-      "Arithmetic \u2014 amounts are `bigint` minor units with an ISO-4217 currency; totals and deltas are exact, and never computed in floating point.",
-      "Reference reconciliation \u2014 every 820 reference either matches a bank record or appears in the report as `REF_UNMATCHED`; nothing is dropped silently.",
-      "Reproducibility \u2014 running `verify` on an output directory re-derives the verdict and compares a SHA-256 fingerprint. Same inputs \u21D2 same verdict, or the differing field path is printed.",
-      "Explanation grounding \u2014 an agent explanation may cite only numbers present in the finding it explains; unsupported explanations are replaced with `INSUFFICIENT_EVIDENCE`."
+      "One layout per record \u2014 a REDEFINES region (one byte range, several layouts) decodes exactly the layout its discriminator selects; an unmatched record is REDEFINES_VIEW_UNMATCHED and its bytes stay undecoded, never guessed.",
+      "Arithmetic \u2014 amounts are bigint minor units with an ISO-4217 currency; totals and deltas are exact, and never computed in floating point.",
+      "Reference reconciliation \u2014 every 820 reference either matches a bank record or appears in the report as REF_UNMATCHED; nothing is dropped silently.",
+      "Reproducibility \u2014 running verify on an output directory re-derives the verdict and compares a SHA-256 fingerprint. Same inputs \u21D2 same verdict, or the differing field path is printed.",
+      "Explanation grounding \u2014 an explanation may cite only numbers present in the finding it explains, or it is replaced with INSUFFICIENT_EVIDENCE; the default explainer is a zero-credit template, not a model."
     ],
     "notGuaranteed": [
       "Legal or accounting adequacy of a payment or its remittance advice.",
       "Whether an exception is acceptable \u2014 a human must attach a reason, an expiry date, and a compensating control. The tool only refuses to let an exception exist without them.",
-      "Coverage of unmodelled formats \u2014 copybooks using `REDEFINES`, `COMP-3` variants not declared, or bank dialects without a copybook are reported as `UNSUPPORTED_STRUCTURE` / `SPEC_MISSING`, never guessed.",
+      "Coverage of unmodelled clauses \u2014 OCCURS DEPENDING ON, binary COMP, SIGN LEADING OVERPUNCH and EBCDIC source are UNSUPPORTED_STRUCTURE; a REDEFINES with no activation rule is COPYBOOK_SEMANTICS; no copybook is SPEC_MISSING. None is guessed.",
       "Source data authenticity \u2014 the tool verifies internal consistency, not whether the bank sent the right file."
     ],
     "sourcePath": "docs/guarantees.md"
@@ -2363,9 +2704,11 @@ ${draft.suggestedFix}`, finding);
     { id: "S3", name: "820-bad + 823-bank", payment: "820-bad.txt", copybook: "820.cpy", bank: "823-bank.txt", bankCopybook: "823.cpy", expect: "FAIL" },
     { id: "S4", name: "820-good + 823-bad", payment: "820-good.txt", copybook: "820.cpy", bank: "823-bad.txt", bankCopybook: "823.cpy", expect: "FAIL" },
     { id: "S5", name: "820-good + BAI2 good", payment: "820-good.txt", copybook: "820.cpy", bank: "bai2-good.txt", bankFormat: "bai2", expect: "PASS" },
-    { id: "S6", name: "820-good + BAI2 bad", payment: "820-good.txt", copybook: "820.cpy", bank: "bai2-bad.txt", bankFormat: "bai2", expect: "FAIL" }
+    { id: "S6", name: "820-good + BAI2 bad", payment: "820-good.txt", copybook: "820.cpy", bank: "bai2-bad.txt", bankFormat: "bai2", expect: "FAIL" },
+    { id: "S7", name: "820-redefines good + 823-bank", payment: "820-redefines-good.txt", copybook: "820-redefines.cpy", bank: "823-bank.txt", bankCopybook: "823.cpy", expect: "PASS" },
+    { id: "S8", name: "820-redefines bad + 823-bank", payment: "820-redefines-bad.txt", copybook: "820-redefines.cpy", bank: "823-bank.txt", bankCopybook: "823.cpy", expect: "FAIL" }
   ];
-  var state = { run: null, ledger: emptyLedger(), selected: -1, droppedFile: null, droppedCopybook: null };
+  var state = { run: null, ledger: emptyLedger(), selected: -1, spotlight: null, droppedFile: null, droppedCopybook: null };
   var el = (id) => document.getElementById(id);
   function esc(text) {
     return String(text ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -2442,6 +2785,7 @@ ${draft.suggestedFix}`, finding);
     });
     state.run = { view, findings: result.findings, fingerprint: result.fingerprint, scenarioId };
     state.selected = result.findings.length > 0 ? 0 : -1;
+    state.spotlight = null;
     render2();
   }
   function readWindow() {
@@ -2487,7 +2831,7 @@ ${draft.suggestedFix}`, finding);
     const view = state.run?.view;
     if (!view) return;
     el("records").innerHTML = view.records.map(
-      (record) => `<li class="${record.issues.length ? "issue" : record.isTrailer ? "trailer" : ""}" data-side="${record.side}" data-index="${record.index}">${record.side[0]}${String(record.index).padStart(3, "0")}  ${esc(record.raw)}</li>`
+      (record) => `<li class="${record.issues.length ? "issue" : record.isTrailer ? "trailer" : ""}${state.spotlight && state.spotlight.side === record.side && state.spotlight.index === record.index ? " on" : ""}" data-side="${record.side}" data-index="${record.index}">${record.side[0]}${String(record.index).padStart(3, "0")}  ${esc(record.raw)}</li>`
     ).join("");
   }
   function renderVerdict() {
@@ -2542,8 +2886,9 @@ ${draft.suggestedFix}`, finding);
     if (!view) return;
     const finding = state.selected >= 0 ? view.findings[state.selected] : void 0;
     if (!finding) {
-      el("evidenceNote").textContent = view.findings.length === 0 ? `No findings. Record ${firstDetail("payment")} sliced by its own spec \u2014 every field at its declared byte offset.` : "Pick a finding to highlight the field it names.";
-      const record2 = view.records.find((entry) => entry.side === "payment" && entry.index === firstDetail("payment"));
+      const spot = state.spotlight ?? { side: "payment", index: firstDetail("payment") };
+      const record2 = view.records.find((entry) => entry.side === spot.side && entry.index === spot.index);
+      el("evidenceNote").textContent = record2 ? `${record2.side} record ${record2.index} sliced by its own spec \u2014 every field at the declared byte offset${record2.isTrailer ? " (control trailer)" : ""}.` : "Pick a record below to read its layout.";
       if (!record2) return;
       el("bytes").innerHTML = [...record2.raw].map((char, index) => `<span class="byte" title="byte ${index + 1}">${char === " " ? "\xB7" : esc(char)}</span>`).join("");
       el("ruler").textContent = ruler(record2.raw.length);
@@ -2620,8 +2965,12 @@ ${draft.suggestedFix}`, finding);
       state.selected = Number(item.dataset.i);
       render2();
     });
-    el("records").addEventListener("click", () => {
+    el("records").addEventListener("click", (event) => {
+      const item = event.target.closest("li[data-index]");
       state.selected = -1;
+      if (item) {
+        state.spotlight = { side: item.dataset.side, index: Number(item.dataset.index) };
+      }
       render2();
     });
     el("btnVerify").addEventListener("click", () => {

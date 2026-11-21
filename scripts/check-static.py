@@ -2,7 +2,7 @@
 
 What this checks, all from the built `docs/demo/` directory served over plain HTTP:
 
-  1. six scenarios run in the tab, each with the verdict the CLI gives for the same files;
+  1. eight scenarios run in the tab, each with the verdict the CLI gives for the same files;
   2. the browser fingerprint **equals** the CLI's fingerprint for the same scenario — the
      strongest single check that the browser engine is the same engine;
   3. a dropped COMP-3 file is read as bytes and reconciles to the same file hash as by path;
@@ -43,6 +43,8 @@ SCENARIOS = {
     "S4": dict(payment="820-good.txt", copybook="820.cpy", bank="823-bad.txt", bank_copybook="823.cpy"),
     "S5": dict(payment="820-good.txt", copybook="820.cpy", bank="bai2-good.txt", bank_format="bai2"),
     "S6": dict(payment="820-good.txt", copybook="820.cpy", bank="bai2-bad.txt", bank_format="bai2"),
+    "S7": dict(payment="820-redefines-good.txt", copybook="820-redefines.cpy", bank="823-bank.txt", bank_copybook="823.cpy"),
+    "S8": dict(payment="820-redefines-bad.txt", copybook="820-redefines.cpy", bank="823-bank.txt", bank_copybook="823.cpy"),
 }
 
 os.makedirs(SHOTS, exist_ok=True)
@@ -141,6 +143,38 @@ def main():
             page.screenshot(path=os.path.join(SHOTS, f"demo-{scenario.lower()}.png"))
             if scenario in ("S1", "S3", "S6"):
                 page.screenshot(path=os.path.join(VIDEO_SHOTS, f"static-{scenario.lower()}@1920.png"))
+
+        # 2b · the REDEFINES trailer is sliced by its own layout, not by the detail's
+        page.click('.scenario[data-id="S7"]')
+        page.wait_for_function("window.demo.state.run.scenarioId === 'S7'")
+        page.click('#records li[data-index="10"]')
+        page.wait_for_timeout(250)
+        trailer = page.evaluate(
+            """() => {
+                const records = window.demo.state.run.view.records.filter(r => r.side === 'payment' && r.index === 10);
+                const record = records[0];
+                return {
+                    isTrailer: record.isTrailer,
+                    fields: record.fields.map(f => f.name),
+                    before: window.demo.state.run.view.records.filter(r => r.side === 'payment' && r.index === 0)[0].fields.map(f => f.name),
+                };
+            }"""
+        )
+        check(
+            "the REDEFINES trailer is sliced by its own layout",
+            trailer["isTrailer"]
+            and trailer["fields"] == ["REC-TYPE", "ORIG-ID-T", "RECEIVER-ID-T", "TOTAL-AMOUNT", "TOTAL-CURRENCY", "REC-COUNT", "FILLER"],
+            ", ".join(trailer["fields"]),
+        )
+        check(
+            "the detail record beside it is still sliced by the detail layout",
+            "AMOUNT" in trailer["before"] and "TOTAL-AMOUNT" not in trailer["before"],
+            ", ".join(trailer["before"]),
+        )
+        page.evaluate("() => window.scrollTo(0, 0)")
+        page.wait_for_timeout(200)
+        page.screenshot(path=os.path.join(SHOTS, "demo-s7-trailer.png"))
+        page.screenshot(path=os.path.join(VIDEO_SHOTS, "static-s7-trailer@1920.png"))
 
         # 3 · a dropped COMP-3 file is read as bytes in the page
         page.click('.scenario[data-id="S1"]')

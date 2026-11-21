@@ -159,7 +159,7 @@ describe('T5.2 — verify re-derives, compares, and does not mutate', () => {
 });
 
 describe('T5.1 — explain reads a report and writes explanations beside it', () => {
-  it('explains every finding with the mock adapter and records zero live calls', async () => {
+  it('explains every finding with the grounded adapter and records zero live calls', async () => {
     const out = tempDir('explain');
     await run('reconcile', '--copybook', COB820, '--file', BAD, '--bank', BANK, '--bank-copybook', COB823, '--window', WINDOW, '--out', out);
     const result = await run('explain', '--findings', out);
@@ -190,7 +190,7 @@ describe('T5.1 — explain reads a report and writes explanations beside it', ()
 });
 
 describe('T5.1 — the demo command walks every fixture pair', () => {
-  it('prints six scenarios, BAI2 included, and exits 2 because some fail by design', async () => {
+  it('prints every scenario, BAI2 and REDEFINES included, and exits 2 because some fail by design', async () => {
     const result = await run('demo');
     expect(result.code).toBe(2);
     expect(result.stdout).toContain('S1 820-good + 823-bank: PASS');
@@ -199,6 +199,8 @@ describe('T5.1 — the demo command walks every fixture pair', () => {
     expect(result.stdout).toContain('S4 820-good + 823-bad: FAIL (3 findings)');
     expect(result.stdout).toContain('S5 820-good + bai2-good: PASS');
     expect(result.stdout).toContain('S6 820-good + bai2-bad: FAIL (3 findings)');
+    expect(result.stdout).toContain('S7 820-redefines-good + 823-bank: PASS');
+    expect(result.stdout).toContain('S8 820-redefines-bad + 823-bank: FAIL (1 findings)');
     // a bare bigint delta (count mismatch) must render, not throw "Do not know how to serialize a BigInt"
     expect(result.stdout).toContain('CONTROL_COUNT_MISMATCH');
     expect(result.stderr).toBe('');

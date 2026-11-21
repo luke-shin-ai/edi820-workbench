@@ -53,9 +53,16 @@ Two facts came out of writing them:
 - sign convention, when the copybook declares one
 
 The compiler refuses everything it cannot derive: a signed display field without a `SIGN` clause is
-`COPYBOOK_UNPARSABLE`, `REDEFINES` / `OCCURS` / `COMP` are `UNSUPPORTED_STRUCTURE`, and two fields
-that overlap are `COPYBOOK_OVERLAP` naming both. The full list is in
-[`copybook-dialect.md`](copybook-dialect.md) §4.
+`COPYBOOK_UNPARSABLE`, `OCCURS` / `COMP` / EBCDIC source are `UNSUPPORTED_STRUCTURE`, and two fields
+of one layout that overlap are `COPYBOOK_OVERLAP` naming both.
+
+`REDEFINES` is the interesting middle case: the clause itself is data — it says two layouts share
+one byte range, which is what `820-redefines.cpy` does with a payment detail and the trailer that
+closes the file. What it does **not** say is which record type uses which layout. So the compiler
+accepts `REDEFINES` only together with an activation rule the copybook states (`* @view layout=…
+typeField=… value=…`), and refuses a bound-to-nothing `REDEFINES` as `COPYBOOK_SEMANTICS` rather
+than reading whichever layout fits. The full list is in
+[`copybook-dialect.md`](copybook-dialect.md) §4–5.
 
 ## Step 2: what the copybook does not decide, and where each answer went
 
@@ -153,9 +160,11 @@ Recorded here rather than in a commit message nobody reads.
 
 ## Step 6: what this is worth in the write-up
 
-The conversion produced 24 requirements, 9 recorded design deltas, and 222 tests from three
-copybooks that contain no requirements at all. Six of the nine design deltas exist because a rule
-had to be *decided*, and one of them exists because a steering file overruled the design draft.
+The conversion produced 24 requirements, 10 recorded design deltas, and 300 tests from four
+copybooks that contain no requirements at all. Six of the deltas exist because a rule had to be
+*decided*, one exists because a steering file overruled the design draft, and the tenth (`REDEFINES`
+as a region with declared layouts) exists because the copybook said which bytes are shared and
+nothing about which record type uses which layout.
 
 That is the claim this project makes: a copybook tells you where the bytes are, and the spec is what
 you write down so the next person does not have to be the person who knew.

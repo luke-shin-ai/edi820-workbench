@@ -94,7 +94,10 @@ One page, three columns: **file drop**, **verdict card** (counters: records, fin
 Tools: `parse_file(copybookPath, filePath)`, `reconcile(files[])`, `explain_findings(reportPath)`, `verify(outDir)`. Each returns the same JSON as the CLI. Rationale (for the write-up): the deterministic core becomes usable by any agent, so a finance team can drive it from their own assistant without re-implementing fixed-width parsing.
 
 ## 9. Failure modes and honest limits
-- Copybook dialect variance (COMP-3, REDEFINES) is **partial**: `REDEFINES` is recorded as `UNSUPPORTED_STRUCTURE`, not guessed.
+- Copybook dialect variance: COMP-3 and `REDEFINES` are supported; `REDEFINES` is read as a region
+  of shared bytes with one active layout per record, and a layout the copybook does not bind to a
+  discriminator value is refused (`COPYBOOK_SEMANTICS`), not guessed. `OCCURS` and binary `COMP`
+  remain `UNSUPPORTED_STRUCTURE`.
 - Very large files stream record-by-record; totals hold in `bigint`, so no overflow at realistic volumes.
 
 ## 10. Implementation deltas (agreed while building T1–T3)
@@ -256,3 +259,30 @@ and `EXPIRED` are reported as such; neither is silently dropped from the classif
 - It does not re-run reconciliation to make the finding disappear.
 - It does not require a model: a waiver is a human's typed reason, and the chain proves the
   record was not rewritten afterwards.
+
+## 14. Implementation delta for T8 — `REDEFINES` as a region with declared layouts
+
+§9 first said `REDEFINES` was refused as `UNSUPPORTED_STRUCTURE`. That was honest but it left the
+most common bank copybook shape unreadable, so T8 replaced the refusal with a model:
+
+- **The region.** A `REDEFINES X` line makes X a region: one byte range with more than one layout.
+  X itself is the first layout; the redefining item is another. Group items (`05 NAME.`) are
+  supported because a layout is usually a group; a group owns no bytes and its width is the sum of
+  its children, so the flat field list still tiles the record.
+- **The activation rule is the copybook's.** COBOL says which bytes are shared and says nothing
+  about which record type uses which layout. The compiler therefore requires one directive per
+  layout (`* @view layout=… typeField=… value=…`), validates that the discriminator is alphabetic
+  and outside the region, and refuses a `REDEFINES` with no rule or with one value selecting two
+  layouts. This is the same principle as the sign convention: a default is not a fact about the
+  file.
+- **One layout is decoded.** For each record the parser resolves the region's active layout and
+  decodes only those fields; the other layout's names are absent from `values` and `slices`, not
+  null. A record whose discriminator matches no layout gets `REDEFINES_VIEW_UNMATCHED`, a blocking
+  parse issue, so its shared bytes cannot contribute to a `PASS`.
+- **The trailer may own its total.** `@control totalField`/`currencyField` may name fields that
+  exist only in the trailer layout, so the declared total is read where the bank put it instead of
+  reusing the detail's amount field.
+- **Fingerprints do not move without a reason.** The parser adds a `views:` component to the
+  fingerprint only when the copybook declares a region, so the six sample scenarios without
+  `REDEFINES` keep the exact fingerprints recorded before T8 (pinned in
+  `test/regressions/redefines-view.test.ts`).

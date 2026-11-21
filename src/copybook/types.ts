@@ -45,6 +45,51 @@ export interface CopybookField {
   explicitPosition: boolean;
   /** 1-based copybook line the field came from. */
   line: number;
+  /** True for a group item (`05 NAME.`) whose bytes are its children's. Groups carry no value. */
+  group?: boolean;
+  /**
+   * Name of the item whose byte range this field redefines (`REDEFINES X`), for the
+   * item that introduces a view. Present only on that item.
+   */
+  redefines?: string;
+  /**
+   * Region this field belongs to: the name of the item whose bytes are shared by
+   * more than one layout. Absent for fields outside any `REDEFINES` region, which
+   * are read on every record.
+   */
+  region?: string;
+  /**
+   * Layout this field belongs to inside its region: the redefined item or one of
+   * the items that redefine it. Only the active layout's fields are decoded for a
+   * given record (`* @view`).
+   */
+  layout?: string;
+}
+
+/**
+ * One layout of a `REDEFINES` region.
+ *
+ * A copybook that describes an EDI 820 the way a bank writes it has one byte range
+ * with two meanings: the payment detail and the trailer that closes the file. COBOL
+ * expresses that with `REDEFINES`; what COBOL does not say is *which record type uses
+ * which layout*, so this model refuses to guess: every layout must declare the
+ * discriminator field and value that activate it (`* @view`).
+ */
+export interface CopybookView {
+  /** Shared byte range, named after the item that is redefined. */
+  region: string;
+  /** The item that occupies the range in this layout. */
+  layout: string;
+  /** 1-based start of the shared range. */
+  start: number;
+  /** Width of the shared range, which is the redefined item's width. */
+  length: number;
+  /** Fields decoded when this layout is active, in copybook order (names). */
+  fields: string[];
+  /** Discriminator field; a field outside any region. */
+  typeField?: string;
+  /** Discriminator values (trimmed comparison) that select this layout. */
+  values?: string[];
 }
 
 /**
@@ -87,6 +132,8 @@ export interface Copybook {
   semantics: CopybookSemantics;
   control?: ControlSpec;
   framing: Framing;
+  /** `REDEFINES` layouts, one entry per layout. Absent when the copybook has none. */
+  views?: CopybookView[];
   /** Non-fatal observations found while compiling (gaps, ignored clauses). */
   notes: string[];
   /** Normalised source text, kept for hashing and for the UI's side-by-side view. */
@@ -96,6 +143,7 @@ export interface Copybook {
 export type CopybookIssueCode =
   | 'COPYBOOK_UNPARSABLE'
   | 'COPYBOOK_OVERLAP'
+  | 'COPYBOOK_REDEFINES'
   | 'UNSUPPORTED_STRUCTURE'
   | 'COPYBOOK_SEMANTICS';
 

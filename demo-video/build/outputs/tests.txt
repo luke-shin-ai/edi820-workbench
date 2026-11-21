@@ -1,23 +1,24 @@
- ✓ test/unit/exception.test.ts (38 tests) 4038ms
- ✓ test/unit/parser.test.ts (25 tests) 16ms
- ✓ test/unit/reconcile.test.ts (21 tests) 30ms
- ✓ test/unit/cli.test.ts (14 tests) 485ms
- ✓ test/unit/explain.test.ts (14 tests) 65ms
- ✓ test/unit/bai2.test.ts (18 tests) 54ms
- ✓ test/pbt/exception.pbt.test.ts (7 tests) 116ms
- ✓ test/unit/mcp.test.ts (9 tests) 728ms
- ✓ test/unit/web.test.ts (10 tests) 121ms
- ✓ test/pbt/parser.pbt.test.ts (5 tests) 207ms
- ✓ test/regressions/verdict-integrity.test.ts (7 tests) 839ms
- ✓ test/unit/copybook.test.ts (19 tests) 19ms
- ✓ test/unit/fixtures.test.ts (8 tests) 51ms
- ✓ test/unit/overpunch.test.ts (57 tests) 10ms
- ✓ test/pbt/reconcile.pbt.test.ts (3 tests) 94ms
- ✓ test/pbt/bai2.pbt.test.ts (3 tests) 74ms
- ✓ test/pbt/explain.pbt.test.ts (5 tests) 127ms
- ✓ test/regressions/overpunch-and-width.test.ts (6 tests) 4ms
- ✓ test/pbt/amounts.pbt.test.ts (3 tests) 38ms
- ✓ test/pbt/copybook.pbt.test.ts (3 tests) 59ms
+ ✓ test/unit/exception.test.ts (38 tests) 4513ms
+ ✓ test/unit/copybook.test.ts (27 tests) 18ms
+ ✓ test/unit/parser.test.ts (25 tests) 19ms
+ ✓ test/unit/reconcile.test.ts (21 tests) 34ms
+ ✓ test/unit/cli.test.ts (14 tests) 663ms
+ ✓ test/unit/explain.test.ts (14 tests) 71ms
+ ✓ test/unit/bai2.test.ts (18 tests) 59ms
+ ✓ test/pbt/exception.pbt.test.ts (7 tests) 142ms
+ ✓ test/unit/mcp.test.ts (9 tests) 785ms
+ ✓ test/unit/web.test.ts (10 tests) 128ms
+ ✓ test/unit/fixtures.test.ts (10 tests) 68ms
+ ✓ test/pbt/parser.pbt.test.ts (5 tests) 220ms
+ ✓ test/regressions/verdict-integrity.test.ts (7 tests) 990ms
+ ✓ test/pbt/copybook.pbt.test.ts (5 tests) 129ms
+ ✓ test/unit/overpunch.test.ts (57 tests) 12ms
+ ✓ test/regressions/redefines-view.test.ts (4 tests) 52ms
+ ✓ test/pbt/reconcile.pbt.test.ts (3 tests) 151ms
+ ✓ test/pbt/bai2.pbt.test.ts (3 tests) 80ms
+ ✓ test/pbt/explain.pbt.test.ts (5 tests) 142ms
+ ✓ test/regressions/overpunch-and-width.test.ts (6 tests) 5ms
+ ✓ test/pbt/amounts.pbt.test.ts (3 tests) 43ms
  ✓ test/unit/static-sha256.test.ts (9 tests) 20ms
- Test Files  21 passed (21)
-      Tests  284 passed (284)
+ Test Files  22 passed (22)
+      Tests  300 passed (300)

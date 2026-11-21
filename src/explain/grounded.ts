@@ -1,9 +1,14 @@
 /**
- * The deterministic adapter, in its own module.
+ * The grounded adapter — the default explanation layer, in its own module.
  *
- * It has no dependency on `node:child_process` (the live adapters below do), so the static
- * browser bundle can explain a finding without bundling a process spawner it cannot run.
- * `adapters.ts` re-exports it, so every existing import still resolves.
+ * "Grounded" is a claim, not a label: the explanation is written from the finding's own
+ * declared, computed and delta values with deterministic templates, so every number it
+ * cites exists in the deterministic layers' output and the guard passes by construction.
+ * It costs zero credits and touches no network.
+ *
+ * It has no dependency on `node:child_process` (the live adapters in `adapters.ts` do), so
+ * the static browser bundle can explain a finding without bundling a process spawner it
+ * cannot run.
  */
 import { formatAmount } from '../reconcile/index.js';
 import type { Finding } from '../reconcile/index.js';
@@ -22,9 +27,9 @@ function render(value: Finding['declared']): string {
  * against — if a model says something the templates cannot, it is either a
  * richer paraphrase or a number the guard will block.
  */
-export function createMockAdapter(): ExplainerAdapter {
+export function createGroundedAdapter(): ExplainerAdapter {
   return {
-    name: 'mock',
+    name: 'grounded',
     live: false,
     async explain({ finding }): Promise<ExplanationDraft> {
       switch (finding.code) {

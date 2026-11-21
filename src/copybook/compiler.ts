@@ -4,13 +4,22 @@
  * Supported dialect (documented in `docs/copybook-dialect.md`):
  *   01  RECORD-NAME.
  *       05  FIELD-NAME   PIC <picture> [SIGN <convention>] [USAGE <usage>] [POSITION <n>].
+ *       05  GROUP-NAME.
+ *       05  VIEW-NAME    REDEFINES OTHER-NAME.
  *      * @semantics amount=... currency=... valueDate=... ...
  *      * @control  typeField=... trailerValue=... countField=... totalField=...
  *      * @framing  line | fixed
+ *      * @view     layout=VIEW-NAME typeField=... value=...
+ *
+ * `REDEFINES` is supported as a *view over shared bytes*, not as a guess. The clause
+ * says that two layouts describe the same byte range (a payment detail and the trailer
+ * that closes the file, typically). The copybook must also say which record type makes
+ * a layout the active one, with one `* @view` directive per layout; a `REDEFINES` with
+ * no activation rule is refused rather than read as whichever layout happens to fit.
  *
  * Anything outside this dialect fails loudly (`COPYBOOK_UNPARSABLE`,
- * `UNSUPPORTED_STRUCTURE`). The compiler never skips a line it does not
- * understand: a copybook is a contract, and a silent skip is a silent lie.
+ * `UNSUPPORTED_STRUCTURE`, `COPYBOOK_REDEFINES`). The compiler never skips a line it
+ * does not understand: a copybook is a contract, and a silent skip is a silent lie.
  */
 import {
   CopybookError,
@@ -18,6 +27,7 @@ import {
   type Copybook,
   type CopybookField,
   type CopybookSemantics,
+  type CopybookView,
   type Framing,
   type SignConvention,
   type Usage,
@@ -105,16 +115,44 @@ interface ClauseResult {
   sign?: SignConvention;
   usage: Usage;
   position?: number;
+  redefines?: string;
 }
 
-/** Interpret everything after the picture (SIGN, USAGE, POSITION, unsupported). */
+const REDEFINES_RE = /\sREDEFINES\s+(?:IS\s+)?([A-Z0-9][A-Z0-9_-]*)\b/i;
+
+/**
+ * Interpret the clauses that may follow a group item's name.
+ *
+ * A group has no picture, so it has no sign, usage or decimal rule; it may only be
+ * redefined (or redefine another item). Everything else is a line the compiler does
+ * not understand, and it says so.
+ */
+function parseGroupClauses(raw: string, line: number): { redefines?: string } {
+  let rest = ` ${raw.replace(/\s+/g, ' ').trim()} `;
+  let redefines: string | undefined;
+  const match = REDEFINES_RE.exec(rest);
+  if (match) {
+    redefines = (match[1] ?? '').toUpperCase();
+    rest = rest.replace(REDEFINES_RE, ' ');
+  }
+  rest = rest.trim().replace(/\.$/, '').trim();
+  if (rest.length > 0) fail(`unrecognised clause "${rest}" on a group item`, line);
+  return { ...(redefines ? { redefines } : {}) };
+}
+
+/** Interpret everything after the picture (SIGN, USAGE, POSITION, REDEFINES, unsupported). */
 function parseClauses(raw: string, line: number): ClauseResult {
   let rest = ` ${raw.replace(/\s+/g, ' ').trim()} `;
   const result: ClauseResult = { usage: 'display' };
 
+  const redefinesMatch = REDEFINES_RE.exec(rest);
+  if (redefinesMatch) {
+    result.redefines = (redefinesMatch[1] ?? '').toUpperCase();
+    rest = rest.replace(REDEFINES_RE, ' ');
+  }
+
   const unsupported: Array<[RegExp, string]> = [
-    [/\sREDEFINES\s+[A-Z0-9_-]+/i, 'REDEFINES'],
-    [/\sOCCURS\s+\d+/i, 'OCCURS'],
+    [/\sOCCURS\b/i, 'OCCURS (fixed or DEPENDING ON)'],
     [/\s(COMP|COMPUTATIONAL|COMP-1|COMP-2|COMPUTATIONAL-1|COMPUTATIONAL-2|BINARY|INDEX)(?![0-9-])/i, 'binary COMP usage'],
   ];
 
@@ -203,15 +241,114 @@ export function numericWidth(picture: Picture, usage: Usage, sign: SignConventio
   return digitCount + separate;
 }
 
+/** One shared byte range: the redefined item plus every item that redefines it. */
+interface Region {
+  name: string;
+  start: number;
+  length: number;
+  layouts: Map<string, string[]>;
+}
+
+/** A group item that is still open, so its width is not known yet. */
+interface Frame {
+  name: string;
+  level: number;
+  start: number;
+  group: CopybookField;
+  region?: string;
+  layout?: string;
+  /** Exclusive end of the region this frame redefines, if it is a view root. */
+  regionEnd?: number;
+}
+
 export function compileCopybook(text: string): Copybook {
+  // EBCDIC source is not ASCII transliteration: detecting it at the door is honest,
+  // decoding it field by field would be a guess.
+  if (/[\u0080-\u00ff]/.test(text)) {
+    throw new CopybookError(
+      'UNSUPPORTED_STRUCTURE',
+      'this copybook contains non-ASCII bytes, so it is probably EBCDIC; 「820」 reads ASCII transliterations only',
+    );
+  }
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const fields: CopybookField[] = [];
   const notes: string[] = [];
   const semantics: CopybookSemantics = {};
+  const regions = new Map<string, Region>();
+  const viewRules = new Map<string, { typeField: string; values: string[] }>();
   let control: ControlSpec | undefined;
   let framing: Framing = 'line';
   let recordName = '';
-  let anyExplicit = false;
+
+  const frames: Frame[] = [];
+  let cursor = 1;
+
+  const closeFrames = (level: number) => {
+    while (frames.length > 0 && frames[frames.length - 1]!.level >= level) {
+      const frame = frames.pop()!;
+      const contentLength = cursor - frame.start;
+      if (contentLength < 1) {
+        throw new CopybookError(
+          'COPYBOOK_REDEFINES',
+          `group item ${frame.name} declares no fields, so its width is zero (copybook line ${frame.group.line})`,
+          { line: frame.group.line, fields: [frame.name] },
+        );
+      }
+      frame.group.length = contentLength;
+      if (frame.regionEnd !== undefined) {
+        if (contentLength > frame.regionEnd - frame.start) {
+          throw new CopybookError(
+            'COPYBOOK_REDEFINES',
+            `${frame.name} is ${contentLength} bytes, wider than the ${frame.regionEnd - frame.start} bytes it redefines (copybook line ${frame.group.line})`,
+            { line: frame.group.line, fields: [frame.name] },
+          );
+        }
+        cursor = Math.max(cursor, frame.regionEnd);
+      }
+    }
+  };
+
+  const registerInLayout = (regionName: string, layoutName: string, fieldName: string) => {
+    const region = regions.get(regionName)!;
+    const list = region.layouts.get(layoutName);
+    if (list) list.push(fieldName);
+    else region.layouts.set(layoutName, [fieldName]);
+  };
+
+  /**
+   * Open (or join) the region that `redefines` names, and mark every field already
+   * inside that byte range as the first layout of the region.
+   */
+  const regionFor = (redefined: CopybookField, line: number): Region => {
+    const existing = regions.get(redefined.name);
+    if (existing) return existing;
+    const region: Region = { name: redefined.name, start: redefined.start, length: redefined.length, layouts: new Map() };
+    regions.set(redefined.name, region);
+    const rangeStart = redefined.start;
+    const rangeEnd = redefined.start + redefined.length;
+    for (const field of fields) {
+      // A group that is still open has no width yet, and a group that merely contains
+      // the redefined item is not one of its layouts.
+      if (field.group && frames.some((frame) => frame.name === field.name)) continue;
+      const enclosingGroup =
+        field.group === true && field.name !== redefined.name && field.start <= rangeStart && field.start + field.length >= rangeEnd;
+      if (enclosingGroup) continue;
+      if (field.start >= rangeStart && field.start + field.length <= rangeEnd) {
+        // An inner region keeps its own membership; `??=` is the nesting rule.
+        field.region ??= redefined.name;
+        field.layout ??= redefined.name;
+        if (field.region === redefined.name) registerInLayout(redefined.name, redefined.name, field.name);
+      }
+    }
+    if (!region.layouts.has(redefined.name)) {
+      throw new CopybookError(
+        'COPYBOOK_REDEFINES',
+        `REDEFINES ${redefined.name} names an item with no fields inside it (copybook line ${line})`,
+        { line },
+      );
+    }
+    return region;
+  };
 
   const directiveValuesFor = (name: string, body: string, line: number) =>
     directiveValues(body, line, name.toLowerCase() === 'framing');
@@ -261,45 +398,148 @@ export function compileCopybook(text: string): Copybook {
           framing = mode;
           return;
         }
+        case 'view': {
+          const layout = values.layout?.toUpperCase();
+          const typeField = (values.typefield ?? values.discriminator)?.toUpperCase();
+          const rawValues = values.value ?? values.values;
+          if (!layout || !typeField || rawValues === undefined) {
+            fail('@view requires layout, typeField and value (e.g. `@view layout=TRAILER typeField=REC-TYPE value=T`)', line);
+          }
+          const list = rawValues
+            .split(',')
+            .map((entry) => entry.trim())
+            .filter((entry) => entry.length > 0);
+          if (list.length === 0) fail(`@view ${layout} declares no value`, line);
+          viewRules.set(layout, { typeField, values: list });
+          return;
+        }
         default:
           notes.push(`copybook line ${line}: directive @${name.slice(1)} ignored`);
           return;
       }
     }
 
-    const noPic = NO_PIC_RE.exec(lineText);
-    if (noPic && !/PIC/i.test(lineText)) {
-      const level = Number(noPic[1]);
-      const name = noPic[2]!;
+    const hasPic = /PIC\s+/i.test(lineText);
+    let level: number;
+    let name: string;
+    let remainder = '';
+    let clauses: ClauseResult = { usage: 'display' };
+
+    const bare = hasPic ? null : NO_PIC_RE.exec(lineText);
+    if (bare) {
+      level = Number(bare[1]);
+      name = bare[2]!;
       if (level === 1) {
         recordName = name;
         return;
       }
       if (level === 88) return;
-      fail(`group/section line "${lineText.trim()}" has no PIC clause`, line);
+      // A group item with no clauses.
+    } else {
+      const match = FIELD_RE.exec(lineText);
+      if (!match) fail(`line is not a field definition: "${lineText.trim()}"`, line);
+      level = Number(match[1]);
+      name = match[2]!;
+      remainder = match[3]!;
+      if (!NAME_RE.test(name)) fail(`invalid field name "${name}"`, line);
+      if (!hasPic) {
+        const groupClauses = parseGroupClauses(remainder, line);
+        clauses = { usage: 'display', ...groupClauses };
+      }
     }
 
-    const match = FIELD_RE.exec(lineText);
-    if (!match) fail(`line is not a field definition: "${lineText.trim()}"`, line);
+    closeFrames(level);
 
-    const level = Number(match[1]);
-    const name = match[2]!;
-    const remainder = match[3]!;
-    if (!NAME_RE.test(name)) fail(`invalid field name "${name}"`, line);
+    let picture: Picture | undefined;
+    if (hasPic) {
+      const picIndex = remainder.search(/PIC\s+/i);
+      if (picIndex < 0) fail(`field ${name} has no PIC clause`, line);
+      const afterPic = remainder.slice(picIndex).replace(/^PIC\s+/i, '');
+      const picTokenMatch = /^(\S+?)\.?(\s|$)/.exec(afterPic);
+      if (!picTokenMatch) fail(`field ${name} has an empty PIC clause`, line);
+      const picToken = (picTokenMatch[1] ?? '').replace(/\.$/, '');
+      picture = parsePicture(picToken, line);
+      clauses = parseClauses(afterPic.slice(picTokenMatch[0]!.length), line);
+      if (picture.kind === 'string' && clauses.usage === 'comp-3') fail(`COMP-3 requires a numeric PICTURE (field ${name})`, line);
+      if (picture.kind === 'string' && clauses.sign) fail(`SIGN requires a numeric PICTURE (field ${name})`, line);
+      if (picture.kind === 'numeric' && clauses.usage === 'display' && (picture.signed || clauses.sign) && !clauses.sign) {
+        fail(`signed field ${name} must declare its sign convention (SIGN LEADING/ TRAILING SEPARATE or SIGN TRAILING OVERPUNCH)`, line);
+      }
+    }
 
-    const picIndex = remainder.search(/PIC\s+/i);
-    if (picIndex < 0) fail(`field ${name} has no PIC clause`, line);
-    const afterPic = remainder.slice(picIndex).replace(/^PIC\s+/i, '');
-    const picTokenMatch = /^(\S+?)\.?(\s|$)/.exec(afterPic);
-    if (!picTokenMatch) fail(`field ${name} has an empty PIC clause`, line);
-    const picToken = (picTokenMatch[1] ?? '').replace(/\.$/, '');
-    const picture = parsePicture(picToken, line);
-    const clauses = parseClauses(afterPic.slice(picTokenMatch[0]!.length), line);
+    // REDEFINES: the item shares the byte range of an item declared earlier.
+    let redefined: CopybookField | undefined;
+    if (clauses.redefines) {
+      redefined = fields.find((field) => field.name === clauses.redefines);
+      if (!redefined) {
+        throw new CopybookError(
+          'COPYBOOK_REDEFINES',
+          `REDEFINES names ${clauses.redefines}, which is not declared before this line (copybook line ${line})`,
+          { line },
+        );
+      }
+      if (redefined.level !== level) {
+        throw new CopybookError(
+          'COPYBOOK_REDEFINES',
+          `REDEFINES ${redefined.name} must be at the same level-number (${redefined.level}), not ${level} (copybook line ${line})`,
+          { line, fields: [redefined.name, name] },
+        );
+      }
+      if (frames.some((frame) => frame.name === redefined!.name)) {
+        throw new CopybookError(
+          'COPYBOOK_REDEFINES',
+          `REDEFINES ${redefined.name} names a group that is still open, so its width is not known yet (copybook line ${line})`,
+          { line, fields: [redefined.name, name] },
+        );
+      }
+      if (redefined.length < 1) {
+        throw new CopybookError(
+          'COPYBOOK_REDEFINES',
+          `REDEFINES ${redefined.name} names an item with no width (copybook line ${line})`,
+          { line },
+        );
+      }
+      regionFor(redefined, line);
+    }
 
-    if (picture.kind === 'string' && clauses.usage === 'comp-3') fail(`COMP-3 requires a numeric PICTURE (field ${name})`, line);
-    if (picture.kind === 'string' && clauses.sign) fail(`SIGN requires a numeric PICTURE (field ${name})`, line);
-    if (picture.kind === 'numeric' && clauses.usage === 'display' && (picture.signed || clauses.sign) && !clauses.sign) {
-      fail(`signed field ${name} must declare its sign convention (SIGN LEADING/ TRAILING SEPARATE or SIGN TRAILING OVERPUNCH)`, line);
+    const parent = frames[frames.length - 1];
+    const start = clauses.position ?? (redefined ? redefined.start : cursor);
+    if (!hasPic && clauses.position !== undefined) fail(`group item ${name} cannot declare POSITION`, line);
+
+    if (!picture) {
+      const group: CopybookField = {
+        name,
+        level,
+        start,
+        length: 0,
+        type: 'string',
+        pic: 'GROUP',
+        signed: false,
+        usage: 'display',
+        explicitPosition: false,
+        line,
+        group: true,
+        ...(redefined ? { redefines: redefined.name } : {}),
+      };
+      if (redefined) {
+        group.region = redefined.name;
+        group.layout = name;
+      } else if (parent?.region) {
+        group.region = parent.region;
+        group.layout = parent.layout;
+      }
+      if (group.region) registerInLayout(group.region, group.layout!, name);
+      fields.push(group);
+      cursor = start;
+      frames.push({
+        name,
+        level,
+        start,
+        group,
+        ...(group.region ? { region: group.region, layout: group.layout } : {}),
+        ...(redefined ? { regionEnd: redefined.start + redefined.length } : {}),
+      });
+      return;
     }
 
     const signed = picture.signed || clauses.sign !== undefined;
@@ -316,16 +556,22 @@ export function compileCopybook(text: string): Copybook {
     const length =
       picture.kind === 'string' ? picture.stringLength : numericWidth(picture, usage, clauses.sign);
 
+    if (redefined && length > redefined.length) {
+      throw new CopybookError(
+        'COPYBOOK_REDEFINES',
+        `${name} is ${length} bytes, wider than the ${redefined.length} bytes it redefines (${redefined.name}) (copybook line ${line})`,
+        { line, fields: [redefined.name, name] },
+      );
+    }
+
     const normalisedPic = picture.kind === 'string'
       ? `X(${picture.stringLength})`
       : `${picture.signed ? 'S' : ''}9(${picture.digits})${picture.decimals > 0 ? `V${'9'.repeat(picture.decimals)}` : ''}`;
 
-    if (clauses.position !== undefined) anyExplicit = true;
-
-    fields.push({
+    const field: CopybookField = {
       name,
       level,
-      start: clauses.position ?? 0,
+      start,
       length,
       type,
       pic: normalisedPic,
@@ -335,44 +581,65 @@ export function compileCopybook(text: string): Copybook {
       usage,
       explicitPosition: clauses.position !== undefined,
       line,
-    });
+      ...(redefined ? { redefines: redefined.name } : {}),
+    };
+    if (redefined) {
+      field.region = redefined.name;
+      field.layout = name;
+    } else if (parent?.region) {
+      field.region = parent.region;
+      field.layout = parent.layout;
+    }
+    if (field.region) registerInLayout(field.region, field.layout!, field.name);
+    fields.push(field);
+
+    cursor = start + length;
+    if (redefined) cursor = redefined.start + redefined.length;
   });
 
-  if (fields.length === 0) {
+  closeFrames(0);
+
+  if (!fields.some((field) => !field.group)) {
     throw new CopybookError('COPYBOOK_UNPARSABLE', 'copybook declares no fields');
   }
 
-  // Assign cumulative starts where the copybook did not state one.
-  let cursor = 1;
-  for (const field of fields) {
-    if (!field.explicitPosition) field.start = cursor;
-    cursor = field.start + field.length;
-  }
-
-  // Overlap (R1.5) — explicit POSITION makes this reachable, so it is checked, not assumed.
-  const ordered = [...fields].sort((a, b) => a.start - b.start || a.length - b.length);
-  for (let i = 1; i < ordered.length; i += 1) {
-    const prev = ordered[i - 1]!;
-    const cur = ordered[i]!;
-    const prevEnd = prev.start + prev.length;
-    if (cur.start < prevEnd) {
+  // Overlap (R1.5) — explicit POSITION makes this reachable, so it is checked, not
+  // assumed. Two layouts of one region share the same bytes on purpose; any other
+  // overlap is a contract that contradicts itself.
+  const leaves = fields.filter((field) => !field.group);
+  for (let i = 0; i < leaves.length; i += 1) {
+    for (let j = i + 1; j < leaves.length; j += 1) {
+      const a = leaves[i]!;
+      const b = leaves[j]!;
+      const overlaps = a.start < b.start + b.length && b.start < a.start + a.length;
+      if (!overlaps) continue;
+      const sharedRegion =
+        a.region !== undefined && a.region === b.region && a.layout !== b.layout;
+      if (sharedRegion) continue;
       throw new CopybookError(
         'COPYBOOK_OVERLAP',
-        `fields ${prev.name} (bytes ${prev.start}-${prevEnd - 1}) and ${cur.name} (bytes ${cur.start}-${cur.start + cur.length - 1}) overlap (copybook line ${cur.line})`,
-        { line: cur.line, fields: [prev.name, cur.name] },
+        `fields ${a.name} (bytes ${a.start}-${a.start + a.length - 1}) and ${b.name} (bytes ${b.start}-${b.start + b.length - 1}) overlap (copybook line ${b.line})`,
+        { line: b.line, fields: [a.name, b.name] },
       );
-    }
-    if (cur.start > prevEnd) {
-      notes.push(`bytes ${prevEnd}-${cur.start - 1} are not covered by any field`);
     }
   }
 
-  const recordLength = Math.max(...fields.map((f) => f.start + f.length - 1));
-  const fieldNames = new Set(fields.map((f) => f.name));
+  // Gaps: bytes no field covers. Views make the union of intervals necessary —
+  // a byte covered by one layout is covered.
+  const intervals = fields
+    .map((field) => [field.start, field.start + field.length - 1] as [number, number])
+    .sort((x, y) => x[0] - y[0]);
+  let covered = 0;
+  for (const [start, end] of intervals) {
+    if (start > covered + 1) notes.push(`bytes ${covered + 1}-${start - 1} are not covered by any field`);
+    covered = Math.max(covered, end);
+  }
+
+  const recordLength = Math.max(...fields.map((field) => field.start + field.length - 1));
   const fieldOf = (name: string, key: string) => {
-    const field = fields.find((f) => f.name === name);
+    const field = fields.find((entry) => entry.name === name && !entry.group);
     if (!field) {
-      throw new CopybookError('COPYBOOK_SEMANTICS', `@semantics ${key}=${name} does not name a field in this copybook`);
+      throw new CopybookError('COPYBOOK_SEMANTICS', `@${key} names ${name}, which is not a field in this copybook`);
     }
     return field;
   };
@@ -380,7 +647,7 @@ export function compileCopybook(text: string): Copybook {
   for (const key of ['amount', 'currency', 'valueDate', 'reference', 'transactionType'] as const) {
     const name = semantics[key];
     if (!name) continue;
-    const field = fieldOf(name, key);
+    const field = fieldOf(name, `semantics ${key}`);
     if (key === 'currency' || key === 'reference' || key === 'transactionType') {
       if (field.type !== 'string') {
         throw new CopybookError('COPYBOOK_SEMANTICS', `@semantics ${key}=${name} must name an alphabetic field, but ${name} is ${field.type}`);
@@ -395,13 +662,86 @@ export function compileCopybook(text: string): Copybook {
   }
 
   if (control) {
-    const typeField = fieldOf(control.typeField, 'control.typeField');
+    const typeField = fieldOf(control.typeField, 'control typeField');
     if (typeField.type !== 'string') {
       throw new CopybookError('COPYBOOK_SEMANTICS', `@control typeField=${control.typeField} must be alphabetic`);
     }
-    if (control.countField) fieldOf(control.countField, 'control.countField');
-    if (control.totalField) fieldOf(control.totalField, 'control.totalField');
-    if (control.currencyField) fieldOf(control.currencyField, 'control.currencyField');
+    if (control.countField) fieldOf(control.countField, 'control countField');
+    if (control.totalField) fieldOf(control.totalField, 'control totalField');
+    if (control.currencyField) fieldOf(control.currencyField, 'control currencyField');
+  }
+
+  // Every layout of a REDEFINES region must say how it is activated.
+  const views: CopybookView[] = [];
+  for (const region of regions.values()) {
+    for (const [layoutName, layoutFieldNames] of region.layouts) {
+      const rule = viewRules.get(layoutName);
+      if (!rule) {
+        throw new CopybookError(
+          'COPYBOOK_SEMANTICS',
+          `REDEFINES layout ${layoutName} has no activation rule: add '* @view layout=${layoutName} typeField=<field> value=<value>' naming the record type that selects it`,
+        );
+      }
+      views.push({
+        region: region.name,
+        layout: layoutName,
+        start: region.start,
+        length: region.length,
+        fields: [...layoutFieldNames],
+        typeField: rule.typeField,
+        values: rule.values,
+      });
+    }
+  }
+  if (views.length > 0) {
+    for (const view of views) {
+      const typeField = fields.find((field) => field.name === view.typeField && !field.group);
+      if (!typeField) {
+        throw new CopybookError('COPYBOOK_SEMANTICS', `@view ${view.layout} names typeField=${view.typeField}, which is not a field`);
+      }
+      if (typeField.type !== 'string') {
+        throw new CopybookError('COPYBOOK_SEMANTICS', `@view ${view.layout} typeField=${view.typeField} must be alphabetic`);
+      }
+      if (typeField.region !== undefined) {
+        throw new CopybookError(
+          'COPYBOOK_SEMANTICS',
+          `@view ${view.layout} typeField=${view.typeField} sits inside a REDEFINES region, so it cannot choose the layout`,
+        );
+      }
+    }
+    // One value must select exactly one layout per discriminator.
+    const selected = new Map<string, string>();
+    for (const view of views) {
+      for (const value of view.values ?? []) {
+        const key = `${view.typeField}\u0000${value}`;
+        const previous = selected.get(key);
+        if (previous && previous !== view.layout) {
+          throw new CopybookError(
+            'COPYBOOK_SEMANTICS',
+            `@view: value ${value} of ${view.typeField} selects both ${previous} and ${view.layout}`,
+          );
+        }
+        selected.set(key, view.layout);
+      }
+    }
+  } else if (viewRules.size > 0) {
+    const unknown = [...viewRules.keys()][0]!;
+    throw new CopybookError(
+      'COPYBOOK_SEMANTICS',
+      `@view layout=${unknown} does not name a layout of any REDEFINES region in this copybook`,
+    );
+  }
+  // Regions exist: every layout of the region is listed in `views`, so the parser can
+  // refuse a record the discriminator does not explain.
+  for (const region of regions.values()) {
+    const layouts = [...region.layouts.keys()];
+    if (layouts.length < 2) {
+      const only = layouts[0] ?? region.name;
+      throw new CopybookError(
+        'COPYBOOK_REDEFINES',
+        `REDEFINES region ${region.name} has one layout (${only}) and describes nothing; remove the clause or add the redefining item`,
+      );
+    }
   }
 
   if (semantics.amount && !semantics.currency) {
@@ -410,7 +750,6 @@ export function compileCopybook(text: string): Copybook {
   if (!semantics.amount && !semantics.reference) {
     notes.push('no @semantics amount/reference declared: this copybook parses records but cannot be reconciled');
   }
-
   const name = recordName || 'RECORD';
   return {
     name,
@@ -419,6 +758,7 @@ export function compileCopybook(text: string): Copybook {
     semantics,
     ...(control ? { control } : {}),
     framing,
+    ...(views.length > 0 ? { views } : {}),
     notes,
     source: text.replace(/\r\n/g, '\n'),
   };

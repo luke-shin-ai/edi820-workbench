@@ -63,7 +63,7 @@ function guarantees(): { guaranteed: string[]; notGuaranteed: string[]; sourcePa
     }
     const item = /^\d+\.\s+(.+)$/.exec(line);
     if (!item || section === 'none') continue;
-    const entry = item[1]!.replace(/\*\*/g, '').trim();
+    const entry = item[1]!.replace(/\*\*/g, '').replace(/`/g, '').trim();
     if (section === 'yes') guaranteed.push(entry);
     else notGuaranteed.push(entry);
   }
