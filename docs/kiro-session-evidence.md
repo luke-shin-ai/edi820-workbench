@@ -106,6 +106,34 @@ Its answers to the three questions it was asked, quoted from the session:
 The same fingerprint is what the CLI prints for the same inputs, because both surfaces call
 `src/core/ops.ts`. That equality is the point of exposing the core over MCP at all.
 
+### 3.1 A machine-readable copy of one call
+
+The review session was also run once with `--output-format stream-json`, which records each tool
+call as an event. `logs/kiro-mcp-stream.jsonl` (kept out of the public repository with the rest of
+`logs/`) has, at line 93, the call with its arguments:
+
+```
+{"type":"sessionUpdate","data":{"update":{"sessionUpdate":"tool_call","toolCallId":"tooluse_VVXyTkR2CooOyl2Gg9AJra",
+ "title":"@820/reconcile","rawInput":{"filePath":"samples/data/820-bad.txt","copybookPath":"samples/copybooks/820.cpy", ...}}}}
+```
+
+and at line 97 the same call completed, carrying the server's JSON reply. `scripts/mcp-call.mjs`
+replays the same three calls without an agent in front of the server, so the numbers can be
+reproduced by anyone:
+
+```
+$ node scripts/mcp-call.mjs
+@820/reconcile
+  verdict     FAIL
+  findings    4  (CONTROL_TOTAL_MISMATCH, DATE_OUT_OF_WINDOW, REF_UNMATCHED)
+  fingerprint 7af64454555de8d89b5c4f763009547caaa6f53b1c040db8d8c462c04335c118
+@820/verify
+  ok          true   first difference: none
+  report      6107 -> 6107 bytes, mtime unchanged
+@820/exceptions
+  counts      OPEN 4  WAIVED 0  EXPIRED 0  RELEASED 0   unadjudicated 4
+```
+
 ## 4. What the session produced, and what it got wrong
 
 Files written by S1, with the diff readable in the commit that follows this file:
