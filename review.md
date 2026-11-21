@@ -8,7 +8,7 @@ this submission if I were a judge with the repository and no conversation with t
 
 | Requirement (rules §5) | Status | Where |
 |---|---|---|
-| Public GitHub repository | **not yet** (local repo, 14 commits, clean tree) | blocked on the account holder: pushing publishes a personal GitHub account, so it is their call |
+| Public GitHub repository | **not yet** (local repository, clean tree) | blocked on the account holder: pushing publishes a personal GitHub account, so it is their call |
 | Open source license visible in About | file present, Apache-2.0 | `LICENSE`, `package.json` |
 | `/.kiro` at the repository root, not gitignored | pass | `.kiro/` (10 tracked files), `.gitignore` carries an explicit "never add .kiro" comment |
 | Working application URL | **none, by design** | the screen binds to `127.0.0.1`; the repository has a one command start. Residual risk: a judge who will not run code has nothing to click |

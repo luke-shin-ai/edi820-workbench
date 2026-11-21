@@ -413,7 +413,7 @@ def plate_kiro():
         ("design.md", "no model in the verdict path"),
         ("", "9 implementation deltas recorded"),
         ("tasks.md", "T0 to T5 done, evidence per task"),
-        ("", "T6  write-up, self review, video"),
+        ("", "T6  write-up, review and video done"),
     ]
     y = 182
     for name, body in chain:
