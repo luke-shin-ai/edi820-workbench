@@ -38,12 +38,12 @@
 | 2026-11-21 14:10 | T5.3 | `tsx src/web/main.ts --port 8720` + headless Chromium at 1920×1200 | PASS screen: 3 columns, 5 guaranteed + 4 not-guaranteed chips, 10 details, 0 findings; FAIL screen: 4 findings, clicking row 2 moved the highlight from `AMOUNT` bytes 24–36 to `VALUE-DATE` bytes 40–47; 0 page errors; `screenshots/ui-pass.png`, `screenshots/ui-fail.png` | d301056 |
 | 2026-11-21 14:10 | T5.4 | `npx tsx src/mcp/main.ts` (real stdio session) | 4 tools (`parse_file`, `reconcile`, `explain_findings`, `verify`); `initialize` → `tools/list` → `tools/call parse_file` returns 11 records; a malformed line returns `-32700` and the server keeps serving; 9 tests | d301056 |
 | 2026-11-21 14:10 | TYPE+TEST | `npx tsc --noEmit && npx vitest run` | 0 errors; 222 tests in 17 files (148 before this stage) — 194 unit, 22 property, 6 regression | d301056 |
-| 2026-11-21 15:30 | T6.1 | `npx tsx demo-video/build/dump-copybook.mjs` | compiler-derived layout for three copybooks (100/88/80 bytes, AMOUNT at 24–36, 24–30, 25–38); `docs/copybook-to-spec.md` rewritten around those numbers, with the four Kiro questions answered and the answer "the IDE spec flow was not run" | (this commit) |
-| 2026-11-21 15:52 | T6.3 | `python3 demo-video/build/capture_states.py` | real empty state and a real error state (`IO cannot read sample samples/data/missing-file.txt`) captured from the running screen; committed as `docs/images/ui-empty.png`, `ui-error.png` | (this commit) |
-| 2026-11-21 15:55 | T6.2 | — | `devpost-submission-draft.md`: submission text plus all eight Kiro write-up topics and the vibe-coding comparison, each tied to a file, closing with five claims the submission does not make | (this commit) |
-| 2026-11-21 15:56 | T6.3b | — | `review.md`: checklist status, five scores (8.0 average), five repairs applied in this pass, four residual risks, next actions by owner | (this commit) |
-| 2026-11-21 16:05 | T6.4 | `python3 demo-video/build/build.py check` | 161.13 s (2:41), 17.14 MB, 1920×1080 H.264 752 kb/s + AAC 87 kb/s, 31 subtitle cues; page errors 0 during capture | (this commit) |
-| 2026-11-21 16:06 | TYPE+TEST | `npx tsc --noEmit && npx vitest run` | 0 errors; 222 passed (222) in 17 files | (this commit) |
+| 2026-11-21 15:30 | T6.1 | `npx tsx demo-video/build/dump-copybook.mjs` | compiler-derived layout for three copybooks (100/88/80 bytes, AMOUNT at 24–36, 24–30, 25–38); `docs/copybook-to-spec.md` rewritten around those numbers, with the four Kiro questions answered and the answer "the IDE spec flow was not run" | c65a45f |
+| 2026-11-21 15:52 | T6.3 | `python3 demo-video/build/capture_states.py` | real empty state and a real error state (`IO cannot read sample samples/data/missing-file.txt`) captured from the running screen; committed as `docs/images/ui-empty.png`, `ui-error.png` | c65a45f |
+| 2026-11-21 15:55 | T6.2 | — | `devpost-submission-draft.md`: submission text plus all eight Kiro write-up topics and the vibe-coding comparison, each tied to a file, closing with five claims the submission does not make | c65a45f |
+| 2026-11-21 15:56 | T6.3b | — | `review.md`: checklist status, five scores (8.0 average), five repairs applied in this pass, four residual risks, next actions by owner | c65a45f |
+| 2026-11-21 16:05 | T6.4 | `python3 demo-video/build/build.py check` | 161.13 s (2:41), 17.14 MB, 1920×1080 H.264 752 kb/s + AAC 87 kb/s, 31 subtitle cues; page errors 0 during capture | c65a45f |
+| 2026-11-21 16:06 | TYPE+TEST | `npx tsc --noEmit && npx vitest run` | 0 errors; 222 passed (222) in 17 files | c65a45f |
 
 ## Demo run (the numbers the video shows)
 
