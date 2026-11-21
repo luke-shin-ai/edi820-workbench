@@ -5,8 +5,8 @@
 > invoked by hand with the same payload shape — the rows are identical either way, and this note
 > says which way it was.
 > Format: `YYYY-MM-DD HH:MM | task | command | result | commit`
-> Test counts are from `npx vitest run`: **275 tests / 20 files** after T7.1 (2026-11-21 18:33);
-> 222 / 17 at T5, 148 before T4/T5.
+> Test counts are from `npx vitest run`: **284 tests / 21 files** after the static demo (2026-11-21 19:00);
+> 275 / 20 after T7.1, 222 / 17 at T5, 148 before T4/T5.
 
 | when | task | command | result | commit |
 |---|---|---|---|---|
@@ -51,6 +51,10 @@
 | 2026-11-21 18:31 | HOOK-FIRED | `cat out/hook-log.txt` | `09:30:16 Stop run=l4-review exit=0` · `09:32:22 PostFileSave unit+pbt tests ran` · `09:32:33 Stop run=l4-review exit=0` — the hooks fired inside live Kiro sessions | d813a37 |
 | 2026-11-21 18:32 | T7.1-FIX | `npx tsc --noEmit && npx vitest run` | integrity check before an append, `unadjudicated` counts `RELEASED`, `--control` required on release, EPIPE guard, 4 CLI exit-code tests (OPEN→2, all waived→0, release→2, tampered ledger→3, expired→2); 275 tests / 20 files, 0 errors | d813a37 |
 | 2026-11-21 18:32 | T7.2 | — | `docs/kiro-session-evidence.md`: 3 sessions, hook firings with their log lines, the reviewer's MCP calls and returned values, the 6 post-session repairs, the reviewer's MINOR, and the limits (non-interactive, `PostTaskExecution` unobserved, no credit count) | d813a37 |
+| 2026-11-21 18:40 | DEMO-BUILD | `npx tsx scripts/build-static.ts` | `docs/demo/bundle.js` 131 KB + `index.html` 14 KB from the same parser, reconciler, BAI2 reader, L3 template and L4 register; `node:crypto` aliased to `src/static/sha256-browser.ts`, whose digests are asserted equal to `node:crypto` for ASCII, high-byte strings, byte arrays and the real COMP-3/BAI2 samples | 6af46e6 |
+| 2026-11-21 18:41 | DEMO-CHECK | `python3 scripts/check-static.py` (Chromium, 1920x1080) | 6 scenarios: verdict and fingerprint equal the CLI for all six (S1 `c459b81b…`, S2 `85646a69…`, S3 `7af64454…`, S4 `071371bf…`, S5 `923e8f7e…`, S6 `84fd2c5e…`); a dropped COMP-3 file parses as bytes; a waiver shows WAIVED while the badge stays FAIL; release reopens; re-derive prints identical; 0 requests after load; 0 console/page errors | 6af46e6 |
+| 2026-11-21 18:55 | VIDEO | `python3 demo-video/build/{plates,make_tts,build}.py` | new opening from the hook log and the MCP client run, static demo plates for PASS/FAIL/evidence/BAI2, a register scene, 2:52.30, 19.51 MB, 38 cues, 0 em dashes | (this commit) |
+| 2026-11-21 18:58 | DOCS | — | README, `devpost-submission-draft.md`, `review.md` re-scored (7.6, from the cold 6.4), this file, `demo-video/build/README.md` updated to the shipped state; `samples/data/DEFECTS.md`, `.kiro/steering/finance-file-conventions.md` corrected earlier in `13ef2ec` | (this commit) |
 | 2026-11-21 16:06 | TYPE+TEST | `npx tsc --noEmit && npx vitest run` | 0 errors; 222 passed (222) in 17 files | c65a45f |
 
 ## Demo run (the numbers the video shows)

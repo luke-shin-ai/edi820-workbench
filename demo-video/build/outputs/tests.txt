@@ -1,13 +1,23 @@
-$  npx vitest run
- ✓ test/pbt/reconcile.pbt.test.ts (3 tests) 104ms
- ✓ test/pbt/bai2.pbt.test.ts (3 tests) 98ms
- ✓ test/pbt/explain.pbt.test.ts (5 tests) 153ms
+ ✓ test/unit/exception.test.ts (38 tests) 4038ms
+ ✓ test/unit/parser.test.ts (25 tests) 16ms
+ ✓ test/unit/reconcile.test.ts (21 tests) 30ms
+ ✓ test/unit/cli.test.ts (14 tests) 485ms
+ ✓ test/unit/explain.test.ts (14 tests) 65ms
+ ✓ test/unit/bai2.test.ts (18 tests) 54ms
+ ✓ test/pbt/exception.pbt.test.ts (7 tests) 116ms
+ ✓ test/unit/mcp.test.ts (9 tests) 728ms
+ ✓ test/unit/web.test.ts (10 tests) 121ms
+ ✓ test/pbt/parser.pbt.test.ts (5 tests) 207ms
+ ✓ test/regressions/verdict-integrity.test.ts (7 tests) 839ms
+ ✓ test/unit/copybook.test.ts (19 tests) 19ms
+ ✓ test/unit/fixtures.test.ts (8 tests) 51ms
+ ✓ test/unit/overpunch.test.ts (57 tests) 10ms
+ ✓ test/pbt/reconcile.pbt.test.ts (3 tests) 94ms
+ ✓ test/pbt/bai2.pbt.test.ts (3 tests) 74ms
+ ✓ test/pbt/explain.pbt.test.ts (5 tests) 127ms
  ✓ test/regressions/overpunch-and-width.test.ts (6 tests) 4ms
- ✓ test/pbt/amounts.pbt.test.ts (3 tests) 42ms
- ✓ test/pbt/copybook.pbt.test.ts (3 tests) 63ms
-
- Test Files  17 passed (17)
-      Tests  222 passed (222)
-   Start at  15:25:29
-   Duration  13.42s (transform 477ms, setup 0ms, collect 4.52s, tests 2.23s, environment 3ms, prepare 2.47s)
-
+ ✓ test/pbt/amounts.pbt.test.ts (3 tests) 38ms
+ ✓ test/pbt/copybook.pbt.test.ts (3 tests) 59ms
+ ✓ test/unit/static-sha256.test.ts (9 tests) 20ms
+ Test Files  21 passed (21)
+      Tests  284 passed (284)

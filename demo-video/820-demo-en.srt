@@ -1,124 +1,152 @@
 1
-00:00:00,600 --> 00:00:02,882
-Corporate payment files still arrive like this.
+00:00:00,600 --> 00:00:03,993
+This is the hook log from a real Kiro session.
 
 2
-00:00:02,962 --> 00:00:06,255
-One hundred bytes per record. No field names, no separators.
+00:00:04,073 --> 00:00:08,508
+A file save ran the tests. The stop hook re-derived the newest verdict.
 
 3
-00:00:06,335 --> 00:00:12,328
-What each byte means lives in a COBOL copybook, and the people who could read it are retiring.
+00:00:08,588 --> 00:00:12,328
+Both lines are in the repository, with the transcript beside them.
 
 4
-00:00:13,208 --> 00:00:14,616
-This is that copybook.
+00:00:13,208 --> 00:00:17,249
+The reviewer agent called the project's own MCP server.
 
 5
-00:00:14,696 --> 00:00:19,080
-Amount: eleven digits, two implied decimals, sign folded into the last digit.
+00:00:17,329 --> 00:00:21,369
+Reconcile, verify, exceptions. Same engine as the command line.
 
 6
-00:00:19,160 --> 00:00:25,032
-It defines bytes and widths. It says nothing about what must be true of the numbers.
+00:00:21,449 --> 00:00:25,032
+A fingerprint is a check, not a claim.
 
 7
-00:00:25,912 --> 00:00:30,578
-820 reads the file through the copybook.
+00:00:25,912 --> 00:00:30,270
+What each byte means lives in a COBOL copybook.
 
 8
-00:00:30,658 --> 00:00:37,358
-Ten payment details, one trailer. Declared 1,284,550.00, summed the same.
+00:00:30,350 --> 00:00:35,694
+Eleven digits, two implied decimals, sign folded into the last digit.
 
 9
-00:00:37,438 --> 00:00:42,104
-Ten references matched. Zero findings. Verdict: pass.
+00:00:35,774 --> 00:00:42,104
+It defines bytes and widths, not what must be true of the numbers.
 
 10
-00:00:42,984 --> 00:00:45,966
-Now a file with defects. Four findings.
+00:00:42,984 --> 00:00:49,382
+This screen runs in the browser tab. No server, no upload.
 
 11
-00:00:46,046 --> 00:00:51,654
-Control total short by 100.00. One record of 99 bytes instead of 100.
+00:00:49,462 --> 00:00:52,916
+Same code, compiled for the page.
 
 12
-00:00:51,734 --> 00:00:56,904
-Two references with no bank counterpart. One value date outside the window.
+00:00:52,996 --> 00:00:58,216
+Ten details. Declared 1,284,550.00, summed the same. Verdict pass.
 
 13
-00:00:56,984 --> 00:00:58,216
-Exit code two.
+00:00:59,096 --> 00:01:01,829
+Now a file with defects. Four findings.
 
 14
-00:00:59,096 --> 00:01:04,006
-Select a finding and the screen shows the bytes behind it.
+00:01:01,909 --> 00:01:07,053
+Control total short by 100.00. One record of 99 bytes instead of 100.
 
 15
-00:01:04,086 --> 00:01:10,358
-Record 2, value date, bytes 40 to 47: 2026, 11, 14. Outside the window.
+00:01:07,133 --> 00:01:11,875
+Two references with no bank counterpart. One value date outside the window.
 
 16
-00:01:10,438 --> 00:01:13,080
-The claim is checkable, not asserted.
+00:01:11,955 --> 00:01:13,080
+Exit code two.
 
 17
-00:01:13,960 --> 00:01:16,841
-The same screen says where the guarantee stops.
+00:01:13,960 --> 00:01:18,215
+Select a finding and the screen shows the bytes behind it.
 
 18
-00:01:16,921 --> 00:01:19,803
-It does not judge legal or accounting adequacy.
+00:01:18,295 --> 00:01:23,732
+Record 2, value date, bytes 40 to 47: 2026, 11, 14. Outside the window.
 
 19
-00:01:19,883 --> 00:01:26,096
-No exception without a reason, an expiry date and a compensating control. That stays with a human.
+00:01:23,812 --> 00:01:26,096
+The claim is checkable, not asserted.
 
 20
-00:01:26,976 --> 00:01:32,231
-Verify re-runs the deterministic layers from the recorded inputs.
+00:01:26,976 --> 00:01:31,868
+BAI2 is a bank statement with no copybook, read by its own reader.
 
 21
-00:01:32,311 --> 00:01:38,752
-Same fingerprint, same verdict, and the report file is not touched.
+00:01:31,948 --> 00:01:36,075
+One credit is missing and there is a 25.00 bank fee.
 
 22
-00:01:39,632 --> 00:01:45,529
-Property based tests hold the parser: any generated file comes back byte identical.
+00:01:36,155 --> 00:01:38,752
+Delta -79,025.00: credits 1,205,550.00 minus debits 25.00.
 
 23
-00:01:45,609 --> 00:01:54,264
-222 tests. They found real defects, including an overpunch table that mapped A to zero instead of plus one.
+00:01:39,632 --> 00:01:42,004
+A model cannot clear a finding.
 
 24
-00:01:55,144 --> 00:02:02,444
-Three byte layouts share one reconciler. Trailing overpunch. Packed decimal with no line breaks.
+00:01:42,084 --> 00:01:46,091
+A person records an exception: owner, reason, compensating control, expiry.
 
 25
-00:02:02,524 --> 00:02:10,352
-And BAI2, a comma delimited bank statement with no copybook, read by its own reader.
+00:01:46,171 --> 00:01:49,769
+Append only and hash chained. The verdict stays fail.
 
 26
-00:02:11,232 --> 00:02:17,362
-Kiro is in the repository, not in the pitch. The spec in .kiro was the contract for every layer.
+00:01:49,849 --> 00:01:54,264
+A release puts the finding back in front of a human.
 
 27
-00:02:17,442 --> 00:02:21,938
-Steering files set the parsing rules. Hooks and a reviewer agent sit beside them.
+00:01:55,144 --> 00:02:01,944
+Verify re-runs the deterministic layers from the recorded inputs.
 
 28
-00:02:22,018 --> 00:02:24,879
-With read tools the reviewer found two real defects.
+00:02:02,024 --> 00:02:10,352
+Same fingerprint, same verdict, and the report file is not touched.
 
 29
-00:02:24,959 --> 00:02:29,128
-Without them, it wrote a confident review of code it had never opened.
+00:02:11,232 --> 00:02:15,211
+284 tests, property based where it matters.
 
 30
-00:02:30,008 --> 00:02:37,875
-For a finance team this replaces retyping a payment file into a spreadsheet.
+00:02:15,291 --> 00:02:20,430
+A truncated record used to pass with zero findings.
 
 31
-00:02:37,955 --> 00:02:40,320
+00:02:20,510 --> 00:02:25,069
+It now reports incomplete and exits non zero.
+
+32
+00:02:25,149 --> 00:02:29,128
+A report verifies from any working directory.
+
+33
+00:02:30,008 --> 00:02:32,650
+The exception register was implemented by Kiro from spec task 7.1.
+
+34
+00:02:32,730 --> 00:02:35,124
+Transcript, hook firings and MCP calls are in the repository.
+
+35
+00:02:35,204 --> 00:02:37,598
+The repairs made afterwards are listed beside them, not hidden.
+
+36
+00:02:37,678 --> 00:02:40,320
+Steering files set the rules, and the spec was the contract.
+
+37
+00:02:41,200 --> 00:02:49,067
+For a finance team this replaces retyping a payment file into a spreadsheet.
+
+38
+00:02:49,147 --> 00:02:51,512
 820. Resurrection. Apache 2.0.
 

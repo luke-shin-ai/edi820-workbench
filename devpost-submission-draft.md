@@ -51,17 +51,23 @@ layers:
 The verdict is deterministic and re-derivable: `820 verify` re-runs the deterministic layers from
 the recorded inputs and compares a SHA-256 fingerprint, read-only.
 
-Three surfaces share one core: a CLI with exit codes 0/2/3, a single web screen with three columns
-and byte-offset evidence, and an MCP server with four tools.
+Three surfaces share one core: a CLI with exit codes 0/2/3, a web screen with three columns and
+byte-offset evidence, and an MCP server with five tools. The web screen has two builds. One is
+served locally on `127.0.0.1`. The other is a static, client-side build in `docs/demo` that runs
+the same parser, reconciler, BAI2 reader, explainer and register compiled for the browser, so a
+judge can click through the six scenarios with no server at all.
 
 All sample data is synthetic, from a fictional company. No customer, bank or employer data is used.
 
 ## [form] Links
 
 - Repository: to be published (public GitHub, Apache-2.0, `.kiro/` at the root)
-- Video: `demo-video/820-demo-en.mp4`, 2 minutes 41 seconds, English narration and subtitles
-- No hosted app. The screen binds to `127.0.0.1` on purpose: payment files should not leave the
-  machine they arrived on. The repository has a one-command start.
+- Video: `demo-video/820-demo-en.mp4`, 2 minutes 52 seconds, English narration and subtitles
+- Working application: the static build in `docs/demo/index.html` ("Runs in this tab"). It is the
+  same engine compiled for the browser, so nothing is uploaded and the verdict still comes from
+  code. Publishing that folder on GitHub Pages or Cloudflare Pages is one deploy and is the
+  account holder's act; the URL is not claimed until it is live. The local server build
+  (`npm run web`) remains the back-office path, bound to `127.0.0.1`.
 
 ---
 
@@ -121,14 +127,22 @@ deterministic layers produced: a reviewer's confidence is not evidence.
 
 - `PostFileSave` matching `.(ts|mjs)$` and `copybooks/*.cpy`, which runs the unit and property test
   suites so the deterministic core stays honest while an agent edits;
-- `AgentStop`, which re-derives the verdict of the last output directory and reports fingerprint
-  drift instead of trusting the previous run's claim;
+- the stop hook (trigger `Stop` on CLI V3; `AgentStop` is only the display name and never fired),
+  which resolves the newest report that holds a verdict and re-derives it with the real CLI entry,
+  so fingerprint drift and a missing run both surface in the session;
 - `PostTaskExecution`, which appends one row to `EVIDENCE.md`.
 
-**Honest boundary:** the hook definitions are committed and their commands were exercised by hand,
-which is how the rows in `EVIDENCE.md` were produced. I did not observe them firing inside a live
-Kiro session, and no row claims it. That is the first thing the credit grant would buy: a session
-where the hooks are the thing that writes the evidence.
+**What changed since the first draft:** these hooks now fire in live sessions. `out/hook-log.txt`
+records the firings from the session that implemented the exception register: `2026-11-21T09:32:22Z
+trigger=PostFileSave unit+pbt tests ran` and `2026-11-21T09:32:33Z trigger=Stop run=l4-review
+exit=0`. Two of them were broken before that session and are fixed: the stop hook's command pointed
+at a module with no entry point and at `out/` instead of `out/<timestamp>/`, which printed nothing
+and exited 0, and its trigger name was wrong. `docs/kiro-session-evidence.md` records the probe
+that found both.
+
+**Honest boundary:** `PostTaskExecution` is still unobserved. The task runner was not used; the spec
+task was passed as a prompt, so the `EVIDENCE.md` rows for T7 are written by the same script the
+hook calls, marked with the session they came from.
 
 ### 4. Spec-driven development
 
@@ -172,9 +186,9 @@ because it makes the demo pass.
 
 ### 6. MCP
 
-`src/mcp/` is a JSON-RPC 2.0 server over stdio with four tools: `parse_file`, `reconcile`,
-`explain_findings`, `verify`. Each returns the same JSON the CLI writes, because all three surfaces
-call `src/core/ops.ts`.
+`src/mcp/` is a JSON-RPC 2.0 server over stdio with five tools: `parse_file`, `reconcile`,
+`explain_findings`, `verify`, `exceptions`. Each returns the same JSON the CLI writes, because all
+three surfaces call `src/core/ops.ts`.
 
 It is implemented against the protocol directly (newline-delimited JSON-RPC, `initialize`,
 `tools/list`, `tools/call`, `-32601` for unknown methods, `-32700` for a malformed line) because the
@@ -185,12 +199,16 @@ The point of the surface: a finance team can drive the deterministic core from t
 without re-implementing fixed-width parsing, and the numbers they get back are the same numbers the
 CLI prints.
 
-**Honest boundary:** the server is tested but not wired into a Kiro agent session. The reviewer
-agent's config declares no MCP servers. Connecting the two is listed in "what's next".
+**What changed since the first draft:** the server is now attached to the reviewer agent.
+`.kiro/settings/mcp.json` registers it, and `.kiro/agents/reviewer.json` sets `includeMcpJson:
+true` with `@820` in `allowedTools`. In the review session the agent called `@820/reconcile`,
+`@820/exceptions` and `@820/verify`, and got back the verdict `FAIL` with 4 findings and the
+fingerprint `7af64454…`. The same call replayed outside an agent (`node scripts/mcp-call.mjs`)
+prints the same values, which is the point: the agent and the CLI are not two implementations.
 
 ### 7. Property-based testing
 
-Six property suites, 22 properties, 222 tests in total.
+Seven property suites, 29 property tests, 284 tests in total.
 
 - **Round trip:** parse a generated fixed-width file, serialize it, and the bytes are identical,
   including CRLF, a missing final newline, and a binary COMP-3 stream with no newlines at all.
@@ -243,24 +261,30 @@ narrates and a layer that proves.
 
 ## [form] Accomplishments
 
-- 222 tests, 22 of them properties over generated inputs, with six regressions kept from real
-  failures.
+- 284 tests, 29 of them properties over generated inputs, with seven regressions kept from real
+  failures, including a truncated record that used to reach `PASS` with zero findings and now
+  yields `INCOMPLETE` and exit 2.
 - Three byte layouts (trailing overpunch, COMP-3, leading separate sign) and three formats (820, 823,
   BAI2) through one reconciler.
 - A verdict anyone can re-derive: `verify` prints both fingerprints and the first differing field
   path, and does not touch the report.
 - An agent layer that cannot invent a number, and costs zero credits by default.
+- A human layer that cannot be edited back into agreement: the exception register is append only
+  and hash chained, a waiver carries an owner, a reason, a compensating control and an expiry, and
+  editing any entry afterwards breaks the chain at that sequence number.
+- One engine in three places: the CLI, the local screen and a static browser build share the
+  parser and the reconciler, and the static build's fingerprints are asserted equal to the CLI's
+  for all six sample scenarios (`scripts/check-static.py`).
 - A public statement of the boundary (`docs/guarantees.md`) that is part of the product: it is shown
   in both strips of the screen and printed by the CLI.
 
 ## [form] What's next
 
-- Wire the MCP server into a Kiro agent session, so a reviewer can call `reconcile` instead of
-  reading code about it.
-- Run the spec inside a Kiro session with the hooks live, and let `PostTaskExecution` write the
-  evidence rows rather than a manual invocation.
-- The exception register (layer 4): reason, expiry and compensating control per exception, with a
-  count of exceptions that have none, which should be zero.
+- Publish the static build so the URL is live, then upload the video and submit.
+- Run the spec through Kiro's task runner rather than as a prompt, so `PostTaskExecution` writes the
+  evidence rows itself.
+- A host-side witness: two independent runs of the same file on different machines, compared by
+  fingerprint.
 - Streaming parse for files larger than memory, and a copybook dialect report for banks that send
   `REDEFINES`.
 
@@ -270,9 +294,14 @@ narrates and a layer that proves.
 
 Written here so a judge does not have to find them.
 
-1. Kiro did not generate this code. The `.kiro` spec was the contract and the implementation ran in
-   this workspace; the Kiro surface executed was the CLI, with a custom agent.
-2. The hooks were not observed firing inside a Kiro session. Their commands were run by hand.
-3. The MCP server is protocol-tested but not attached to a Kiro agent session.
-4. Kiro powers were not used.
-5. The web screen is local only. There is no hosted URL, by design.
+1. Kiro did not generate the whole project. It implemented layer 4 (the exception register, its CLI
+   commands, its MCP tool and 38 tests) from spec task T7.1 in one session, and the earlier layers
+   were built in this workspace alongside Kiro CLI sessions and the steering files. `EVIDENCE.md`
+   says which rows came from which.
+2. `PostTaskExecution` was not observed firing. The other two hooks were, and the log is in the
+   repository.
+3. Kiro powers were not used.
+4. The hosted URL is not live yet. The static build exists and is verified in a browser; deploying
+   it is the account holder's act.
+5. The video is 2:52 and the audio is synthesised. Nobody has watched it end to end with a human
+   ear.

@@ -1,9 +1,8 @@
-$  npx tsx src/cli/main.ts verify out/vid
-verify /workspace/hackathons/kiroween-2026/out/vid/report.json
-  recorded fingerprint   a69a9c1d132ae4359b5103b7fc667957ce29f2fd52a4ca65f92bcb3641a962d5
-  recomputed fingerprint a69a9c1d132ae4359b5103b7fc667957ce29f2fd52a4ca65f92bcb3641a962d5
-  recorded verdict FAIL   recomputed verdict FAIL
-  read-only: report 5659 → 5659 bytes, mtime 1795242321967 → 1795242321967
+verify /workspace/hackathons/kiroween-2026/out/evidence/report.json
+  recorded fingerprint   c459b81b86ad3be3248f293de3f520a79483f8760157a1272e33150e944c178a
+  recomputed fingerprint c459b81b86ad3be3248f293de3f520a79483f8760157a1272e33150e944c178a
+  recorded verdict PASS   recomputed verdict PASS
+  read-only: report 4175 → 4175 bytes, mtime 1795252276528 → 1795252276528
   RESULT: identical — same inputs, same verdict
 
 guaranteed (/workspace/hackathons/kiroween-2026/docs/guarantees.md):
@@ -17,4 +16,3 @@ not guaranteed — a human decides:
   - Whether an exception is acceptable — a human must attach a reason, an expiry date, and a compensating control. The tool only refuses to let an exception exist without them.
   - Coverage of unmodelled formats — copybooks using `REDEFINES`, `COMP-3` variants not declared, or bank dialects without a copybook are reported as `UNSUPPORTED_STRUCTURE` / `SPEC_MISSING`, never guessed.
   - Source data authenticity — the tool verifies internal consistency, not whether the bank sent the right file.
-[exit 0]

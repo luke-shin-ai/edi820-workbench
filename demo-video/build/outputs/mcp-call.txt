@@ -1,0 +1,16 @@
+$ node scripts/mcp-call.mjs
+server    edi820-workbench 0.2.0  protocol 2025-06-18
+tools     parse_file, reconcile, explain_findings, verify, exceptions
+
+@820/reconcile
+  verdict     FAIL
+  findings    4  (CONTROL_TOTAL_MISMATCH, DATE_OUT_OF_WINDOW, REF_UNMATCHED)
+  fingerprint 7af64454555de8d89b5c4f763009547caaa6f53b1c040db8d8c462c04335c118
+
+@820/verify
+  report      out/l4-review/report.json
+  ok          true   first difference: none
+  report      6107 -> 6107 bytes, mtime unchanged
+
+@820/exceptions
+  counts      OPEN 4  WAIVED 0  EXPIRED 0  RELEASED 0   unadjudicated 4

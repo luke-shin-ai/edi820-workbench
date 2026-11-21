@@ -76,6 +76,13 @@ def plan():
 
 
 PLATE_FILE = {
+    "hook-open": "p12_hook",
+    "mcp-call": "p13_mcp",
+    "static-pass": "p14_static_pass",
+    "static-fail": "p15_static_fail",
+    "static-evidence": "p16_static_evidence",
+    "static-bai2": "p17_static_bai2",
+    "static-l4": "p18_static_l4",
     "raw-file": "p01_raw",
     "copybook": "p02_copybook",
     "pass-full": "p03_pass",

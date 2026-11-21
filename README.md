@@ -2,11 +2,11 @@
 
 > Kiroween 2026 · **Resurrection** category · built with Kiro (spec-driven, steering, hooks, MCP, PBT)
 
-> **Build status (2026-11-21):** stages 1 to 3 are done except publishing. L1 (copybook compiler + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (grounded explainer)**, all four surfaces (**CLI, web screen, MCP server, BAI2**), the Kiro write-up, the self review and the **2:41 English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **222 tests / 17 files** (194 unit, 22 property-based, 6 regression). Publishing the repository, uploading the video and submitting the Devpost entry are the account holder's acts and remain open; see `review.md` §5.
+> **Build status (2026-11-21):** every layer is implemented and verified locally. L1 (copybook compiler + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **2:52 English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **284 tests / 21 files** (unit, property-based and regression). Publishing the repository, hosting the static build, uploading the video and submitting the Devpost entry are the account holder's acts and remain open; see `review.md` §5.
 
 Corporate payment files never died. The people and tools that could read them did.
 
-**EDI 820/823** remittance files, bank **BAI2** statements, and the **COBOL copybooks** that describe them still move between banks and ERP systems every day — as fixed-width text that no modern system can interpret. Back-office teams retype them into spreadsheets and hope.
+**EDI 820/823** remittance files, bank **BAI2** statements, and the **COBOL copybooks** that describe them still move between banks and ERP systems every day, as fixed-width text that no modern system can interpret. Back-office teams retype them into spreadsheets and hope.
 
 「820」 takes a file **and its copybook** (or a BAI2 file, which needs none) and does four things, in four separate layers:
 
@@ -15,24 +15,36 @@ Corporate payment files never died. The people and tools that could read them di
 | L1 parser | types every record exactly per the copybook or the BAI2 layout (position, length, sign, implied decimals) | no | `src/copybook`, `src/parser`, `src/bai2` |
 | L2 reconciler | control totals, counts, references, date windows → coded findings with signed `bigint` deltas | no | `src/reconcile` |
 | L3 explainer | explains each finding in plain language, citing only numbers L1/L2 produced; anything else becomes `INSUFFICIENT_EVIDENCE` | agent, optional | `src/explain` |
-| L4 human | attaches reason + expiry + compensating control to each exception | human | (next stage) |
+| L4 register | records a human decision per finding: owner, reason, compensating control, expiry, hash chained and append only | human | `src/exception` |
 
-The verdict is **deterministic and re-verifiable** (`820 verify`); the model never decides whether numbers match, and by default it is not called at all.
+The verdict is **deterministic and re-verifiable** (`820 verify`); the model never decides whether numbers match, and by default it is not called at all. A waiver never turns a verdict green: the register says what a person accepted, beside the answer the code produced.
+
+Verdicts: `PASS` (every check agreed), `INCOMPLETE` (a parse issue left bytes uninterpreted, so no PASS is earned), `FAIL` (findings exist). Exit codes are `0` / `2` / `2`.
 
 ## Watch it
 
-`demo-video/820-demo-en.mp4` — 2 minutes 41 seconds, 1920x1080, English narration and burned-in
-subtitles, no music. It shows the raw file, the copybook, a PASS verdict, a file with four defects,
-the byte range behind each finding, `verify` re-deriving the same fingerprint, the guarantee
-boundary, and the `.kiro` tree. Script and shot list: `demo-video/build/README.md`.
+`demo-video/820-demo-en.mp4`, 2 minutes 52 seconds, 1920x1080, English narration and burned-in subtitles, no music. It opens with the hook log from a real Kiro session and the reviewer agent's MCP calls, then the static browser demo (PASS, four findings, the bytes behind a finding), the BAI2 delta with its credit and debit parts, the exception register with a waiver recorded, `verify`, the test suite, and what the session did. Script and shot list: `demo-video/build/README.md`.
+
+## Try it with no server
+
+`docs/demo/index.html` is a static build of the same engine: the parser, the reconciler, the BAI2 reader, the L3 template narrator and the L4 register compiled for the browser by `esbuild`. Six scenarios run with one click, a dropped file is read as bytes (`arrayBuffer`, so a COMP-3 amount survives), the register accepts a waiver and a release, and `Re-derive and compare` re-runs the case and prints the fingerprint. Nothing is uploaded: after the two files load, no request leaves the tab.
+
+![Static demo, PASS](docs/images/demo-s1.png)
+![Static demo, four findings](docs/images/demo-s3.png)
+
+```bash
+npm run build:static                  # regenerate docs/demo from src/static
+python3 scripts/check-static.py       # Chromium at 1920: every scenario's fingerprint must equal the CLI's
+```
 
 ## Run it
 
 ```bash
 npm install
-npm test                       # 222 tests: npx vitest run
-npx tsc --noEmit               # strict typecheck, 0 errors
-npm run demo:cli               # parse + reconcile six scenarios (820/823/fixed/COMP-3/BAI2), exit 0 if all PASS
+npm test                       # 284 tests: npx vitest run
+npm run typecheck              # tsc --noEmit for node + for the browser build, 0 errors
+npm run demo:cli               # parse + reconcile six scenarios (820/823/fixed/COMP-3/BAI2)
+npm run evidence               # write out/evidence/report.json, the report the hook re-derives
 ```
 
 ### Three minutes, one judge
@@ -42,14 +54,15 @@ npm install
 npx tsx src/cli/main.ts reconcile --copybook samples/copybooks/820.cpy \
   --file samples/data/820-bad.txt --bank samples/data/823-bank.txt \
   --bank-copybook samples/copybooks/823.cpy --window 2026-11-18..2026-11-20 --out out/judge
-# verdict: FAIL   findings: 4   fingerprint: a69a9c1d…   exit code 2
+# verdict: FAIL   findings: 4   fingerprint: 7af64454…   exit code 2
 npx tsx src/cli/main.ts verify out/judge
-# RESULT: identical — same inputs, same verdict   (report bytes and mtime unchanged)
+# RESULT: identical: same inputs, same verdict   (report bytes and mtime unchanged)
+npx tsx src/cli/main.ts exceptions out/judge --today 2026-11-21
+# OPEN: 4  WAIVED: 0  EXPIRED: 0  RELEASED: 0   unadjudicated: 4   exit code 2
 npm run web -- --port 8720     # then open http://127.0.0.1:8720/ and press "Sample FAIL"
 ```
 
-No network, no credentials, no hosted service: the screen binds to `127.0.0.1` because payment files
-should not leave the machine they arrived on.
+No network, no credentials, no hosted service for the back-office path: the screen binds to `127.0.0.1` because payment files should not leave the machine they arrived on. The static build exists for the judge who cannot run anything.
 
 ### CLI
 
@@ -64,10 +77,17 @@ npm run cli -- reconcile --copybook samples/copybooks/820.cpy --file samples/dat
                                   --bank samples/data/bai2-bad.txt --bank-format bai2 --out out/demo
 npm run cli -- explain   --findings out/demo            # L3, deterministic adapter, 0 credits
 npm run cli -- verify    out/demo                       # re-derive + compare, read-only
+
+# L4: the human decision, recorded
+npm run cli -- exceptions out/demo --today 2026-11-21
+npm run cli -- waive   --report out/demo --index 0 --owner "S. Shin (TPM)" \
+                       --reason "Annex A total approved against the corrected statement." \
+                       --control "Daily suspense-account check" --expires 2026-12-05 --today 2026-11-21
+npm run cli -- release --report out/demo --id <waiver id> --owner "S. Shin (TPM)" \
+                       --reason "Corrected trailer received." --control "Trailer re-issued" --today 2026-11-22
 ```
 
-Exit codes: `0` all checks pass · `2` findings present (or a verification difference) · `3` spec or I/O error.
-`explain` exits `2` when a finding cannot be grounded. `--json` prints the same document the report file holds.
+Exit codes: `0` all checks pass (and no open exception where the command reports exceptions) · `2` findings present, `INCOMPLETE`, a verification difference, or an open/expired/released exception · `3` spec, I/O or ledger-integrity error. `explain` exits `2` when a finding cannot be grounded. `--json` prints the same document the report file holds.
 
 ### Web screen (three columns)
 
@@ -75,7 +95,7 @@ Exit codes: `0` all checks pass · `2` findings present (or a verification diffe
 npm run web -- --port 8720     # then open http://127.0.0.1:8720/
 ```
 
-[Left] copybook/file pickers, drop zones for your own files, records as read · [middle] verdict card, counters, control totals, findings, parse issues · [right] the record with the finding's field highlighted **at its byte offsets**, or the copybook's field-by-field layout when there is nothing to highlight, plus the L3 explanation and the values it cited. The guaranteed / not-guaranteed strips are fixed at the top and bottom of the screen.
+[Left] copybook/file pickers, drop zones for your own files, records as read · [middle] verdict card, counters, control totals (with the comparison basis and the credit/debit split), findings, parse issues · [right] the record with the finding's field highlighted **at its byte offsets**, or the copybook's field-by-field layout when there is nothing to highlight, plus the L3 explanation and the values it cited. The guaranteed / not-guaranteed strips are fixed at the top and bottom of the screen.
 
 ![PASS](docs/images/ui-pass.png)
 ![FAIL with a highlighted byte range](docs/images/ui-fail.png)
@@ -85,42 +105,44 @@ Empty state and error state are real captures of the same screen, not mockups:
 ![Empty state](docs/images/ui-empty.png)
 ![Error state: an unreadable sample path is reported, not swallowed](docs/images/ui-error.png)
 
-Binds to `127.0.0.1` only; files never leave the machine and dropped files are parsed from the request body without being written anywhere.
+Binds to `127.0.0.1` only. Dropped files travel as base64 of their bytes, are parsed from the request body, and are never written anywhere.
 
-### MCP server (4 tools)
+### MCP server (5 tools)
 
 ```bash
 npm run mcp                  # newline-delimited JSON-RPC 2.0 on stdio
+node scripts/mcp-call.mjs    # a real client: initialize, tools/list, reconcile, verify, exceptions
 ```
 
 | tool | returns |
 |---|---|
 | `parse_file` | typed-record counts, coded parse issues, hashes, fingerprint (no verdict) |
-| `reconcile` | PASS/FAIL, findings with declared/computed/delta, summary, fingerprint |
+| `reconcile` | PASS / INCOMPLETE / FAIL, findings with declared/computed/delta, summary, fingerprint |
 | `explain_findings` | one grounded explanation per finding (`INSUFFICIENT_EVIDENCE` when it cannot be grounded) |
 | `verify` | both fingerprints, first differing field path, proof the report was not modified |
+| `exceptions` | per-finding status (OPEN/WAIVED/EXPIRED/RELEASED), counts, and the ledger chain check |
 
-Each returns the same JSON the CLI writes, because all three surfaces call `src/core/ops.ts`.
+Each returns the same JSON the CLI writes, because all three surfaces call `src/core/ops.ts`. The reviewer agent in `.kiro/agents/reviewer.json` calls these tools, and `.kiro/settings/mcp.json` registers the server for the workspace.
 
 ## BAI2 is read, not disguised
 
-BAI2 has no fixed width and no copybook. Rather than fake a layout for a comma-delimited format, `src/bai2` is a dedicated reader for records `01/02/03/16/49/88/98/99` that produces the same `ParseResult` the reconciler already understands: amounts as `bigint` minor units with the currency's exponent, direction from the type code (`100–399` credit, `400–699` debit), per-record field offsets for the evidence panel, and its own checks of the account, group and file trailers. See [`docs/bai2.md`](docs/bai2.md).
+BAI2 has no fixed width and no copybook. Rather than fake a layout for a comma-delimited format, `src/bai2` is a dedicated reader for records `01/02/03/16/49/88/98/99` that produces the same `ParseResult` the reconciler already understands: amounts as `bigint` minor units with the currency's exponent, direction from the type code (`100–399` credit, `400–699` debit), per-record field offsets for the evidence panel, and its own checks of the account, group and file trailers. A `03` code `100` declares *total credits*, while the detail records it is compared against net credits against debits, so the reader keeps gross credit and debit totals per currency and every delta names both parts. See [`docs/bai2.md`](docs/bai2.md).
 
 ## How Kiro built it (evidence, not adjectives)
 
-- `.kiro/specs/edi820-importer/` — `requirements.md` (EARS) → `design.md` → `tasks.md`, derived from the copybooks themselves; `design.md` §12 records every implementation delta, including the two stack substitutions (MCP protocol implemented directly instead of `@modelcontextprotocol/sdk`; the screen as one dependency-free document instead of Vite + React) and why
+- `.kiro/specs/edi820-importer/` — `requirements.md` (EARS, R1 to R8) → `design.md` → `tasks.md`; `design.md` §12 and §13 record every implementation delta, including the two stack substitutions (MCP protocol implemented directly instead of `@modelcontextprotocol/sdk`; the screen as one dependency-free document instead of Vite + React) and why
 - `.kiro/steering/` — product, tech (parsing rules), structure, conventions, and finance-file domain rules
-- `.kiro/hooks/` — tests on save, re-verify after each agent turn, evidence appended on task completion
-- `.kiro/agents/reviewer.json` — adversarial cross-review agent
-- `EVIDENCE.md` — the append-only build log those hooks produced, including the defects the build found in itself (overpunch table off by one, implied decimals dropped when encoding, a blank reference silently dropped, BAI2 record counting, invalid HTML in the field legend)
+- `.kiro/hooks/` — tests on save, re-verify on `Stop`, evidence appended on task completion. The first two fired in a live session: `out/hook-log.txt` holds the firings, and `docs/kiro-session-evidence.md` explains the two that were broken before (a command with no entry point, and the wrong trigger name)
+- `.kiro/agents/reviewer.json` and `.kiro/agents/820-implementer.json` — the adversarial reviewer and the spec executor, both with `@820` MCP access
+- `EVIDENCE.md` — the build log, with the defects the build found in itself (overpunch table off by one, implied decimals dropped when encoding, a blank reference silently dropped, BAI2 record counting, a truncated record that reached PASS, a verify that depended on the working directory)
+- `docs/kiro-session-evidence.md` — the T7 session that implemented the exception register: what the agent wrote, what fired, what the reviewer got back from the MCP server, and the six repairs made afterwards
 - `docs/copybook-to-spec.md` — how a legacy spec document became a Kiro spec (what it got right, what it got wrong)
-- `docs/kiro-cli-validation.md` — the Kiro CLI session, the agent validation, and the reviewer run that was confidently wrong
+- `docs/kiro-cli-validation.md` — the earlier CLI session, the agent validation, and the reviewer run that was confidently wrong
 - `review.md` — self scoring on the five criteria, with what a cold judge would still mark down
-- `devpost-submission-draft.md` — the submission text and the write-up, including the claims this
-  project does **not** make
+- `devpost-submission-draft.md` — the submission text and the write-up, including the claims this project does **not** make
 
 ## What this guarantees / does not guarantee
-See [`docs/guarantees.md`](docs/guarantees.md), which is parsed and printed by `820 verify` and shown in both strips of the web screen. Short version: it guarantees format interpretation, exact arithmetic, reference reconciliation, reproducibility and explanation grounding; it does **not** guarantee legal or accounting adequacy — that stays with a human, on purpose.
+See [`docs/guarantees.md`](docs/guarantees.md), which is parsed and printed by `820 verify` and shown in both strips of the screen. Short version: it guarantees format interpretation, exact arithmetic, reference reconciliation, reproducibility and explanation grounding; it does **not** guarantee legal or accounting adequacy, and whether an exception is acceptable is a human's call, on purpose.
 
 ## Data
 
@@ -128,4 +150,4 @@ All sample data is **synthetic** (fictional company *Northwind Pay*). No custome
 
 ## License
 
-Apache-2.0 — see `LICENSE`.
+Apache-2.0: see `LICENSE`.

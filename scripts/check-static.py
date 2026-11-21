@@ -71,6 +71,7 @@ def cli_fingerprint(spec):
         "--copybook", f"samples/copybooks/{spec['copybook']}",
         "--file", f"samples/data/{spec['payment']}",
         "--window", "..".join(WINDOW),
+        "--out", os.path.join(ROOT, ".tmp", "static-cli", spec["payment"].replace(".txt", "")),
         "--json",
     ]
     if spec.get("bank_format") == "bai2":
@@ -175,6 +176,8 @@ def main():
         page.fill("#l4expires", "2026-12-05")
         page.click("#btnWaive")
         page.wait_for_timeout(250)
+        page.evaluate("() => document.getElementById('l4table').scrollIntoView({block: 'center'})")
+        page.wait_for_timeout(150)
         after_waive = page.evaluate(
             """() => {
                 const c = window.demo.classification();
@@ -192,6 +195,8 @@ def main():
         check("the verdict badge does not change when a finding is waived", after_waive["badge"] == "FAIL", after_waive["badge"])
         check("the ledger chain stays intact after an append", after_waive["integrity"] is True and "intact" in after_waive["chain"], after_waive["chain"])
         page.screenshot(path=os.path.join(SHOTS, "demo-l4-waived.png"))
+        with open(os.path.join(VIDEO_SHOTS, "static-l4.json"), "w") as fh:
+            json.dump({"badge": after_waive["badge"], "counts": after_waive["counts"], "chain": after_waive["chain"]}, fh)
         page.screenshot(path=os.path.join(VIDEO_SHOTS, "static-l4@1920.png"))
 
         page.click('#findings li[data-i="0"]')

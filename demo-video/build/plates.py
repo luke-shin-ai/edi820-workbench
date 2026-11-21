@@ -209,6 +209,87 @@ def plate_copybook():
     return c.save("p02_copybook")
 
 
+STATIC_SHOTS = os.path.join(ROOT, "docs/images")
+VIDEO_STATIC = os.path.join(WORK, "shots-static")
+
+
+def static_plate(shot, name, pad=True):
+    """A screenshot of docs/demo (1920x1080), padded so the Ken Burns move never clips it."""
+    im = Image.open(os.path.join(STATIC_SHOTS, shot)).convert("RGB")
+    if pad:
+        im = im.resize((1880, 1046), Image.LANCZOS)
+        canvas = Image.new("RGB", (1920, 1080), (9, 13, 20))
+        canvas.paste(im, (20, 17))
+        im = canvas
+    else:
+        im = im.resize((1920, 1080), Image.LANCZOS)
+    os.makedirs(OUT, exist_ok=True)
+    path = os.path.join(OUT, name + ".png")
+    im.save(path)
+    return path
+
+
+def plate_hook_fire():
+    lines = [ln for ln in open(os.path.join(OUTPUTS, "hook-fire.txt"), encoding="utf-8").read().split("\n")]
+    keep = [ln for ln in lines if ln.strip()][:11]
+    return terminal(keep, "p12_hook", "0 / KIRO HOOKS   a real session, not a promise", "#6BA8FF",
+                    "820: hook log and the stop hook's own run", hl=("trigger=PostFileSave", "trigger=Stop", "RESULT"))
+
+
+def plate_mcp_call():
+    lines = [ln for ln in open(os.path.join(OUTPUTS, "mcp-call.txt"), encoding="utf-8").read().split("\n")]
+    keep = [ln for ln in lines if ln.strip()][:14]
+    return terminal(keep, "p13_mcp", "0 / MCP   the reviewer asked the project's own server", "#6BA8FF",
+                    "node scripts/mcp-call.mjs", hl=("verdict     FAIL", "fingerprint", "@820/reconcile"))
+
+
+def plate_static_pass():
+    return static_plate("demo-s1.png", "p14_static_pass")
+
+
+def plate_static_fail():
+    return static_plate("demo-s3.png", "p15_static_fail")
+
+
+def plate_static_evidence():
+    """The same screen, unzoomed in this file; the shot's camera moves to the evidence column."""
+    return static_plate("demo-s3.png", "p16_static_evidence")
+
+
+def plate_static_bai2():
+    return static_plate("demo-s6.png", "p17_static_bai2")
+
+
+def plate_static_l4():
+    """The register after a waiver was recorded in the browser, with the DOM's own verdict.
+
+    The screenshot is the scrolled view the capture left behind, so the verdict badge is off
+    frame; the bar at the top quotes it from the page state the capture wrote to
+    `shots-static/static-l4.json` (verdict text, counts, chain line). Nothing in the bar is
+    typed by hand.
+    """
+    meta_path = os.path.join(VIDEO_STATIC, "static-l4.json")
+    meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}
+    im = Image.open(os.path.join(STATIC_SHOTS, "demo-l4-waived.png")).convert("RGB").resize((2560, 1440), Image.LANCZOS)
+    canvas = Image.new("RGB", (2560, 1570), (9, 13, 20))
+    canvas.paste(im, (0, 80))
+    d = ImageDraw.Draw(canvas)
+    badge = meta.get("badge", "FAIL")
+    counts = meta.get("counts", {})
+    f = ImageFont.truetype(SANS_B, 40)
+    fm = ImageFont.truetype(MONO_R, 34)
+    d.text((48, 22), "4 / EXCEPTION REGISTER", font=ImageFont.truetype(SANS_B, 30), fill=(210, 153, 34))
+    d.text((560, 18), f"verdict {badge}", font=f, fill=((255, 156, 148) if badge != "PASS" else (121, 212, 146)))
+    summary = "  ".join(f"{k} {v}" for k, v in counts.items())
+    d.text((860, 24), summary, font=fm, fill=(206, 220, 235))
+    chain = meta.get("chain", "")
+    d.text((48, 84 + 1440 + 8), clean(chain), font=ImageFont.truetype(MONO_R, 26), fill=(160, 176, 194))
+    os.makedirs(OUT, exist_ok=True)
+    path = os.path.join(OUT, "p18_static_l4.png")
+    canvas.save(path)
+    return path
+
+
 def plate_from_crop(src, box, name):
     im = Image.open(os.path.join(SHOTS, src)).convert("RGB")
     im = im.crop(box).resize(FINAL, Image.LANCZOS)
@@ -328,17 +409,16 @@ def terminal(lines, name, chip_label, accent, title, hl=(), size=None, top=None)
 
 def plate_verify():
     lines = [ln for ln in open(os.path.join(OUTPUTS, "verify.txt"), encoding="utf-8").read().split("\n") if ln.strip()]
-    keep = lines[:8]
-    keep[3] = keep[3].replace("/workspace/hackathons/kiroween-2026/", "")
+    keep = [ln.replace("/workspace/hackathons/kiroween-2026/", "") for ln in lines[:8]]
     return terminal(keep, "p07_verify", "7 / VERIFY   read-only re-derivation", "#3FB950",
-                    "820 verify out/vid", hl=("RESULT",))
+                    "820 verify out/evidence", hl=("RESULT",))
 
 
 def plate_tests():
     raw = [ln for ln in open(os.path.join(OUTPUTS, "tests.txt"), encoding="utf-8").read().split("\n") if ln.strip()]
     lines = raw[:13]
     return terminal(lines, "p08_tests", "8 / PROPERTY BASED TESTS   npx vitest run", "#3FB950",
-                    "npx vitest run", hl=("Tests  222",))
+                    "npx vitest run", hl=("Tests  284",))
 
 
 def plate_bai2():
@@ -374,64 +454,30 @@ def plate_bai2():
 
 
 def plate_kiro():
+    """The session facts, from the evidence file and the hook log, not from a slide."""
     c = Canvas()
-    c.card((54, 112, 946, 700), fill=(11, 16, 24))
-    c.text((82, 134), "$ git ls-files .kiro", font(MONO_R, 19), GREEN)
-    files = [ln for ln in open(os.path.join(OUTPUTS, "kiro-files.txt"), encoding="utf-8").read().split("\n")
-             if ln.startswith(".kiro/")]
-    y = 176
-    for ln in files:
-        colour = (210, 222, 236)
-        if "/specs/" in ln:
-            colour = BLUE
-        elif "/steering/" in ln:
-            colour = VIOLET
-        elif "/hooks/" in ln:
-            colour = AMBER
-        elif "/agents/" in ln:
-            colour = GREEN
-        c.text((82, y), ln, font(MONO_R, 18.5), colour)
-        y += 30
-    c.text((82, 490), "spec: the contract    steering: the rules", font(SANS_R, 19), MUTED)
-    c.text((82, 520), "hooks and agent: the workflow around the code", font(SANS_R, 19), MUTED)
-
-    c.card((54, 728, 946, 962), fill=(13, 19, 28), stroke=(52, 62, 80))
-    c.text((82, 746), "reviewer agent, one prompt, two configurations", font(SANS_B, 19), INK)
-    c.text((82, 782), "no read tools", font(MONO_B, 17.5), (255, 150, 140))
-    c.text((300, 782), "3 of 4 claims false, invented line numbers", font(MONO_R, 16.5), (255, 170, 160))
-    c.text((82, 812), "read tools", font(MONO_B, 17.5), (150, 205, 165))
-    c.text((300, 812), "2 real defects: blank reference dropped,", font(MONO_R, 16.5), (170, 215, 180))
-    c.text((300, 838), "matched count derived from a sentence", font(MONO_R, 16.5), (170, 215, 180))
-
-    c.card((972, 112, W - 54, 700), fill=(13, 19, 28), stroke=(52, 62, 80))
-    c.text((1000, 134), "requirements  ->  design  ->  tasks", font(SANS_B, 21), BLUE)
-    chain = [
-        ("requirements.md", "R1.1  every field gets a start and a length"),
-        ("", "R2.2  a short record is reported, not re-synced"),
-        ("", "R4.3  a reference matches or is listed"),
-        ("", "R5.2  an unsupported number is refused"),
-        ("design.md", "no model in the verdict path"),
-        ("", "9 implementation deltas recorded"),
-        ("tasks.md", "T0 to T5 done, evidence per task"),
-        ("", "T6  write-up, review and video done"),
+    c.card((54, 108, W - 54, 760), fill=(12, 17, 25), stroke=(46, 58, 74))
+    c.text((96, 132), "one session, from this repository", font(SANS_B, 30), (233, 239, 246))
+    c.text((96, 176), "docs/kiro-session-evidence.md  ·  logs/kiro-t71-pass{1..4}.log  ·  out/hook-log.txt",
+           font(MONO_R, 18), DIM)
+    rows = [
+        ("session", "kiro-cli 3.5.0, V3 engine, --agent 820-implementer, claude-haiku-4.5"),
+        ("task", "T7.1 exception register, requirements R8.1 to R8.8, design section 13"),
+        ("agent wrote", "src/exception/register.ts, 384 lines: hash chain, status machine"),
+        ("agent wrote", "820 exceptions | waive | release, and the exceptions MCP tool"),
+        ("agent wrote", "38 tests: tamper detection, expiry, finding identity, round trip"),
+        ("hooks", "PostFileSave ran the tests, Stop re-derived the newest verdict"),
+        ("mcp", "reviewer called @820/reconcile, @820/verify and @820/exceptions"),
+        ("afterwards", "six repairs listed in the evidence file, not buried in a commit"),
     ]
-    y = 182
-    for name, body in chain:
-        if name:
-            c.text((1000, y), name, font(MONO_B, 18.5), (215, 230, 240))
-            c.text((1240, y), body, font(MONO_R, 17.5), (180, 196, 214))
-        else:
-            c.text((1016, y), body, font(MONO_R, 17.5), (160, 178, 196))
-        y += 44
-
-    c.card((972, 728, W - 54, 962), fill=(13, 19, 28), stroke=AMBER)
-    c.text((1000, 746), "not claimed", font(SANS_B, 19), AMBER)
-    c.text((1000, 782), "Kiro did not generate this code. The spec was the contract;", font(SANS_R, 18), (200, 214, 228))
-    c.text((1000, 808), "implementation ran in this workspace.", font(SANS_R, 18), (200, 214, 228))
-    c.text((1000, 844), "Hooks are committed; firing inside a live Kiro session", font(SANS_R, 18), (200, 214, 228))
-    c.text((1000, 870), "is not yet verified.", font(SANS_R, 18), (200, 214, 228))
-
-    c.chip("10 / KIRO IN THE REPOSITORY   .kiro/specs, steering, hooks, agent", "#6BA8FF")
+    y = 240
+    for left, right in rows:
+        c.text((96, y), left, font(MONO_B, 22), BLUE)
+        c.text((330, y), clean(right), font(MONO_R, 22), (206, 220, 235))
+        y += 58
+    c.text((96, 700), "the session's own last line:  TypeScript 0 errors, 20 files, 270 tests passed",
+           font(SANS_R, 22), MUTED)
+    c.chip("11 / KIRO   the process is in the repository", "#6BA8FF")
     return c.save("p10_kiro")
 
 
@@ -459,6 +505,13 @@ def plate_end():
 
 
 BUILDERS = {
+    "hook-open": plate_hook_fire,
+    "mcp-call": plate_mcp_call,
+    "static-pass": plate_static_pass,
+    "static-fail": plate_static_fail,
+    "static-evidence": plate_static_evidence,
+    "static-bai2": plate_static_bai2,
+    "static-l4": plate_static_l4,
     "raw-file": plate_raw_file,
     "copybook": plate_copybook,
     "pass-full": plate_pass_full,
