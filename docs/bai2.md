@@ -127,5 +127,6 @@ BAI2 files published by banks are committed verbatim and parsed on every test ru
 
 `npm run verify:public` prints the result and exits 1 on any issue; `samples/public/SOURCES.md`
 records the URLs and what was normalised. **EBCDIC is not supported**: the reader takes
-ASCII and latin1 bytes and refuses an EBCDIC file at the door rather than decoding it
-wrongly; reading EBCDIC is a roadmap item, and `docs/guarantees.md` says so.
+ASCII and latin1 bytes, so an EBCDIC file is never decoded: its record codes, lengths and
+amounts fail the checks and the run cannot earn a PASS. Reading EBCDIC is a roadmap item,
+and `docs/guarantees.md` says so.

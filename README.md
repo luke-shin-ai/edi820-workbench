@@ -151,7 +151,7 @@ npm run verify:public        # parse both files, print the result, exit 1 on any
 
 Both files agree with the reader on the `49` account control totals, the `98` group totals and the `99` file totals. Getting there fixed a real defect rather than the samples: the reader used to read only the first `[type code, amount]` pair of an `03` record and to compare the `49` total against *signed* details, which no published file satisfies. It now reads every summary group of an `03` and the `88` continuations that carry the rest of one, and adds the amounts as they appear on the wire. `samples/public/SOURCES.md` records the URLs, the download date and what was normalised.
 
-**EBCDIC is out of scope for this build.** Mainframe estates mostly store these files in EBCDIC, and this reader takes ASCII and latin1 bytes; an EBCDIC file is refused at the door (`UNSUPPORTED_STRUCTURE`) rather than decoded wrongly. Reading it is a roadmap item, listed as such in `docs/guarantees.md`; the claim here is about the format and the layout, not about the character set a particular host uses.
+**EBCDIC is out of scope for this build.** Mainframe estates mostly store these files in EBCDIC, and this reader takes ASCII and latin1 bytes: an EBCDIC file is not decoded, its records fail the layout and amount checks (`RECORD_LENGTH_MISMATCH`, `FIELD_INVALID_NUMERIC`, `BAI2_STRUCTURE`) and the run cannot earn a PASS. Reading EBCDIC is a roadmap item, written up as such in `docs/guarantees.md`; the claim here is about the format and the layout, not about the character set a particular host uses.
 
 ## How Kiro built it (evidence, not adjectives)
 

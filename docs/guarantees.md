@@ -13,7 +13,7 @@ This file is part of the product, not a disclaimer appendix. It is shown in the 
 ## Not guaranteed (human decides)
 1. **Legal or accounting adequacy** of a payment or its remittance advice.
 2. **Whether an exception is acceptable** - a human must attach a reason, an expiry date, and a compensating control. The tool only refuses to let an exception exist without them.
-3. **Coverage of unmodelled clauses** - `OCCURS DEPENDING ON`, binary `COMP`, `SIGN LEADING OVERPUNCH` and EBCDIC source are `UNSUPPORTED_STRUCTURE`; a `REDEFINES` with no activation rule is `COPYBOOK_SEMANTICS`; no copybook is `SPEC_MISSING`. None is guessed. EBCDIC is the largest gap for mainframe estates, and reading it is a roadmap item rather than a claim: this build accepts ASCII and latin1 bytes and says so at the door.
+3. **Coverage of unmodelled clauses** - `OCCURS DEPENDING ON`, binary `COMP` and `SIGN LEADING OVERPUNCH` are `UNSUPPORTED_STRUCTURE` in a copybook; a `REDEFINES` with no activation rule is `COPYBOOK_SEMANTICS`; no copybook is `SPEC_MISSING`. None is guessed. **EBCDIC source is not decoded**: this build reads ASCII and latin1 bytes, so an EBCDIC file fails the layout and amount checks (`RECORD_LENGTH_MISMATCH`, `FIELD_INVALID_NUMERIC`, `BAI2_STRUCTURE`) and cannot earn a PASS. It is the largest gap for mainframe estates, and reading it is a roadmap item rather than a claim.
 4. **Source data authenticity** - the tool verifies internal consistency, not whether the bank sent the right file.
 
 ## Why this file exists
