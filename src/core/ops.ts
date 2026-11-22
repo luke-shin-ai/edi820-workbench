@@ -5,7 +5,7 @@
  * in `design.md` §8, and the only way to keep it true is to have one
  * implementation. Nothing here prints, renders or decides an exit code.
  */
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compileCopybook } from '../copybook/index.js';
@@ -20,6 +20,7 @@ import {
 } from '../reconcile/index.js';
 import { explainFindings, type Explanation, type ExplainerAdapter } from '../explain/index.js';
 import { loadGuarantees, type Guarantees } from './guarantees.js';
+import { parseLedger, verifyLedger } from '../exception/index.js';
 
 export const TOOL_NAME = '820';
 export const TOOL_VERSION = '0.2.0';
@@ -462,7 +463,32 @@ export interface VerifyOutcome {
   recomputedStatus: string | null;
   /** Byte sizes and mtimes before/after, proving the command did not mutate the output. */
   mutation: { reportBytesBefore: number; reportBytesAfter: number; reportMtimeBefore: number; reportMtimeAfter: number };
+  /**
+   * The exception ledger beside the report, when there is one. Its entry count and head hash are
+   * printed so that a ledger whose tail was removed is visible here, and a ledger that fails its
+   * own check makes `ok` false: the report and the register are one artefact.
+   */
+  ledger: { path: string; entries: number | null; headHash: string | null; ok: boolean; detail: string | null } | null;
   guarantees: Guarantees;
+}
+
+function verifyLedgerBeside(reportPath: string): VerifyOutcome['ledger'] {
+  const ledgerPath = join(dirname(reportPath), 'ledger.json');
+  if (!existsSync(ledgerPath)) return null;
+  try {
+    const ledger = parseLedger(readFileSync(ledgerPath, 'utf8'));
+    const check = verifyLedger(ledger);
+    return {
+      path: ledgerPath,
+      entries: check.entries,
+      headHash: check.headHash,
+      ok: check.ok,
+      detail: check.detail ?? null,
+    };
+  } catch (error) {
+    // A ledger that cannot be parsed or whose head no longer matches is the finding, not a crash.
+    return { path: ledgerPath, entries: null, headHash: null, ok: false, detail: (error as Error).message };
+  }
 }
 
 /** Deep diff that reports the first differing field path. */
@@ -516,9 +542,10 @@ export function verifyReport(pathOrDir: string): VerifyOutcome {
   const recordedView = comparable(report);
   const recomputedView = comparable(recomputed);
   const diff = firstDifference(recordedView, recomputedView);
+  const ledger = verifyLedgerBeside(path);
 
   return {
-    ok: diff === null,
+    ok: diff === null && (ledger === null || ledger.ok),
     reportPath: path,
     recordedFingerprint: report.verdict?.fingerprint ?? null,
     recomputedFingerprint: recomputed.verdict?.fingerprint ?? null,
@@ -531,6 +558,7 @@ export function verifyReport(pathOrDir: string): VerifyOutcome {
       reportMtimeBefore: before.mtimeMs,
       reportMtimeAfter: after.mtimeMs,
     },
+    ledger,
     guarantees: loadGuarantees(),
   };
 }

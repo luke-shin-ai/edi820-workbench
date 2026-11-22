@@ -41,6 +41,7 @@ import {
   classify,
   emptyLedger,
   isIsoDate,
+  ledgerDigest,
   parseLedger,
   serialiseLedger,
   verifyLedger,
@@ -123,6 +124,14 @@ function requireFlag(args: ParsedArgs, name: string): string {
   const value = flagString(args, name);
   if (!value) throw new AppError('USAGE', `--${name} is required`);
   return value;
+}
+
+/** `--today` is a date a decision is recorded against, so it has to be a real one. */
+function todayFlag(args: ParsedArgs): string | undefined {
+  const raw = flagString(args, 'today');
+  if (raw === undefined) return undefined;
+  if (!isIsoDate(raw)) throw new AppError('USAGE', `--today must be a real date in YYYY-MM-DD form (got "${raw}")`);
+  return raw;
 }
 
 function formatFlag(raw: string | undefined, fallback: FileFormat): FileFormat {
@@ -232,7 +241,11 @@ namespace exceptionCommands {
   /**
    * `exceptions` - read-only: show the classification of findings against a ledger.
    */
-  export function exceptions(args: ParsedArgs): { classification: ReturnType<typeof classify>; legacyPath: string } {
+  export function exceptions(args: ParsedArgs): {
+    classification: ReturnType<typeof classify>;
+    legacyPath: string;
+    head: { count: number; hash: string };
+  } {
     const reportDir = args.positional[0] ?? flagString(args, 'report');
     if (!reportDir) throw new AppError('USAGE', 'exceptions needs a report directory or --report');
     const { report } = loadReport(reportDir);
@@ -245,9 +258,9 @@ namespace exceptionCommands {
       ledger = parseLedger(text);
     }
 
-    const onDate = flagString(args, 'today') ?? new Date().toISOString().split('T')[0]!;
+    const onDate = todayFlag(args) ?? new Date().toISOString().split('T')[0]!;
     const classification = classify(reviveFindings(report.verdict.findings), ledger, onDate);
-    return { classification, legacyPath: ledgerPath };
+    return { classification, legacyPath: ledgerPath, head: ledgerDigest(ledger) };
   }
 
   /**
@@ -282,7 +295,7 @@ namespace exceptionCommands {
     const expiresOn = flagString(args, 'expires');
     if (!expiresOn) throw new AppError('USAGE', '--expires <YYYY-MM-DD> is required: a waiver is a decision with an end date');
     if (!isIsoDate(expiresOn)) throw new AppError('USAGE', `--expires must be a real date in YYYY-MM-DD form (got "${expiresOn}")`);
-    const decidedOn = flagString(args, 'today') ?? new Date().toISOString().split('T')[0]!;
+    const decidedOn = todayFlag(args) ?? new Date().toISOString().split('T')[0]!;
 
     const ledgerPath = flagString(args, 'ledger') ?? join(dirname(reportDir.endsWith('.json') ? reportDir : join(reportDir, 'report.json')), 'ledger.json');
     let ledger = emptyLedger();
@@ -324,7 +337,7 @@ namespace exceptionCommands {
     // R8.1: every entry carries a compensating control, including the one that withdraws a waiver.
     const control = flagString(args, 'control');
     if (!control) throw new AppError('USAGE', '--control is required');
-    const decidedOn = flagString(args, 'today') ?? new Date().toISOString().split('T')[0]!;
+    const decidedOn = todayFlag(args) ?? new Date().toISOString().split('T')[0]!;
 
     const ledgerPath = flagString(args, 'ledger') ?? join(dirname(reportDir.endsWith('.json') ? reportDir : join(reportDir, 'report.json')), 'ledger.json');
     if (!existsSync(ledgerPath)) {
@@ -435,8 +448,15 @@ export async function runCli(argv: string[], streams: Streams = defaultStreams):
           out(
             `  read-only: report ${outcome.mutation.reportBytesBefore} -> ${outcome.mutation.reportBytesAfter} bytes, mtime ${outcome.mutation.reportMtimeBefore} -> ${outcome.mutation.reportMtimeAfter}`,
           );
+          if (outcome.ledger) {
+            out(
+              `  ledger ${outcome.ledger.path}: ${outcome.ledger.entries ?? '-'} entries, head ${outcome.ledger.headHash ?? '-'}${outcome.ledger.ok ? '' : ` - ${outcome.ledger.detail ?? 'verification failed'}`}`,
+            );
+          }
           if (outcome.ok) {
             out('  RESULT: identical - same inputs, same verdict');
+          } else if (outcome.firstDifference === null) {
+            out('  RESULT: the report re-derives, but the exception ledger does not verify');
           } else {
             out(`  RESULT: DIFFERENT - first differing field: ${outcome.firstDifference}`);
           }
@@ -531,11 +551,12 @@ export async function runCli(argv: string[], streams: Streams = defaultStreams):
       }
 
       case 'exceptions': {
-        const { classification, legacyPath } = exceptionCommands.exceptions(args);
+        const { classification, legacyPath, head } = exceptionCommands.exceptions(args);
         if (json) {
-          out(JSON.stringify(classification, null, 2));
+          out(JSON.stringify({ ...classification, ledger: { path: legacyPath, entries: head.count, headHash: head.hash } }, null, 2));
         } else {
           out(`exceptions (${legacyPath}):`);
+          out(`  ledger head: ${head.count} entries, hash ${head.hash}`);
           out(`  OPEN: ${classification.counts.OPEN}   WAIVED: ${classification.counts.WAIVED}   EXPIRED: ${classification.counts.EXPIRED}   RELEASED: ${classification.counts.RELEASED}`);
           out(`  unadjudicated: ${classification.unadjudicated}`);
           for (const entry of classification.entries) {
@@ -556,7 +577,7 @@ export async function runCli(argv: string[], streams: Streams = defaultStreams):
           const entry = newLedger.entries[newLedger.entries.length - 1]!;
           out(`waived: ${entry.id}  finding=${entry.findingKey}`);
           out(`  owner ${entry.owner}; decided ${entry.decidedOn}; expires ${entry.expiresOn}`);
-          out(`  ledger: ${legacyPath} (${newLedger.entries.length} entries)`);
+          out(`  ledger: ${legacyPath} (${newLedger.entries.length} entries, head ${ledgerDigest(newLedger).hash})`);
         }
         return EXIT.PASS;
       }
@@ -567,7 +588,7 @@ export async function runCli(argv: string[], streams: Streams = defaultStreams):
         if (json) {
           out(JSON.stringify({ ledgerPath: legacyPath, entriesCount: newLedger.entries.length }, null, 2));
         } else {
-          out(`released: ${legacyPath} now has ${newLedger.entries.length} entries`);
+          out(`released: ${legacyPath} now has ${newLedger.entries.length} entries, head ${ledgerDigest(newLedger).hash}`);
         }
         return EXIT.PASS;
       }

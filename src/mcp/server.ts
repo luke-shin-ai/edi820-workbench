@@ -1,7 +1,7 @@
 /**
  * T5.4 - MCP server over stdio.
  *
- * Four tools, and each one returns exactly the JSON the CLI writes, because both
+ * Five tools, and each one returns exactly the JSON the CLI writes, because both
  * call `src/core/ops.ts`. Nothing here re-implements a rule: the point of
  * exposing the deterministic core over MCP is that another agent gets the *same*
  * verdict, not a similar one.
@@ -17,13 +17,91 @@
  */
 import { createInterface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { AppError, buildReport, explainReport, loadReport, reviveFindings, verifyReport, type CaseInputs } from '../core/ops.js';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import {
+  AppError,
+  buildReport,
+  explainReport,
+  loadReport,
+  repoRoot,
+  reviveFindings,
+  verifyReport,
+  writeReport,
+  type CaseInputs,
+} from '../core/ops.js';
 import { adapterByName } from '../explain/index.js';
-import { classify, emptyLedger, parseLedger } from '../exception/index.js';
+import { classify, emptyLedger, isIsoDate, parseLedger, verifyLedger } from '../exception/index.js';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
+
+/** The most live model calls one `explain_findings` request may ask for. */
+export const MAX_LIVE_CALLS = 3;
+
+function within(target: string, base: string): boolean {
+  return target === base || target.startsWith(base + sep);
+}
+
+/**
+ * Where an MCP request may read from and write to.
+ *
+ * Over stdio, the client is a model. A path that arrives in a tool argument is therefore untrusted:
+ * an agent, a prompt injection or a confused caller can name any file on the machine. The server
+ * accepts reads under `samples/`, `out/` and the working directory, and writes only under `out/`.
+ * Everything else is refused before any file is opened, which is what turns "the web screen is
+ * restricted" into a property of the product rather than of one surface.
+ */
+export interface PathPolicy {
+  root: string;
+  /** Absolute roots a request may read by path. */
+  readRoots: string[];
+  /** The only root a request may write into. */
+  writeRoot: string;
+}
+
+export function pathPolicy(): PathPolicy {
+  const root = repoRoot();
+  const cwd = resolve(process.cwd());
+  const roots = [join(root, 'samples'), join(root, 'out')];
+  // The working directory is allowed so an agent can point at a report it just produced. A server
+  // started at the filesystem root would otherwise allow everything, so that one case is skipped.
+  if (cwd !== resolve(sep) && !/^[A-Za-z]:\\?$/.test(cwd)) roots.push(cwd);
+  return { root, readRoots: roots, writeRoot: join(root, 'out') };
+}
+
+export function resolveAllowedPath(
+  raw: string,
+  mode: 'read' | 'write',
+  policy: PathPolicy = pathPolicy(),
+): string {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) throw new AppError('USAGE', 'a path argument was empty');
+  // A relative path is read the way `report.json` records one: from the repository root.
+  const candidates = isAbsolute(trimmed)
+    ? [resolve(trimmed)]
+    : [resolve(policy.root, trimmed), resolve(process.cwd(), trimmed)];
+  const absolute = candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!;
+  const roots = mode === 'write' ? [policy.writeRoot] : policy.readRoots;
+  const allowed = (target: string): boolean => roots.some((base) => within(target, base));
+  if (!allowed(absolute)) {
+    throw new AppError(
+      'USAGE',
+      mode === 'write'
+        ? `writes are limited to out/ inside the project: ${raw}`
+        : `reads are limited to samples/, out/ and the working directory: ${raw}`,
+    );
+  }
+  // A symlink inside an allowed root can point anywhere; compare real paths when the target exists.
+  if (existsSync(absolute)) {
+    const real = realpathSync(absolute);
+    const realRoots = roots.map((base) => (existsSync(base) ? realpathSync(base) : base));
+    if (!realRoots.some((base) => within(real, base))) {
+      throw new AppError('USAGE', `this path resolves outside the allowed directories: ${raw}`);
+    }
+  }
+  return absolute;
+}
+
 export const SUPPORTED_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18'];
 
 export interface JsonRpcRequest {
@@ -70,7 +148,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         bankFilePath: { type: 'string', description: 'Optional second file (bank side) to parse in the same report.' },
         bankCopybookPath: { type: 'string' },
         bankFormat: { type: 'string', enum: ['fixed', 'bai2'] },
-        outDir: { type: 'string', description: 'Directory to write report.json into (optional).' },
+        outDir: { type: 'string', description: 'Directory under out/ to write report.json into (optional).' },
       },
       required: ['filePath'],
       additionalProperties: false,
@@ -97,7 +175,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
           description: 'Inclusive ISO dates, e.g. 2026-11-18..2026-11-20.',
         },
         toleranceDays: { type: 'integer', minimum: 0, description: 'Days of slack on each side of the window (default 0).' },
-        outDir: { type: 'string' },
+        outDir: { type: 'string', description: 'Directory under out/ to write report.json into (optional).' },
       },
       required: ['filePath'],
       additionalProperties: false,
@@ -113,7 +191,12 @@ export const MCP_TOOLS: McpToolDefinition[] = [
       properties: {
         reportPath: { type: 'string', description: 'Directory holding report.json, or the file itself.' },
         adapter: { type: 'string', enum: ['grounded', 'kiro-cli', 'openai'] },
-        maxLiveCalls: { type: 'integer', minimum: 0, description: 'Maximum live model calls (default 0).' },
+        maxLiveCalls: {
+          type: 'integer',
+          minimum: 0,
+          maximum: MAX_LIVE_CALLS,
+          description: `Maximum live model calls (default 0, at most ${MAX_LIVE_CALLS}). The default grounded adapter makes none.`,
+        },
       },
       required: ['reportPath'],
       additionalProperties: false,
@@ -141,7 +224,7 @@ export const MCP_TOOLS: McpToolDefinition[] = [
       properties: {
         reportPath: { type: 'string', description: 'Directory holding report.json, or the file itself.' },
         ledgerPath: { type: 'string', description: 'Path to ledger.json (optional; defaults to <report dir>/ledger.json).' },
-        today: { type: 'string', description: 'Classification date in YYYY-MM-DD format (optional; defaults to today).' },
+        today: { type: 'string', description: 'Classification date in YYYY-MM-DD format (optional; defaults to today). A value that is not a real date is refused.' },
       },
       required: ['reportPath'],
       additionalProperties: false,
@@ -160,7 +243,13 @@ function caseInputsFromArgs(params: Record<string, unknown>): CaseInputs {
   const format = (str(params, 'format') ?? 'fixed') as 'fixed' | 'bai2';
   const copybookPath = str(params, 'copybookPath');
   if (format === 'fixed' && !copybookPath) throw new AppError('USAGE', 'copybookPath is required for a fixed-width file');
-  const inputs: CaseInputs = { payment: { path: filePath, format, ...(copybookPath ? { copybookPath } : {}) } };
+  const inputs: CaseInputs = {
+    payment: {
+      path: resolveAllowedPath(filePath, 'read'),
+      format,
+      ...(copybookPath ? { copybookPath: resolveAllowedPath(copybookPath, 'read') } : {}),
+    },
+  };
   const bankFilePath = str(params, 'bankFilePath');
   if (bankFilePath) {
     const bankFormat = (str(params, 'bankFormat') ?? 'fixed') as 'fixed' | 'bai2';
@@ -168,12 +257,19 @@ function caseInputsFromArgs(params: Record<string, unknown>): CaseInputs {
     if (bankFormat === 'fixed' && !bankCopybookPath) {
       throw new AppError('USAGE', 'bankCopybookPath is required for a fixed-width bank file');
     }
-    inputs.bank = { path: bankFilePath, format: bankFormat, ...(bankCopybookPath ? { copybookPath: bankCopybookPath } : {}) };
+    inputs.bank = {
+      path: resolveAllowedPath(bankFilePath, 'read'),
+      format: bankFormat,
+      ...(bankCopybookPath ? { copybookPath: resolveAllowedPath(bankCopybookPath, 'read') } : {}),
+    };
   }
   const window = params.settlementWindow as { start?: unknown; end?: unknown } | undefined;
   if (window) {
     if (typeof window.start !== 'string' || typeof window.end !== 'string') {
       throw new AppError('USAGE', 'settlementWindow needs start and end as ISO dates');
+    }
+    if (!isIsoDate(window.start) || !isIsoDate(window.end)) {
+      throw new AppError('USAGE', 'settlementWindow start and end must be real dates in YYYY-MM-DD form');
     }
     inputs.settlementWindow = { start: window.start, end: window.end };
   }
@@ -189,44 +285,70 @@ function caseInputsFromArgs(params: Record<string, unknown>): CaseInputs {
 
 async function callTool(name: string, params: Record<string, unknown>): Promise<unknown> {
   switch (name) {
-    case 'parse_file':
-      return buildReport(caseInputsFromArgs(params), { includeVerdict: false });
-    case 'reconcile':
-      return buildReport(caseInputsFromArgs(params));
+    case 'parse_file': {
+      const report = buildReport(caseInputsFromArgs(params), { includeVerdict: false });
+      return writtenReport(report, params);
+    }
+    case 'reconcile': {
+      const report = buildReport(caseInputsFromArgs(params));
+      return writtenReport(report, params);
+    }
     case 'explain_findings': {
       const reportPath = str(params, 'reportPath');
       if (!reportPath) throw new AppError('USAGE', 'reportPath is required');
-      const { report } = loadReport(reportPath);
+      const { report } = loadReport(resolveAllowedPath(reportPath, 'read'));
       const adapter = adapterByName(str(params, 'adapter') ?? 'grounded');
-      const maxLiveCalls = typeof params.maxLiveCalls === 'number' ? params.maxLiveCalls : 0;
-      const run = await explainReport(report, { adapter, maxLiveCalls });
+      const requested = params.maxLiveCalls;
+      if (requested !== undefined && (typeof requested !== 'number' || !Number.isInteger(requested) || requested < 0 || requested > MAX_LIVE_CALLS)) {
+        throw new AppError('USAGE', `maxLiveCalls must be an integer from 0 to ${MAX_LIVE_CALLS}`);
+      }
+      const run = await explainReport(report, { adapter, maxLiveCalls: requested ?? 0 });
       return { liveCalls: run.liveCalls, budgetLimited: run.budgetLimited, explanations: run.explanations };
     }
     case 'verify': {
       const reportPath = str(params, 'reportPath');
       if (!reportPath) throw new AppError('USAGE', 'reportPath is required');
-      return verifyReport(reportPath);
+      return verifyReport(resolveAllowedPath(reportPath, 'read'));
     }
     case 'exceptions': {
       const reportPath = str(params, 'reportPath');
       if (!reportPath) throw new AppError('USAGE', 'reportPath is required');
-      const { report } = loadReport(reportPath);
+      const allowedReportPath = resolveAllowedPath(reportPath, 'read');
+      const { report } = loadReport(allowedReportPath);
       if (!report.verdict) throw new AppError('SPEC', 'report has no verdict');
 
-      const ledgerPath = str(params, 'ledgerPath') ?? join(dirname(reportPath.endsWith('.json') ? reportPath : join(reportPath, 'report.json')), 'ledger.json');
+      const ledgerPath = str(params, 'ledgerPath')
+        ? resolveAllowedPath(str(params, 'ledgerPath')!, 'read')
+        : join(dirname(allowedReportPath.endsWith('.json') ? allowedReportPath : join(allowedReportPath, 'report.json')), 'ledger.json');
       let ledger = emptyLedger();
       if (existsSync(ledgerPath)) {
         const text = readFileSync(ledgerPath, 'utf8');
         ledger = parseLedger(text);
       }
 
-      const onDate = str(params, 'today') ?? new Date().toISOString().split('T')[0]!;
+      const today = str(params, 'today');
+      if (today !== undefined && !isIsoDate(today)) {
+        throw new AppError('USAGE', `today (${today}) must be a real date in YYYY-MM-DD form`);
+      }
+      const onDate = today ?? new Date().toISOString().split('T')[0]!;
       const classification = classify(reviveFindings(report.verdict.findings), ledger, onDate);
-      return classification;
+      const check = verifyLedger(ledger);
+      return {
+        ...classification,
+        ledger: { path: ledgerPath, entries: check.entries, headHash: check.headHash, ok: check.ok, ...(check.detail ? { detail: check.detail } : {}) },
+      };
     }
     default:
       throw new AppError('USAGE', `unknown tool "${name}"`);
   }
+}
+
+/** Write the report only when the caller asked for a directory, and only under out/. */
+function writtenReport(report: ReturnType<typeof buildReport>, params: Record<string, unknown>): unknown {
+  const outDir = str(params, 'outDir');
+  if (!outDir) return report;
+  const path = writeReport(report, resolveAllowedPath(outDir, 'write'));
+  return { ...report, reportPath: path };
 }
 
 /** Answer one JSON-RPC message. Returns null for notifications. */

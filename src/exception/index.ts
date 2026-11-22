@@ -1,5 +1,6 @@
 export {
   emptyLedger,
+  ledgerDigest,
   parseLedger,
   serialiseLedger,
   appendWaiver,
@@ -11,6 +12,8 @@ export {
   type ExceptionStatus,
   type Ledger,
   type LedgerEntry,
+  type LedgerHead,
+  type LedgerVerification,
   type WaiverInput,
   type ReleaseInput,
   type DecisionContext,

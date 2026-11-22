@@ -51,9 +51,26 @@ export interface LedgerEntry {
   hash: string; // sha256 over canonical fields + prevHash
 }
 
+export interface LedgerHead {
+  /** How many entries the ledger held when its head was written. */
+  count: number;
+  /** The hash of the last entry, or `GENESIS` for an empty ledger. */
+  hash: string;
+}
+
 export interface Ledger {
   version: 1;
   entries: LedgerEntry[];
+  /**
+   * The digest of the whole ledger, written with it.
+   *
+   * A hash chain alone cannot notice that its tail was cut off: every remaining link is still
+   * valid, and a removed release makes an expired waiver look live again. The head records the
+   * count and the last hash, so removing trailing entries is `LEDGER_TRUNCATED` at parse time
+   * unless the editor also rewrites the head, which is a different act than deleting a record.
+   * `820 verify` also prints it, so a head that changed since a report was filed is visible.
+   */
+  head?: LedgerHead;
 }
 
 export interface WaiverInput {
@@ -121,46 +138,86 @@ export function findingKey(finding: Finding): string {
 }
 
 export function emptyLedger(): Ledger {
-  return { version: 1, entries: [] };
+  return { version: 1, entries: [], head: { count: 0, hash: 'GENESIS' } };
+}
+
+/** The count and head hash a ledger should carry. */
+export function ledgerDigest(ledger: Ledger): LedgerHead {
+  const last = ledger.entries[ledger.entries.length - 1];
+  return { count: ledger.entries.length, hash: last ? last.hash : 'GENESIS' };
 }
 
 /**
- * Parse a ledger from JSON text. Throws LedgerError('SHAPE') if the shape is wrong.
+ * Parse a ledger from JSON text.
+ *
+ * Throws `LedgerError('SHAPE')` when the document is not a ledger, and `LedgerError('TRUNCATED')`
+ * when it carries a head that does not match its entries.
  */
 export function parseLedger(text: string): Ledger {
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(text) as unknown;
+    parsed = JSON.parse(text) as unknown;
+  } catch (error) {
+    throw new LedgerError('SHAPE', `Failed to parse ledger: ${(error as Error).message}`);
+  }
+  try {
     if (typeof parsed !== 'object' || parsed === null) throw new Error('not an object');
     const ledger = parsed as Record<string, unknown>;
     if (ledger.version !== 1) throw new Error('version is not 1');
     if (!Array.isArray(ledger.entries)) throw new Error('entries is not an array');
-    for (const entry of ledger.entries as unknown[]) {
+    (ledger.entries as unknown[]).forEach((entry, index) => {
       if (typeof entry !== 'object' || entry === null) throw new Error('entry is not an object');
       const e = entry as Record<string, unknown>;
       if (typeof e.seq !== 'number' || typeof e.id !== 'string' || typeof e.decision !== 'string') {
         throw new Error('entry missing required fields');
       }
+      if (e.seq !== index + 1) throw new Error(`entry ${index + 1} carries seq ${String(e.seq)}: the sequence must be dense from 1`);
+    });
+    if (ledger.head !== undefined) {
+      const head = ledger.head as Record<string, unknown>;
+      if (typeof head.count !== 'number' || typeof head.hash !== 'string') throw new Error('head needs count and hash');
     }
-    return parsed as unknown as Ledger;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new LedgerError('SHAPE', `Failed to parse ledger: ${msg}`);
   }
+  const ledger = parsed as Ledger;
+  if (ledger.head) {
+    const digest = ledgerDigest(ledger);
+    if (ledger.head.count !== digest.count) {
+      throw new LedgerError(
+        'TRUNCATED',
+        `ledger head declares ${ledger.head.count} entries but ${digest.count} were read: trailing entries were removed`,
+      );
+    }
+    if (ledger.head.hash !== digest.hash) {
+      throw new LedgerError('TRUNCATED', 'ledger head hash does not match the last entry: the tail was rewritten or cut');
+    }
+  }
+  return ledger;
 }
 
 /**
  * Serialise a ledger to JSON text (2-space indent, trailing newline).
  */
 export function serialiseLedger(ledger: Ledger): string {
-  return JSON.stringify(ledger, null, 2) + '\n';
+  return JSON.stringify({ version: ledger.version, entries: ledger.entries, head: ledgerDigest(ledger) }, null, 2) + '\n';
 }
 
 /**
  * Compute the hash of a ledger entry.
- * Canonical order: seq|id|decision|findingKey|code|recordIndex|field|reference|owner|reason|compensatingControl|decidedOn|expiresOn|releaseOf|fingerprint|prevHash
+ *
+ * The canonical form is a JSON array in a fixed field order. It used to be the same fields joined
+ * with `|`, which made the field boundaries ambiguous: owner `A. Kim|approved by CFO` with reason
+ * `timing difference` hashed identically to owner `A. Kim` with reason
+ * `approved by CFO|timing difference`, so moving text across two fields was invisible (found
+ * 2026-11-22 and reproduced in `test/regressions/ledger-hardening.test.ts`). JSON quoting and escaping
+ * that: a delimiter inside a value can no longer be read as the start of the next field.
+ * Canonical order: seq, id, decision, findingKey, code, recordIndex, field, reference, owner,
+ * reason, compensatingControl, decidedOn, expiresOn, releaseOf, fingerprint, prevHash.
  */
 function hashEntry(entry: Partial<LedgerEntry>): string {
-  const canonical = [
+  const canonical = JSON.stringify([
     entry.seq ?? '',
     entry.id ?? '',
     entry.decision ?? '',
@@ -177,7 +234,7 @@ function hashEntry(entry: Partial<LedgerEntry>): string {
     entry.releaseOf ?? '',
     entry.fingerprint ?? '',
     entry.prevHash ?? '',
-  ].join('|');
+  ]);
   return createHash('sha256').update(canonical).digest('hex');
 }
 
@@ -185,21 +242,46 @@ function hashEntry(entry: Partial<LedgerEntry>): string {
  * Verify a ledger: re-derive every hash and every prevHash link.
  * Returns { ok: true } or { ok: false, firstInvalidSeq, detail }.
  */
-export function verifyLedger(ledger: Ledger): { ok: boolean; firstInvalidSeq: number | null; detail?: string } {
-  if (ledger.entries.length === 0) return { ok: true, firstInvalidSeq: null };
+export interface LedgerVerification {
+  ok: boolean;
+  firstInvalidSeq: number | null;
+  detail?: string;
+  /** How many entries the ledger holds. Printed next to the head hash. */
+  entries: number;
+  /** The hash of the last entry, or `GENESIS`. */
+  headHash: string;
+}
+
+export function verifyLedger(ledger: Ledger): LedgerVerification {
+  const digest = ledgerDigest(ledger);
+  const result = (ok: boolean, detail?: string, firstInvalidSeq: number | null = null): LedgerVerification => ({
+    ok,
+    firstInvalidSeq,
+    ...(detail ? { detail } : {}),
+    entries: digest.count,
+    headHash: digest.hash,
+  });
+
+  if (ledger.head && (ledger.head.count !== digest.count || ledger.head.hash !== digest.hash)) {
+    return result(
+      false,
+      `ledger head declares ${ledger.head.count} entries with head ${ledger.head.hash}, but the ledger holds ${digest.count} with head ${digest.hash}`,
+      ledger.entries.length + 1,
+    );
+  }
 
   let prevHash = 'GENESIS';
   for (const entry of ledger.entries) {
     if (entry.prevHash !== prevHash) {
-      return { ok: false, firstInvalidSeq: entry.seq, detail: `prevHash mismatch at seq ${entry.seq}` };
+      return result(false, `prevHash mismatch at seq ${entry.seq}`, entry.seq);
     }
     const computedHash = hashEntry(entry);
     if (entry.hash !== computedHash) {
-      return { ok: false, firstInvalidSeq: entry.seq, detail: `hash mismatch at seq ${entry.seq}` };
+      return result(false, `hash mismatch at seq ${entry.seq}`, entry.seq);
     }
     prevHash = entry.hash;
   }
-  return { ok: true, firstInvalidSeq: null };
+  return result(true);
 }
 
 /**
@@ -222,6 +304,11 @@ export function appendWaiver(
     throw new LedgerError('INVALID_WAIVER', 'compensatingControl is required');
   }
   const decidedOn = input.decidedOn ?? context.decidedOn;
+  // A decision date is evidence: `2026-13-45` would otherwise sort and compare as if it were a
+  // day, and a backdated waiver would pass `expiresOn < decidedOn`. Validated since 2026-11-22.
+  if (!isIsoDate(decidedOn)) {
+    throw new LedgerError('INVALID_WAIVER', `decidedOn (${decidedOn}) must be a real date in YYYY-MM-DD form`);
+  }
   if (!input.expiresOn || input.expiresOn.trim().length === 0) {
     throw new LedgerError('INVALID_WAIVER', 'expiresOn is required: a waiver is a decision with an end date');
   }
@@ -237,7 +324,7 @@ export function appendWaiver(
   const prevHash = ledger.entries.length === 0 ? 'GENESIS' : ledger.entries[ledger.entries.length - 1]!.hash;
 
   // Compute id: first 16 hex chars of sha256(seq|decision|key|decidedOn|prevHash)
-  const idSource = `${seq}|waived|${key}|${decidedOn}|${prevHash}`;
+  const idSource = JSON.stringify([seq, 'waived', key, decidedOn, prevHash]);
   const idHash = createHash('sha256').update(idSource).digest('hex');
   const id = idHash.slice(0, 16);
 
@@ -261,7 +348,8 @@ export function appendWaiver(
   };
   entry.hash = hashEntry(entry);
 
-  return { version: 1, entries: [...ledger.entries, entry] };
+  const next: Ledger = { version: 1, entries: [...ledger.entries, entry] };
+  return { ...next, head: ledgerDigest(next) };
 }
 
 /**
@@ -291,10 +379,13 @@ export function appendRelease(ledger: Ledger, input: ReleaseInput, waiverId: str
   }
 
   const decidedOn = input.decidedOn ?? new Date().toISOString().split('T')[0]!;
+  if (!isIsoDate(decidedOn)) {
+    throw new LedgerError('INVALID_RELEASE', `decidedOn (${decidedOn}) must be a real date in YYYY-MM-DD form`);
+  }
   const seq = ledger.entries.length + 1;
   const prevHash = ledger.entries[ledger.entries.length - 1]!.hash;
 
-  const idSource = `${seq}|released|${waiverId}|${decidedOn}|${prevHash}`;
+  const idSource = JSON.stringify([seq, 'released', waiverId, decidedOn, prevHash]);
   const idHash = createHash('sha256').update(idSource).digest('hex');
   const id = idHash.slice(0, 16);
 
@@ -318,7 +409,8 @@ export function appendRelease(ledger: Ledger, input: ReleaseInput, waiverId: str
   };
   entry.hash = hashEntry(entry);
 
-  return { version: 1, entries: [...ledger.entries, entry] };
+  const next: Ledger = { version: 1, entries: [...ledger.entries, entry] };
+  return { ...next, head: ledgerDigest(next) };
 }
 
 /**
@@ -327,6 +419,9 @@ export function appendRelease(ledger: Ledger, input: ReleaseInput, waiverId: str
  * Throws LedgerError if the ledger fails verification or if a waiver names a finding the set does not hold.
  */
 export function classify(findings: Finding[], ledger: Ledger, onDate: string): Classification {
+  if (!isIsoDate(onDate)) {
+    throw new LedgerError('INVALID_DATE', `classification date (${onDate}) must be a real date in YYYY-MM-DD form`);
+  }
   const verify = verifyLedger(ledger);
   if (!verify.ok) {
     throw new LedgerError('LEDGER_CORRUPTED', `Ledger failed verification at seq ${verify.firstInvalidSeq}: ${verify.detail}`);

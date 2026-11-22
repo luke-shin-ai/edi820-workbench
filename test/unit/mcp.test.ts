@@ -7,11 +7,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { MCP_TOOLS, handleMessage, type JsonRpcResponse } from '../../src/mcp/server.js';
+import { MCP_TOOLS, MAX_LIVE_CALLS, handleMessage, type JsonRpcResponse } from '../../src/mcp/server.js';
 import { runCli } from '../../src/cli/index.js';
+
+const repoRoot = join(import.meta.dirname, '..', '..');
 
 const serverEntry = join(import.meta.dirname, '..', '..', 'src', 'mcp', 'main.ts');
 const tsxBin = join(import.meta.dirname, '..', '..', 'node_modules', 'tsx', 'dist', 'cli.mjs');
@@ -95,7 +96,9 @@ describe('T5.4 - tool calls return the same JSON as the CLI', () => {
   });
 
   it('explain_findings and verify work off a report written by the CLI', async () => {
-    const out = mkdtempSync(join(tmpdir(), '820-mcp-'));
+    // The MCP path policy reads under samples/, out/ and the working directory, so a report an
+    // agent may read is one the product wrote under out/ (see the allowlist test below).
+    const out = join(repoRoot, 'out', `.mcp-test-${process.pid}`);
     const code = await runCli(
       ['reconcile', '--copybook', COB820, '--file', BAD, '--bank', 'samples/data/823-bank.txt', '--bank-copybook', COB823, '--window', '2026-11-18..2026-11-20', '--out', out],
       { out: () => {}, err: () => {} },
@@ -121,6 +124,87 @@ describe('T5.4 - tool calls return the same JSON as the CLI', () => {
     expect(verified.firstDifference).toBeNull();
     expect(verified.mutation.reportBytesAfter).toBe(verified.mutation.reportBytesBefore);
     rmSync(out, { recursive: true, force: true });
+  });
+});
+
+describe('the MCP path policy: a model-facing surface reads only where a person pointed it', () => {
+  const call = async (name: string, args: Record<string, unknown>) => {
+    const response = (await rpc('tools/call', { name, arguments: args })) as JsonRpcResponse;
+    const result = response.result as { isError: boolean; content: Array<{ text: string }> };
+    return { isError: result.isError, text: result.content[0]!.text };
+  };
+
+  it('approves only the two read-only tools without asking', () => {
+    const settings = JSON.parse(readFileSync(join(repoRoot, '.kiro', 'settings', 'mcp.json'), 'utf8')) as {
+      mcpServers: Record<string, { autoApprove?: string[] }>;
+    };
+    const approve = settings.mcpServers['820']?.autoApprove ?? [];
+    expect([...approve].sort()).toEqual(['parse_file', 'verify']);
+    // reconcile and explain_findings write or reach out, so they must ask first.
+    expect(approve).not.toContain('reconcile');
+    expect(approve).not.toContain('explain_findings');
+  });
+
+  it('refuses an absolute path outside the allowed roots', async () => {
+    const result = await call('parse_file', { filePath: '/etc/passwd', copybookPath: COB820 });
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain('reads are limited');
+  });
+
+  it('refuses a path that climbs out of the project with ..', async () => {
+    const result = await call('parse_file', { filePath: '../../../etc/passwd', copybookPath: COB820 });
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain('reads are limited');
+    const copybook = await call('parse_file', { filePath: GOOD, copybookPath: '../../etc/passwd' });
+    expect(copybook.isError).toBe(true);
+  });
+
+  it('refuses a report path and a ledger path outside the roots', async () => {
+    const verified = await call('verify', { reportPath: '/etc' });
+    expect(verified.isError).toBe(true);
+    const explained = await call('explain_findings', { reportPath: '/etc' });
+    expect(explained.isError).toBe(true);
+  });
+
+  it('writes a report only under out/ and never elsewhere', async () => {
+    const refused = await call('reconcile', {
+      filePath: GOOD,
+      copybookPath: COB820,
+      bankFilePath: 'samples/data/823-bank.txt',
+      bankCopybookPath: COB823,
+      outDir: '/tmp/820-mcp-escape',
+    });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toContain('writes are limited to out/');
+
+    const dir = join(repoRoot, 'out', `.mcp-write-${process.pid}`);
+    try {
+      const written = await call('reconcile', {
+        filePath: GOOD,
+        copybookPath: COB820,
+        bankFilePath: 'samples/data/823-bank.txt',
+        bankCopybookPath: COB823,
+        outDir: dir,
+      });
+      expect(written.isError).toBe(false);
+      expect(existsSync(join(dir, 'report.json'))).toBe(true);
+      const payload = JSON.parse(written.text) as { reportPath: string; verdict: { status: string } };
+      expect(payload.reportPath).toBe(join(dir, 'report.json'));
+      expect(payload.verdict.status).toBe('PASS');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('caps maxLiveCalls and refuses a date that is not a real day', async () => {
+    const tooMany = await call('explain_findings', { reportPath: 'out/l4-review', maxLiveCalls: MAX_LIVE_CALLS + 1 });
+    expect(tooMany.isError).toBe(true);
+    expect(tooMany.text).toContain(`0 to ${MAX_LIVE_CALLS}`);
+    const negative = await call('explain_findings', { reportPath: 'out/l4-review', maxLiveCalls: -1 });
+    expect(negative.isError).toBe(true);
+    const badDate = await call('exceptions', { reportPath: 'out/l4-review', today: '2026-02-30' });
+    expect(badDate.isError).toBe(true);
+    expect(badDate.text).toContain('YYYY-MM-DD');
   });
 });
 
