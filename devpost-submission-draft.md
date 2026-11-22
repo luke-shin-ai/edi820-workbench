@@ -310,7 +310,6 @@ narrates and a layer that proves.
 
 ## [form] What's next
 
-- Publish the static build so the URL is live, then upload the video and submit.
 - A host-side witness: two independent runs of the same file on different machines, compared by
   fingerprint.
 - Streaming parse for files larger than memory, and `OCCURS DEPENDING ON`, which changes every
