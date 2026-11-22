@@ -27,6 +27,8 @@ out/evidence/*
 *-draft.md
 logs/
 screenshots/
+# Submission screenshots and the body as posted: kept beside the entry, not part of the entry.
+/evidence/
 reviews*/
 *-review.md
 *-review-v*.md

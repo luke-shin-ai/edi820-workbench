@@ -61,6 +61,13 @@ the same parser, reconciler, BAI2 reader, explainer and register compiled for th
 judge can click through the eight scenarios with no server at all, the two `REDEFINES` ones
 included.
 
+The BAI2 reader is checked against files banks publish themselves, not only against its own
+fixtures: the Westpac / Qvalent BAI2 NPP sample (27 records, 4,000,000.00 AUD) and the SouthState
+Bank user guide sample (27 records, 20,042,948.00 USD) both parse with 0 issues, and their account,
+group and file trailers agree. Getting there fixed a real defect: the reader used to read only the
+first amount pair of an `03` record and to compare the `49` total against signed details, which no
+published file satisfies.
+
 All sample data is synthetic, from a fictional company. No customer, bank or employer data is used.
 
 ## [form] Links
@@ -211,7 +218,9 @@ session against the process, including a malformed line that must not kill the s
 
 The point of the surface: a finance team can drive the deterministic core from their own assistant
 without re-implementing fixed-width parsing, and the numbers they get back are the same numbers the
-CLI prints.
+CLI prints. A tool argument comes from a model, so a path is accepted only under `samples/`, `out/`
+or the server's working directory, a symlink is resolved before that check, and `explain_findings`
+caps live model calls at 3 with a default of 0.
 
 **What changed since the first draft:** the server is now attached to the reviewer agent.
 `.kiro/settings/mcp.json` registers it, and `.kiro/agents/reviewer.json` sets `includeMcpJson:
@@ -222,7 +231,7 @@ prints the same values, which is the point: the agent and the CLI are not two im
 
 ### 7. Property-based testing
 
-Seven property suites, 31 property tests, 311 tests in total.
+Seven property suites, 31 property tests, 334 tests in 25 files in total.
 
 - **Round trip:** parse a generated fixed-width file, serialize it, and the bytes are identical,
   including CRLF, a missing final newline, and a binary COMP-3 stream with no newlines at all.
@@ -268,7 +277,8 @@ opens on Kiro, not on a logo:
 - **1:03.6** a PASS on ten payments totalling 1,284,550.00 USD, then a file with four defects and
   the byte range behind each finding, then the BAI2 delta with its credits and debits named.
 - **1:50.9** a waiver in the exception register that leaves the verdict at FAIL, `verify`
-  re-deriving the same fingerprint, 311 tests (31 of them properties), and the session evidence:
+  re-deriving the same fingerprint, the suite as it stood then (311 cases, 31 of them properties),
+  and the session evidence:
   including task 9.5 run through Kiro's task runner, where the task hook wrote the evidence row.
 
 ---
@@ -290,8 +300,8 @@ narrates and a layer that proves.
 
 ## [form] Accomplishments
 
-- 311 tests, 31 of them properties over generated inputs, with a regression file for every failure
-  the build found in itself, including a truncated record that used to reach `PASS` with zero
+- 334 tests in 25 files, 31 of them properties over generated inputs, with a regression file for
+  every failure the build found in itself, including a truncated record that used to reach `PASS` with zero
   findings (now `INCOMPLETE`, exit 2) and a `REDEFINES` record whose type byte was damaged in
   transit (now reported, its bytes left undecoded).
 - Three byte layouts (trailing overpunch, COMP-3, leading separate sign), one `REDEFINES` region
@@ -299,9 +309,11 @@ narrates and a layer that proves.
 - A verdict anyone can re-derive: `verify` prints both fingerprints and the first differing field
   path, and does not touch the report.
 - An agent layer that cannot invent a number, and costs zero credits by default.
-- A human layer that cannot be edited back into agreement: the exception register is append only
-  and hash chained, a waiver carries an owner, a reason, a compensating control and an expiry, and
-  editing any entry afterwards breaks the chain at that sequence number.
+- A human layer that cannot be edited back into agreement: the exception register is append only,
+  hash chained over a JSON array of its fields rather than a joined string, and records a head of
+  entry count and hash, so a removed trailing entry is `LEDGER_TRUNCATED` and `verify` fails. A
+  waiver carries an owner, a reason, a compensating control and an expiry, and editing any entry
+  afterwards breaks the chain at that sequence number.
 - One engine in three places: the CLI, the local screen and a static browser build share the
   parser and the reconciler, and the static build's fingerprints are asserted equal to the CLI's
   for all eight sample scenarios (`scripts/check-static.py`).
@@ -314,6 +326,11 @@ narrates and a layer that proves.
   fingerprint.
 - Streaming parse for files larger than memory, and `OCCURS DEPENDING ON`, which changes every
   offset after it and therefore needs a decided rule rather than a parser tweak.
+- A reconciliation mode for 823 confirmations against 820 remittances, the same engine with a
+  different reference direction.
+- EBCDIC input. Mainframe estates mostly store these files in EBCDIC, while this reader takes ASCII
+  and latin1 bytes: an EBCDIC file fails its record and amount checks instead of being guessed at.
+  Decoding EBCDIC is a roadmap item and is not claimed here.
 
 The parsing and reconciliation core is already decoupled from the runtime (CLI, stdio MCP server,
 and local browser tab), and human waivers already use a SHA-256 hash-chained append-only ledger.

@@ -311,13 +311,12 @@ if (evidenceProps) {
   claims.push({ file: "EVIDENCE.md", type: "property_tests", claimed: parseInt(evidenceProps[1]), measured: numPropertyTests });
 }
 
-// Artefacts that were published on a date, with a count frozen into them: the text submitted to
-// Devpost and the subtitle burned into the video. They are compared against the number that was
-// true when they were recorded, not against today's run, because editing a submitted entry or a
-// rendered video to chase a later count would be the dishonest move. Anything else must match the
-// run exactly.
+// Artefacts that were published on a date, with a count frozen into them: the subtitle burned into
+// the video. It is compared against the number that was true when it was recorded, not against
+// today's run, because re-rendering a published video to chase a later count would be the dishonest
+// move. The Devpost text is no longer frozen: it states today's count and names the video's older
+// one in place, so every count it claims is checked against the run.
 const RECORDED_COUNTS = new Map([
-  ["devpost-submission-draft.md", { tests: 311, files: 23, note: "submitted 2026-11-22" }],
   ["demo-video/820-demo-en.srt", { tests: 311, files: 23, note: "burned into the video recorded 2026-11-22" }],
 ]);
 
