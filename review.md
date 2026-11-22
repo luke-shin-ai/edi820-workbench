@@ -12,13 +12,13 @@ stops over-claiming in the wrong direction.
 
 | Requirement | Status | Where |
 |---|---|---|
-| Public GitHub repository | **not yet** (local, clean tree) | pushing publishes a personal account, so it is the account holder's call |
+| Public GitHub repository | pass | https://github.com/luke-shin-ai/edi820-workbench (public, `main`, 25 commits) |
 | Open source license in About | file present, Apache-2.0 | `LICENSE`, `package.json` |
 | `/.kiro` at the root, not gitignored | pass | `.kiro/` tracked, `.gitignore` carries an explicit "never add .kiro" note |
-| Working application URL | **built, not deployed** | `docs/demo/index.html`, a static client-side build of the same engine, verified in Chromium at 1920 across eight scenarios. Deploying it is one step and the account holder's act |
+| Working application URL | pass | https://luke-shin-ai.github.io/edi820-workbench/demo/ , served from `main` /docs; the live page re-derived the FAIL case and printed the same fingerprint |
 | Feature description | pass | `README.md`, `devpost-submission-draft.md` |
-| Demo video under 3 minutes | pass, 2:55 | `demo-video/820-demo-en.mp4` (19.2 MB, 1920x1080, 30 fps, 40 cues) |
-| Video public on YouTube | **not yet** | local file; publishing is a named external act |
+| Demo video under 3 minutes | pass, 2:55 | `demo-video/820-demo-en.mp4` (8.2 MB, 1920x1080, 30 fps, 40 cues) |
+| Video public on YouTube | pass | https://youtu.be/rncG1wwqTAM (public, subtitles uploaded, 2:55) |
 | English | pass | all artefacts |
 | Kiro write-up, all topics | pass, with session evidence | `devpost-submission-draft.md` §3, §6, §8 and the closing section |
 | Category identified | Resurrection | — |

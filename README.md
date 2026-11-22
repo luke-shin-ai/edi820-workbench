@@ -2,7 +2,7 @@
 
 > Kiroween 2026 · **Resurrection** category · built with Kiro (spec-driven, steering, hooks, MCP, PBT)
 
-> **Build status (2026-11-22):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **311 tests / 23 files** (unit, property-based and regression, 31 of them properties). Publishing the repository, hosting the static build, uploading the video and submitting the Devpost entry are the account holder's acts and remain open; see `review.md` §5.
+> **Build status (2026-11-22):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **311 tests / 23 files** (unit, property-based and regression, 31 of them properties). The repository is public at https://github.com/luke-shin-ai/edi820-workbench, the static build is live on GitHub Pages, and the demo video is public on YouTube (links below). The Devpost entry is the last open item; see `review.md` §5.
 
 Corporate payment files never died. The people and tools that could read them did.
 
@@ -23,8 +23,10 @@ Verdicts: `PASS` (every check agreed), `INCOMPLETE` (a parse issue left bytes un
 
 ## Watch it
 
-`demo-video/820-demo-en.mp4`, 2 minutes 55 seconds, 1920x1080, English narration and burned-in subtitles, no music. It opens with the hook log from a real Kiro session and the reviewer agent's MCP calls, then the bank copybook with its two `REDEFINES` layouts, the trailer read through its own layout, the static browser demo (PASS, four findings, the bytes behind a finding), the BAI2 delta with its credit and debit parts, the exception register with a waiver recorded, `verify`, the test suite, and what the session did. Script and shot list: `demo-video/build/README.md`.
+**https://youtu.be/rncG1wwqTAM** (public, 2 minutes 55 seconds). The same file is `demo-video/820-demo-en.mp4`, 2 minutes 55 seconds, 1920x1080, English narration and burned-in subtitles, no music. It opens with the hook log from a real Kiro session and the reviewer agent's MCP calls, then the bank copybook with its two `REDEFINES` layouts, the trailer read through its own layout, the static browser demo (PASS, four findings, the bytes behind a finding), the BAI2 delta with its credit and debit parts, the exception register with a waiver recorded, `verify`, the test suite, and what the session did. Script and shot list: `demo-video/build/README.md`.
 ## Try it with no server
+
+**https://luke-shin-ai.github.io/edi820-workbench/demo/** runs the same build from GitHub Pages.
 
 `docs/demo/index.html` is a static build of the same engine: the parser, the reconciler, the BAI2 reader, the L3 grounded explainer and the L4 register compiled for the browser by `esbuild`. Eight scenarios run with one click (the two `REDEFINES` ones included), a dropped file is read as bytes (`arrayBuffer`, so a COMP-3 amount survives), the register accepts a waiver and a release, and `Re-derive and compare` re-runs the case and prints the fingerprint. Nothing is uploaded: after the two files load, no request leaves the tab.
 

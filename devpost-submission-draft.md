@@ -65,12 +65,11 @@ All sample data is synthetic, from a fictional company. No customer, bank or emp
 
 ## [form] Links
 
-- Repository: to be published (public GitHub, Apache-2.0, `.kiro/` at the root)
-- Video: `demo-video/820-demo-en.mp4`, 2 minutes 55 seconds (2:55.30, 175.3 s), English narration and subtitles
-- Working application: the static build in `docs/demo/index.html` ("Runs in this tab"). It is the
-  same engine compiled for the browser, so nothing is uploaded and the verdict still comes from
-  code. Publishing that folder on GitHub Pages or Cloudflare Pages is one deploy and is the
-  account holder's act; the URL is not claimed until it is live. The local server build
+- Repository: https://github.com/luke-shin-ai/edi820-workbench (public GitHub, Apache-2.0, `.kiro/` at the root)
+- Video: https://youtu.be/rncG1wwqTAM (public upload, 2 minutes 55 seconds / 2:55.30 / 175.3 s, English narration and subtitles)
+- Working application: https://luke-shin-ai.github.io/edi820-workbench/demo/ , the static build in
+  `docs/demo/index.html` ("Runs in this tab"). It is the same engine compiled for the browser, so
+  nothing is uploaded and the verdict still comes from code. The local server build
   (`npm run web`) remains the back-office path, bound to `127.0.0.1`.
 
 ---
