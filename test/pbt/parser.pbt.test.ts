@@ -10,7 +10,7 @@ import {
 } from '../../src/parser/index.js';
 
 /**
- * T2.4 / T2.5 — properties of the parser itself.
+ * T2.4 / T2.5: properties of the parser itself.
  *
  * The generator builds a real copybook (mixed PIC families, signs and COMP-3),
  * encodes real records from typed values, then asserts that parsing loses
@@ -81,7 +81,7 @@ function fileFor(copybook: Copybook, seeds: bigint[], eol: string, trailing: boo
   return Buffer.from(body, 'latin1');
 }
 
-describe('T2.4 — parse → serialize is byte-identical', () => {
+describe('T2.4 - parse -> serialize is byte-identical', () => {
   it('holds for generated copybooks, records and line terminators', () => {
     fc.assert(
       fc.property(
@@ -136,7 +136,7 @@ describe('T2.4 — parse → serialize is byte-identical', () => {
   });
 });
 
-describe('T2.5 — boundary and truncation behaviour', () => {
+describe('T2.5 - boundary and truncation behaviour', () => {
   it('a record cut by 1..k bytes is reported once and does not move its neighbours', () => {
     fc.assert(
       fc.property(

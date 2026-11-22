@@ -1,5 +1,5 @@
 /**
- * Regression — verdict integrity (defects found 2026-11-21, review §5 #2, #3, #7).
+ * Regression: verdict integrity (defects found 2026-11-21, review §5 #2, #3, #7).
  *
  * Three claims are asserted here, each one a thing the tool used to get wrong:
  *   1. a file with a record that is one byte short cannot earn `PASS`;

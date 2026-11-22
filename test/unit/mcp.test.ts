@@ -1,5 +1,5 @@
 /**
- * T5.4 — the MCP server's protocol surface.
+ * T5.4: the MCP server's protocol surface.
  *
  * Two kinds of test: in-process message handling (fast, exhaustive), and one real
  * stdio session against the server process, because "it speaks MCP" is a claim
@@ -24,7 +24,7 @@ const BAD = 'samples/data/820-bad.txt';
 const rpc = (method: string, params?: Record<string, unknown>, id: number | string = 1) =>
   handleMessage({ jsonrpc: '2.0', id, method, ...(params ? { params } : {}) });
 
-describe('T5.4 — exactly five tools (T5.1–T5.2, T7.1), each with a JSON schema', () => {
+describe('T5.4 - exactly five tools (T5.1-T5.2, T7.1), each with a JSON schema', () => {
   it('lists parse_file, reconcile, explain_findings, verify, and exceptions', async () => {
     const response = (await rpc('tools/list')) as JsonRpcResponse;
     const result = response.result as { tools: Array<{ name: string; description: string; inputSchema: { type: string; properties: Record<string, unknown> } }> };
@@ -56,7 +56,7 @@ describe('T5.4 — exactly five tools (T5.1–T5.2, T7.1), each with a JSON sche
   });
 });
 
-describe('T5.4 — tool calls return the same JSON as the CLI', () => {
+describe('T5.4 - tool calls return the same JSON as the CLI', () => {
   it('parse_file reports record counts and issues without a verdict', async () => {
     const response = (await rpc('tools/call', { name: 'parse_file', arguments: { filePath: BAD, copybookPath: COB820 } })) as JsonRpcResponse;
     const content = (response.result as { content: Array<{ text: string }>; isError: boolean });
@@ -124,7 +124,7 @@ describe('T5.4 — tool calls return the same JSON as the CLI', () => {
   });
 });
 
-describe('T5.4 — a real stdio session', () => {
+describe('T5.4 - a real stdio session', () => {
   it('answers four ordered requests and shuts down cleanly on EOF', async () => {
     const child = spawn(process.execPath, [tsxBin, serverEntry], { stdio: ['pipe', 'pipe', 'pipe'] });
     const lines: string[] = [];

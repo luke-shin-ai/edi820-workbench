@@ -5,7 +5,7 @@ import { parseFile } from '../../src/parser/index.js';
 import { encodeRecord } from '../../src/parser/serialize.js';
 
 /**
- * T1.3 — property: for any copybook the compiler accepts, the fields tile the
+ * T1.3: property: for any copybook the compiler accepts, the fields tile the
  * record exactly: starts are contiguous from 1, no overlap, sum(length) = recordLength.
  */
 
@@ -43,7 +43,7 @@ const copybookArb = fc
     ].join('\n'),
   );
 
-describe('REDEFINES — generated two-layout copybooks keep one byte range', () => {
+describe('REDEFINES - generated two-layout copybooks keep one byte range', () => {
   const widths = fc.array(fc.integer({ min: 1, max: 9 }), { minLength: 1, maxLength: 4 });
 
   const twoLayoutCopybook = fc.tuple(widths, widths).map(([a, b]) => {
@@ -121,7 +121,7 @@ describe('REDEFINES — generated two-layout copybooks keep one byte range', () 
   });
 });
 
-describe('T1.3 — generated copybooks tile their record exactly', () => {
+describe('T1.3 - generated copybooks tile their record exactly', () => {
   it('starts are contiguous from 1 and recordLength equals the sum of lengths', () => {
     fc.assert(
       fc.property(copybookArb, (text) => {

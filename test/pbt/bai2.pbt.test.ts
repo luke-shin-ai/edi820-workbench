@@ -1,5 +1,5 @@
 /**
- * T5 — properties of the BAI2 reader.
+ * T5: properties of the BAI2 reader.
  *
  * The reader must hold two invariants for any well-formed file it generates
  * itself: the sign comes from the type code and never from the text, and the
@@ -35,7 +35,7 @@ function buildFile(details: Line[], declaredTotal: bigint, declaredCount: number
   return { text: `${lines.join('\n')}\n` };
 }
 
-describe('T5 — a BAI2 file round-trips byte for byte', () => {
+describe('T5 - a BAI2 file round-trips byte for byte', () => {
   it('for any detail set generated with the reader\'s own rules', () => {
     fc.assert(
       fc.property(
@@ -62,7 +62,7 @@ describe('T5 — a BAI2 file round-trips byte for byte', () => {
   });
 });
 
-describe('T5 — direction comes from the type code, for any code in range', () => {
+describe('T5 - direction comes from the type code, for any code in range', () => {
   it('credits stay positive and debits are negated, independent of the written amount', () => {
     fc.assert(
       fc.property(
@@ -94,7 +94,7 @@ describe('T5 — direction comes from the type code, for any code in range', () 
   });
 });
 
-describe('T5 — a self-consistent file has no issues', () => {
+describe('T5 - a self-consistent file has no issues', () => {
   it('when the 03 total, account total and group total agree with the details', () => {
     fc.assert(
       fc.property(

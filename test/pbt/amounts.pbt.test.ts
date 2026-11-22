@@ -11,7 +11,7 @@ import {
 } from '../../src/parser/index.js';
 
 /**
- * Amounts — the property that matters for money: decode(encode(x)) === x for
+ * Amounts: the property that matters for money: decode(encode(x)) === x for
  * every representable value, in every sign convention the copybook supports.
  */
 

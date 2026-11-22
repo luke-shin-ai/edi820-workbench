@@ -1,5 +1,5 @@
 /**
- * T5.1–T5.2 — the CLI surface and its exit codes.
+ * T5.1-T5.2: the CLI surface and its exit codes.
  *
  * The exit code is the API a CI job consumes, so it is asserted as a number, not
  * as a string in the output. `verify` is also asserted to be read-only: bytes and
@@ -42,7 +42,7 @@ const BANK = 'samples/data/823-bank.txt';
 const COB823 = 'samples/copybooks/823.cpy';
 const WINDOW = '2026-11-18..2026-11-20';
 
-describe('T5.1 — exit codes 0 / 2 / 3', () => {
+describe('T5.1 - exit codes 0 / 2 / 3', () => {
   it('reconcile exits 0 for a matching pair', async () => {
     const out = tempDir('pass');
     const result = await run('reconcile', '--copybook', COB820, '--file', GOOD, '--bank', BANK, '--bank-copybook', COB823, '--window', WINDOW, '--out', out);
@@ -100,7 +100,7 @@ describe('T5.1 — exit codes 0 / 2 / 3', () => {
   });
 });
 
-describe('T5.2 — verify re-derives, compares, and does not mutate', () => {
+describe('T5.2 - verify re-derives, compares, and does not mutate', () => {
   it('prints both fingerprints, agrees, and leaves the report untouched', async () => {
     const out = tempDir('verify');
     await run('reconcile', '--copybook', COB820, '--file', BAD, '--bank', BANK, '--bank-copybook', COB823, '--window', WINDOW, '--out', out);
@@ -158,7 +158,7 @@ describe('T5.2 — verify re-derives, compares, and does not mutate', () => {
   });
 });
 
-describe('T5.1 — explain reads a report and writes explanations beside it', () => {
+describe('T5.1 - explain reads a report and writes explanations beside it', () => {
   it('explains every finding with the grounded adapter and records zero live calls', async () => {
     const out = tempDir('explain');
     await run('reconcile', '--copybook', COB820, '--file', BAD, '--bank', BANK, '--bank-copybook', COB823, '--window', WINDOW, '--out', out);
@@ -189,7 +189,7 @@ describe('T5.1 — explain reads a report and writes explanations beside it', ()
   });
 });
 
-describe('T5.1 — the demo command walks every fixture pair', () => {
+describe('T5.1 - the demo command walks every fixture pair', () => {
   it('prints every scenario, BAI2 and REDEFINES included, and exits 2 because some fail by design', async () => {
     const result = await run('demo');
     expect(result.code).toBe(2);
@@ -207,7 +207,7 @@ describe('T5.1 — the demo command walks every fixture pair', () => {
   });
 });
 
-describe('T5.1 — BAI2 is reachable from the command line without a copybook', () => {
+describe('T5.1 - BAI2 is reachable from the command line without a copybook', () => {
   it('reconciles an 820 file against a BAI2 statement', async () => {
     const out = tempDir('bai2');
     const pass = await run('reconcile', '--copybook', COB820, '--file', GOOD, '--bank', 'samples/data/bai2-good.txt', '--bank-format', 'bai2', '--window', WINDOW, '--out', out);

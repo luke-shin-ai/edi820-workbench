@@ -7,11 +7,11 @@ import { encodeRecord, parseFile, type ParsedValue } from '../../src/parser/inde
 import { reconcile } from '../../src/reconcile/index.js';
 
 /**
- * L2 — properties of the reconciliation arithmetic.
+ * L2: properties of the reconciliation arithmetic.
  *
  * The point of these tests is that the verdict is arithmetic, not opinion:
  * for any set of amounts and any declared control total, the reported delta is
- * exactly `declared − Σamounts`, and PASS happens only when it is zero.
+ * exactly `declared - Σamounts`, and PASS happens only when it is zero.
  */
 
 const root = join(import.meta.dirname, '..', '..');
@@ -53,8 +53,8 @@ function buildFile(amounts: bigint[], declaredTotal: bigint, declaredCount: numb
 
 const amountsArb = fc.array(fc.bigInt({ min: -999_999_999n, max: 999_999_999n }), { minLength: 1, maxLength: 5 });
 
-describe('T3.1 — the control-total delta is exact for any amounts', () => {
-  it('delta = declared − Σamounts, computed in bigint, and PASS only when zero', () => {
+describe('T3.1 - the control-total delta is exact for any amounts', () => {
+  it('delta = declared - Σamounts, computed in bigint, and PASS only when zero', () => {
     fc.assert(
       fc.property(amountsArb, fc.bigInt({ min: -999_999_999n, max: 999_999_999n }), (amounts, offset) => {
         const sum = amounts.reduce((acc, a) => acc + a, 0n);
@@ -106,7 +106,7 @@ describe('T3.1 — the control-total delta is exact for any amounts', () => {
   });
 });
 
-describe('T3.4 — the verdict fingerprint is a function of the inputs only', () => {
+describe('T3.4 - the verdict fingerprint is a function of the inputs only', () => {
   it('same bytes ⇒ same fingerprint; one cent different ⇒ different fingerprint', () => {
     fc.assert(
       fc.property(amountsArb, (amounts) => {

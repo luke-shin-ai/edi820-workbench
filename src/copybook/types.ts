@@ -1,5 +1,5 @@
 /**
- * Copybook model — the byte contract that 「820」 reads.
+ * Copybook model - the byte contract that 「820」 reads.
  *
  * A copybook is the only thing that says where a field starts, how wide it is,
  * how the sign is encoded and how many implied decimals it carries. Everything
@@ -24,7 +24,7 @@ export type Framing = 'line' | 'fixed';
 export type Usage = 'display' | 'comp-3';
 
 export interface CopybookField {
-  /** Source name, verbatim (never normalised — see `.kiro/steering/structure.md`). */
+  /** Source name, verbatim (never normalised - see `.kiro/steering/structure.md`). */
   name: string;
   level: number;
   /** 1-based, inclusive byte offset inside the record. */
@@ -126,7 +126,7 @@ export interface Copybook {
    * (each record carries its own in `TypedRecord.spans`).
    */
   format?: 'copybook' | 'bai2';
-  /** Bytes per record — derived from the fields, never guessed from a comment. */
+  /** Bytes per record - derived from the fields, never guessed from a comment. */
   recordLength: number;
   fields: CopybookField[];
   semantics: CopybookSemantics;

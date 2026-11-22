@@ -1,10 +1,10 @@
 /**
- * Serialisation — the right-hand side of the round-trip property.
+ * Serialisation - the right-hand side of the round-trip property.
  *
  * `serializeParseResult` re-emits exactly the bytes that were parsed: it joins
  * the stored record slices with the file's own terminator. `encodeRecord`
  * rebuilds a record from typed values, which is what proves that *decoding did
- * not lose information* — a stronger claim than "I kept the original string".
+ * not lose information* - a stronger claim than "I kept the original string".
  */
 import type { Copybook, CopybookView } from '../copybook/types.js';
 import { fromLatin1, type Bytes } from '../core/bytes.js';

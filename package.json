@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "「820」 — resurrection workbench for fixed-width EDI 820/823 payment files and COBOL copybooks (Kiroween 2026, Resurrection).",
+  "description": "「820」 - resurrection workbench for fixed-width EDI 820/823 payment files and COBOL copybooks (Kiroween 2026, Resurrection).",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=20"

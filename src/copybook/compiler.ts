@@ -1,5 +1,5 @@
 /**
- * Copybook compiler — text copybook → `Copybook` model with byte offsets.
+ * Copybook compiler - text copybook -> `Copybook` model with byte offsets.
  *
  * Supported dialect (documented in `docs/copybook-dialect.md`):
  *   01  RECORD-NAME.
@@ -233,7 +233,7 @@ function directiveValues(body: string, line: number, allowBare = false): Record<
   return out;
 }
 
-/** Byte width of a numeric picture — the only place byte widths are decided. */
+/** Byte width of a numeric picture - the only place byte widths are decided. */
 export function numericWidth(picture: Picture, usage: Usage, sign: SignConvention | undefined): number {
   const digitCount = picture.digits + picture.decimals;
   if (usage === 'comp-3') return Math.ceil((digitCount + 1) / 2);
@@ -603,7 +603,7 @@ export function compileCopybook(text: string): Copybook {
     throw new CopybookError('COPYBOOK_UNPARSABLE', 'copybook declares no fields');
   }
 
-  // Overlap (R1.5) — explicit POSITION makes this reachable, so it is checked, not
+  // Overlap (R1.5) - explicit POSITION makes this reachable, so it is checked, not
   // assumed. Two layouts of one region share the same bytes on purpose; any other
   // overlap is a contract that contradicts itself.
   const leaves = fields.filter((field) => !field.group);
@@ -624,7 +624,7 @@ export function compileCopybook(text: string): Copybook {
     }
   }
 
-  // Gaps: bytes no field covers. Views make the union of intervals necessary —
+  // Gaps: bytes no field covers. Views make the union of intervals necessary -
   // a byte covered by one layout is covered.
   const intervals = fields
     .map((field) => [field.start, field.start + field.length - 1] as [number, number])

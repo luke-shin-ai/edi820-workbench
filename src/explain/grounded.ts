@@ -1,5 +1,5 @@
 /**
- * The grounded adapter — the default explanation layer, in its own module.
+ * The grounded adapter - the default explanation layer, in its own module.
  *
  * "Grounded" is a claim, not a label: the explanation is written from the finding's own
  * declared, computed and delta values with deterministic templates, so every number it
@@ -24,7 +24,7 @@ function render(value: Finding['declared']): string {
 /**
  * Deterministic adapter: the finding is the only input, so the guard passes by
  * construction. It is also the honest baseline the write-up compares a model
- * against — if a model says something the templates cannot, it is either a
+ * against - if a model says something the templates cannot, it is either a
  * richer paraphrase or a number the guard will block.
  */
 export function createGroundedAdapter(): ExplainerAdapter {

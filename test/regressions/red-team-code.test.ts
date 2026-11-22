@@ -1,5 +1,5 @@
 /**
- * Regression — the red-team pass of 2026-11-22, code side.
+ * Regression: the red-team pass of 2026-11-22, code side.
  *
  * Three defects were reproduced in `gcp-hermes-grand-prize-review-v2.md` §4 and are pinned here:
  *

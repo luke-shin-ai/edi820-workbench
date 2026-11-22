@@ -1,7 +1,7 @@
 /**
  * Shared operations behind every surface (CLI, MCP, web).
  *
- * Each surface must return the same JSON for the same inputs — that is the claim
+ * Each surface must return the same JSON for the same inputs - that is the claim
  * in `design.md` §8, and the only way to keep it true is to have one
  * implementation. Nothing here prints, renders or decides an exit code.
  */
@@ -145,7 +145,7 @@ function exists(path: string): boolean {
  *
  * A recorded relative path is tried against the repository root first (the
  * report's own contract), then against the current directory, then against each
- * parent of the report itself — so a report that was copied into another checkout
+ * parent of the report itself - so a report that was copied into another checkout
  * still verifies by its own inputs rather than by where the shell happens to be.
  */
 export function resolveRecordedInputs(inputs: CaseInputs, reportPath: string): CaseInputs {
@@ -170,7 +170,7 @@ export function resolveRecordedInputs(inputs: CaseInputs, reportPath: string): C
   return { ...inputs, payment: one(inputs.payment), ...(inputs.bank ? { bank: one(inputs.bank) } : {}) };
 }
 
-/** Convert a value to JSON-safe data: bigint → decimal string, buffers dropped. */
+/** Convert a value to JSON-safe data: bigint -> decimal string, buffers dropped. */
 export function jsonSafe(value: unknown): unknown {
   if (typeof value === 'bigint') return value.toString();
   if (value instanceof Uint8Array) return `sha256-bytes:${value.length}`;
@@ -415,7 +415,7 @@ function statSyncSafe(path: string): ReturnType<typeof statSync> | null {
  *
  * `report.json` stores money as decimal strings (JSON has no bigint). The
  * explanation guard must compare real values, so amounts are converted back to
- * `bigint` before L3 sees them — otherwise a "number" would be a string and the
+ * `bigint` before L3 sees them - otherwise a "number" would be a string and the
  * guard would compare text.
  */
 export function reviveFindings(jsonFindings: JsonFinding[]): Finding[] {

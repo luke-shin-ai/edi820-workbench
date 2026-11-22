@@ -1,4 +1,4 @@
-# Copybook dialect — what 「820」 reads, and what it refuses
+# Copybook dialect: what 「820」 reads, and what it refuses
 
 The compiler (`src/copybook/compiler.ts`) accepts a **deliberate subset** of COBOL data
 declarations. The subset is small on purpose: every clause it does not understand is a
@@ -23,7 +23,7 @@ becomes a 100-byte one.
   offsets accumulate. Explicit positions are what makes `COPYBOOK_OVERLAP` reachable, so it
   is checked rather than assumed.
 
-## 2. Picture → type, sign, width
+## 2. Picture to type, sign, width
 
 | picture | type | bytes |
 |---|---|---|
@@ -33,7 +33,7 @@ becomes a 100-byte one.
 | `S9(n)` / `S9(n)V9(m)` + `SIGN LEADING SEPARATE` | `signed-int` | n+m+1 |
 | `S9(n)` / `S9(n)V9(m)` + `SIGN TRAILING SEPARATE` | `signed-int` | n+m+1 |
 | `S9(n)` / `S9(n)V9(m)` + `SIGN TRAILING OVERPUNCH` | `zoned-decimal` | n+m |
-| `S9(n)` / `S9(n)V9(m)` + `COMP-3` | `packed-decimal` | ⌈(n+m+1)/2⌉ |
+| `S9(n)` / `S9(n)V9(m)` + `COMP-3` | `packed-decimal` | ceil((n+m+1)/2) |
 | `FILLER` (any picture) | `filler` (sliced, not exposed) | per picture |
 
 Rules that are enforced, not documented-and-hoped:
@@ -46,7 +46,7 @@ Rules that are enforced, not documented-and-hoped:
 - `COMP-3` requires a numeric picture. The sign nibble is `C`/`F` (positive) or `D` (negative);
   any other nibble is `FIELD_INVALID_NUMERIC`, not a guess.
 
-## 3. Directives — the part that is not COBOL
+## 3. Directives: the part that is not COBOL
 
 Comment lines beginning `*` are comments, except `* @name key=value ...`, which the compiler
 reads as metadata. This is how a copybook states *meaning* as well as layout:
@@ -59,16 +59,16 @@ reads as metadata. This is how a copybook states *meaning* as well as layout:
 
 - `@semantics` names the fields the reconciler must treat as the amount, its currency, the
   value date, the reference and the transaction type. Without it the file parses but cannot
-  be reconciled — and the compiler says so in `notes` instead of inventing a mapping.
+  be reconciled - and the compiler says so in `notes` instead of inventing a mapping.
 - `@control` names the trailer record and the fields that hold its count and total.
 - `@framing line|fixed`: `line` means newline-delimited records; `fixed` means an unblocked
   byte stream sliced every `recordLength` bytes (what a mainframe file usually is, and what
-  COMP-3 data forces — a binary payload can contain `0x0A`).
+  COMP-3 data forces - a binary payload can contain `0x0A`).
 
 Referenced field names are validated: a directive pointing at a field that does not exist, or
 at a field of the wrong kind (an amount that is alphabetic), is `COPYBOOK_SEMANTICS`.
 
-## 4. `REDEFINES` — one byte range, several layouts
+## 4. `REDEFINES`: one byte range, several layouts
 
 A bank's copybook does not give the trailer its own field range. It gives the record one
 100-byte area and declares the trailer as a second description of that same area:
@@ -84,7 +84,7 @@ A bank's copybook does not give the trailer its own field range. It gives the re
                ...
 ```
 
-「820」 reads that as a **region**: one byte range (`PAYMENT-DETAIL`, bytes 2–101 in
+「820」 reads that as a **region**: one byte range (`PAYMENT-DETAIL`, bytes 2-101 in
 `samples/copybooks/820-redefines.cpy`) with two **layouts**. What COBOL does not say is which
 record type uses which layout, and that is exactly the place where a reader can produce a
 number nobody can audit. So the copybook must say it, with one directive per layout:
@@ -100,7 +100,7 @@ Rules the compiler enforces, not documents-and-hopes:
   redefines (`COPYBOOK_REDEFINES`).
 - Every layout needs an activation rule. A `REDEFINES` with no `@view` is refused
   (`COPYBOOK_SEMANTICS`) rather than read as whichever layout happens to fit.
-- `typeField` must be alphabetic and must sit **outside** the region — a discriminator that
+- `typeField` must be alphabetic and must sit **outside** the region - a discriminator that
   changes with the layout cannot choose it.
 - One discriminator value selects one layout; two layouts claiming the same value are refused.
 - Overlap is only allowed between layouts of the same region. Two fields of one layout that
@@ -140,7 +140,7 @@ could be implemented without inventing a rule, so:
 - the amount field itself carries the overpunch (`PIC S9(11)V99 SIGN TRAILING OVERPUNCH`),
   which is the convention the steering file's table describes, and
 - the layout was completed with `REC-COUNT` and a `T` trailer so control totals are declared
-  where they belong — in the file.
+  where they belong - in the file.
 
 This is the honest version of "the copybook is the spec": when the spec contradicts itself,
 the tool says so and a human fixes the spec.
@@ -148,7 +148,7 @@ the tool says so and a human fixes the spec.
 ## 7. What is *not* a copybook at all
 
 BAI2 is comma-delimited and has no copybook. It is read by `src/bai2/reader.ts`, whose
-spec object declares `format: 'bai2'`, `recordLength: 0` and no fields — the field
+spec object declares `format: 'bai2'`, `recordLength: 0` and no fields - the field
 offsets live on each record (`TypedRecord.spans`) because they depend on the record's
 own content. Faking a fixed layout for it would have made `verify` reproduce a layout the
 bank never sent. [`docs/bai2.md`](bai2.md) has the record tables and the control-total

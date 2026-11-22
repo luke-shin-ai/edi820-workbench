@@ -1,5 +1,5 @@
 /**
- * T5.4 — MCP server over stdio.
+ * T5.4 - MCP server over stdio.
  *
  * Four tools, and each one returns exactly the JSON the CLI writes, because both
  * call `src/core/ops.ts`. Nothing here re-implements a rule: the point of

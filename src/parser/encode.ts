@@ -1,5 +1,5 @@
 /**
- * Field encoding — the inverse of `decode.ts`, used by the fixture generator and
+ * Field encoding - the inverse of `decode.ts`, used by the fixture generator and
  * by the property tests that prove decode∘encode is the identity.
  *
  * Keeping the encoder in the product (not only in tests) matters: a parser whose

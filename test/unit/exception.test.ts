@@ -29,7 +29,7 @@ const mockContext = () => ({
 });
 
 describe('Exception register (T7.1, R8.1-R8.8)', () => {
-  describe('R8.1 — waiver structure', () => {
+  describe('R8.1 - waiver structure', () => {
     it('creates an empty ledger', () => {
       const ledger = emptyLedger();
       expect(ledger.version).toBe(1);
@@ -78,7 +78,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     });
   });
 
-  describe('R8.2 — validation of waiver inputs', () => {
+  describe('R8.2 - validation of waiver inputs', () => {
     const finding = mockFinding('TEST', 1);
     const context = mockContext();
 
@@ -129,7 +129,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     });
   });
 
-  describe('R8.3 — ledger verification', () => {
+  describe('R8.3 - ledger verification', () => {
     it('verifies an empty ledger as OK', () => {
       const ledger = emptyLedger();
       const result = verifyLedger(ledger);
@@ -189,7 +189,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     });
   });
 
-  describe('R8.4 — status classification', () => {
+  describe('R8.4 - status classification', () => {
     const finding = mockFinding('CONTROL_TOTAL_MISMATCH', 5, 'AMOUNT');
 
     it('classifies a finding with no waiver as OPEN', () => {
@@ -246,7 +246,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     });
   });
 
-  describe('R8.5 — release', () => {
+  describe('R8.5 - release', () => {
     const finding = mockFinding('TEST', 1);
 
     it('appends a release entry to a ledger', () => {
@@ -421,7 +421,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
  * is the part a CI job reads, so it is asserted at the process boundary, not only
  * through the module.
  */
-describe('R8.6 — the CLI exit code follows the adjudication state', () => {
+describe('R8.6 - the CLI exit code follows the adjudication state', () => {
   const cliEntry = join(import.meta.dirname, '..', '..', 'src', 'cli', 'main.ts');
   const tsxBin = join(import.meta.dirname, '..', '..', 'node_modules', 'tsx', 'dist', 'cli.mjs');
   const root = join(import.meta.dirname, '..', '..');

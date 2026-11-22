@@ -1,5 +1,5 @@
 /**
- * T4 — the explanation layer (R5.1–R5.3).
+ * T4: the explanation layer (R5.1-R5.3).
  *
  * The interesting assertions are the negative ones: a model that invents a
  * number must be silenced, and a finding with no values must never reach a
@@ -40,7 +40,7 @@ function badFindings(): Finding[] {
 
 const totalMismatch = (findings: Finding[]): Finding => findings.find((f) => f.code === 'CONTROL_TOTAL_MISMATCH')!;
 
-describe('R5.1 — adapters receive structured findings only', () => {
+describe('R5.1 - adapters receive structured findings only', () => {
   it('the prompt carries the finding values and the domain rule, not file contents', async () => {
     const finding = totalMismatch(badFindings());
     let seen = '';
@@ -75,7 +75,7 @@ describe('R5.1 — adapters receive structured findings only', () => {
   });
 });
 
-describe('R5.2 — an explanation may not cite a number the finding does not contain', () => {
+describe('R5.2 - an explanation may not cite a number the finding does not contain', () => {
   it('rejects a plausible but invented amount and replays the draft in the rejection record', async () => {
     const finding = totalMismatch(badFindings());
     // 999,999.99 exists nowhere in this finding.
@@ -139,7 +139,7 @@ describe('R5.2 — an explanation may not cite a number the finding does not con
   });
 });
 
-describe('R5.3 — INSUFFICIENT_EVIDENCE', () => {
+describe('R5.3 - INSUFFICIENT_EVIDENCE', () => {
   const emptyFinding: Finding = {
     code: 'FIELD_DECLARED_LENGTH_EXCEEDED',
     recordIndex: 4,
@@ -204,7 +204,7 @@ describe('the default adapter explains every fixture finding without inventing n
   });
 });
 
-describe('credit discipline — live adapters are opt-in and budgeted', () => {
+describe('credit discipline - live adapters are opt-in and budgeted', () => {
   const liveAdapter = (draft: ExplanationDraft): ExplainerAdapter & { calls: number } => {
     let calls = 0;
     return {

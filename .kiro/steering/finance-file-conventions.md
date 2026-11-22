@@ -8,7 +8,7 @@ fileMatchPattern: ["src/copybook/**", "src/parser/**", "src/reconcile/**", "samp
 ## Amounts
 - Amounts arrive **minor-unit-scaled** by an implied decimal or packed decimal. Carry `bigint` + currency.
 - Sign conventions differ per copybook: `SIGN TRAILING OVERPUNCH` encodes `{`=+0, `}`=-0, `A`..`I`=+1..9, `J`..`R`=-1..-9. Decode by table only.
-- A credit (payment out) and a debit (payment in) may both appear in 820; never infer direction from sign alone — the copybook's `TRANSACTION_TYPE` field decides.
+- A credit (payment out) and a debit (payment in) may both appear in 820; never infer direction from sign alone - the copybook's `TRANSACTION_TYPE` field decides.
 
 ## Control totals in 820/823/BAI2
 - `CTR` / trailer records declare counts and sums. **Compare count and sum separately**; a matching sum with a wrong count is still a failure.

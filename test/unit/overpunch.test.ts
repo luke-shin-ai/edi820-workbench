@@ -28,7 +28,7 @@ function field(overrides: Partial<CopybookField>): CopybookField {
   };
 }
 
-describe('T2.2 — overpunch decode table ({{{ +0, }}} -0, A–I +1..+9, J–R −1..−9)', () => {
+describe('T2.2 - overpunch decode table ({{{ +0, }}} -0, A-I +1..+9, J-R -1..-9)', () => {
   const cases: Array<[string, string, bigint]> = [
     ['{', '+0', 0n],
     ['}', '-0', 0n],
@@ -113,7 +113,7 @@ describe('packed decimal (COMP-3)', () => {
   });
 
   it('refuses a non-zero padding nibble rather than shifting the value', () => {
-    // `PIC S9(2)` needs 3 nibbles → 2 bytes with one leading padding nibble; a 1 there is corruption.
+    // `PIC S9(2)` needs 3 nibbles -> 2 bytes with one leading padding nibble; a 1 there is corruption.
     const short = field({ digits: 2, decimals: 0, usage: 'comp-3', type: 'packed-decimal', length: 2 });
     expect(() => decodePackedDecimal(String.fromCharCode(0x12, 0x3c), short)).toThrow(/padding/);
     expect(decodePackedDecimal(String.fromCharCode(0x00, 0x3c), short)).toBe(3n);

@@ -506,7 +506,7 @@ def plate_kiro():
     c = Canvas()
     c.card((54, 108, W - 54, 760), fill=(12, 17, 25), stroke=(46, 58, 74))
     c.text((96, 132), "two sessions, one process, from this repository", font(SANS_B, 30), (233, 239, 246))
-    c.text((96, 176), "docs/kiro-session-evidence.md  ·  out/hook-log.txt  ·  EVIDENCE.md",
+    c.text((96, 176), "docs/kiro-session-evidence.md  |  out/hook-log.txt  |  EVIDENCE.md",
            font(MONO_R, 18), DIM)
     rows = [
         ("session", "kiro-cli 3.5.0, V3 engine, --agent 820-implementer, claude-haiku-4.5"),

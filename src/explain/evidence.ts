@@ -1,5 +1,5 @@
 /**
- * Numeric grounding guard — the deterministic half of L3.
+ * Numeric grounding guard - the deterministic half of L3.
  *
  * An explanation is only accepted when every number in it can be traced back to
  * a value L2 put in the finding. The check is a set membership test, not a
@@ -7,12 +7,12 @@
  *
  * Accepted vocabulary per finding, in two kinds:
  *
- *  1. **Values** — `declared`, `computed`, `delta` rendered as grouped and
+ *  1. **Values** - `declared`, `computed`, `delta` rendered as grouped and
  *     ungrouped amounts, minor units, and whole units (`1,284,550.00`,
  *     `1284550.00`, `128455000`, `1284550`), the `recordIndex`, and the numbers
  *     L2 wrote into `detail`. A value is compared by magnitude, so `1,284,550.00`
  *     and `1284550.00` are the same number.
- *  2. **Identifier tokens** — the digit runs of `reference` (`NWP-2611-0011` →
+ *  2. **Identifier tokens** - the digit runs of `reference` (`NWP-2611-0011` ->
  *     `2611`, `0011`), kept **exactly as written**, leading zeros included.
  *     A digit run that starts with `0` inside `detail` is treated the same way,
  *     because a leading zero marks an identifier, not a quantity.
@@ -198,7 +198,7 @@ export interface GuardResult {
  *
  * `ok: false` means the text introduced a number L2 never produced; the caller
  * must replace the whole explanation with `INSUFFICIENT_EVIDENCE` (it is never
- * "edited" — a partly invented explanation is still invented).
+ * "edited" - a partly invented explanation is still invented).
  */
 export function validateExplanation(text: string, finding: Finding): GuardResult {
   const allowed = new Set(evidenceVocabulary(finding));

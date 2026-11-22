@@ -20,7 +20,7 @@ function expectCopybookError(fn: () => unknown): CopybookError {
   throw new Error('expected a CopybookError, none was thrown');
 }
 
-describe('R1.1 — field offsets are derived cumulatively, 1-based', () => {
+describe('R1.1 - field offsets are derived cumulatively, 1-based', () => {
   it('compiles 820.cpy into 10 fields with exact byte offsets', () => {
     const cb = compileCopybook(cpy820);
     expect(cb.fields.map((f) => [f.name, f.start, f.length])).toEqual([
@@ -45,7 +45,7 @@ describe('R1.1 — field offsets are derived cumulatively, 1-based', () => {
   });
 });
 
-describe('R1.2 — implied decimals become scale, not a float', () => {
+describe('R1.2 - implied decimals become scale, not a float', () => {
   it('AMOUNT PIC S9(11)V99 is 11 integer digits, scale 2, 13 bytes', () => {
     const amount = compileCopybook(cpy820).fields.find((f) => f.name === 'AMOUNT')!;
     expect(amount.digits).toBe(11);
@@ -61,7 +61,7 @@ describe('R1.2 — implied decimals become scale, not a float', () => {
   });
 });
 
-describe('R1.3 — the sign convention is recorded on the field', () => {
+describe('R1.3 - the sign convention is recorded on the field', () => {
   it('820.cpy declares trailing overpunch', () => {
     const amount = compileCopybook(cpy820).fields.find((f) => f.name === 'AMOUNT')!;
     expect(amount.signed).toBe(true);
@@ -93,7 +93,7 @@ describe('R1.3 — the sign convention is recorded on the field', () => {
   });
 });
 
-describe('R1.4 — a line that cannot be understood fails, naming the line', () => {
+describe('R1.4 - a line that cannot be understood fails, naming the line', () => {
   it('reports COPYBOOK_UNPARSABLE with the line number for a malformed line', () => {
     const error = expectCopybookError(() =>
       compileCopybook(['       01  R.', '           05  A   PIC X(3).', '           05  B   PIC Q(4).'].join('\n')),
@@ -148,7 +148,7 @@ describe('R1.4 — a line that cannot be understood fails, naming the line', () 
   });
 });
 
-describe('REDEFINES — one byte range, several layouts, no guessing', () => {
+describe('REDEFINES - one byte range, several layouts, no guessing', () => {
   const cpyRedefines = read('samples/copybooks/820-redefines.cpy');
 
   it('compiles the bank dialect into one 101-byte record with two 100-byte layouts', () => {
@@ -248,7 +248,7 @@ describe('REDEFINES — one byte range, several layouts, no guessing', () => {
   });
 });
 
-describe('R1.5 — overlapping fields are reported with both names', () => {
+describe('R1.5 - overlapping fields are reported with both names', () => {
   it('POSITION can make fields overlap; the compiler names both', () => {
     const error = expectCopybookError(() =>
       compileCopybook(
@@ -271,7 +271,7 @@ describe('R1.5 — overlapping fields are reported with both names', () => {
   });
 });
 
-describe('copybook metadata — semantics and control drive the layers above', () => {
+describe('copybook metadata - semantics and control drive the layers above', () => {
   it('reads @semantics and @control', () => {
     const cb = compileCopybook(cpy820);
     expect(cb.semantics).toMatchObject({

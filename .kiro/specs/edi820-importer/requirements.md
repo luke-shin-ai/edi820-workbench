@@ -1,4 +1,4 @@
-# Requirements — edi820-importer
+# Requirements: edi820-importer
 
 > Written in EARS form. These requirements are the contract for `src/parser`, `src/reconcile`.
 > Source material: the sample COBOL copybooks in `samples/copybooks/` and the public X12 820/823 + BAI2 record layouts.
@@ -7,7 +7,7 @@
 **R1.1** WHEN a copybook file is loaded, THE SYSTEM SHALL parse each `NN name PIC <pic>` / `value` line into a field with `(name, start, length, type, pic)` where `start` is derived cumulatively from declared lengths, 1-based.
 **R1.2** WHEN a copybook declares `PIC 9(n)V9(m)`, THE SYSTEM SHALL expose the field as `implied-decimal` with scale `m` and integer capacity `n`.
 **R1.3** WHEN a copybook declares `SIGN TRAILING OVERPUNCH`, THE SYSTEM SHALL record the sign convention on the field so the parser decodes it by table.
-**R1.4** WHEN a copybook line cannot be understood, THE SYSTEM SHALL fail with `COPYBOOK_UNPARSABLE` naming the line number — it SHALL NOT skip the line silently.
+**R1.4** WHEN a copybook line cannot be understood, THE SYSTEM SHALL fail with `COPYBOOK_UNPARSABLE` naming the line number - it SHALL NOT skip the line silently.
 **R1.5** IF two fields overlap in byte range, THEN THE SYSTEM SHALL report `COPYBOOK_OVERLAP` with both field names.
 
 ## 2. Parsing fixed-width data
@@ -43,7 +43,7 @@
 ## 7. Out of scope (recorded so it is not silently assumed)
 - Full X12 transaction-set coverage; bank-specific dialects without a copybook; any network transfer of file contents; automatic payment authorization.
 
-## 8. L4 — exception register (the human decision, recorded)
+## 8. L4: exception register (the human decision, recorded)
 
 > `docs/guarantees.md` says an exception is the human's call and the tool only refuses to let
 > one exist without a reason, an expiry and a compensating control. These requirements are

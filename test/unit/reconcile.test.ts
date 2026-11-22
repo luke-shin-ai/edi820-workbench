@@ -24,7 +24,7 @@ const WINDOW = { settlementWindow: { start: '2026-11-18', end: '2026-11-20' } };
 const parse820 = (source = good820): ParseResult => parseFile({ copybook: cob820, source });
 const parse823 = (source = bank823): ParseResult => parseFile({ copybook: cob823, source });
 
-describe('R4.5 — a matching pair passes with a fingerprint', () => {
+describe('R4.5 - a matching pair passes with a fingerprint', () => {
   it('PASS with zero findings and a stable fingerprint', () => {
     const first = reconcile({ payment: parse820(), bank: parse823(), options: WINDOW });
     const second = reconcile({ payment: parse820(), bank: parse823(), options: WINDOW });
@@ -46,8 +46,8 @@ describe('R4.5 — a matching pair passes with a fingerprint', () => {
   });
 });
 
-describe('R4.1 — control total compare, per currency, with a signed bigint delta', () => {
-  it('reports the −100.00 delta planted in 820-bad.txt', () => {
+describe('R4.1 - control total compare, per currency, with a signed bigint delta', () => {
+  it('reports the -100.00 delta planted in 820-bad.txt', () => {
     const result = reconcile({ payment: parse820(bad820), options: WINDOW });
     const finding = result.findings.find((f) => f.code === 'CONTROL_TOTAL_MISMATCH')!;
     expect(finding).toBeDefined();
@@ -85,7 +85,7 @@ describe('R4.1 — control total compare, per currency, with a signed bigint del
   });
 });
 
-describe('R4.2 — control count compare is separate from the total', () => {
+describe('R4.2 - control count compare is separate from the total', () => {
   it('reports the bank trailer declaring 10 while only 9 detail records arrived', () => {
     const result = reconcile({ payment: parse820(), bank: parse823(bankBad823), options: WINDOW });
     const count = result.findings.find((f) => f.code === 'CONTROL_COUNT_MISMATCH')!;
@@ -108,7 +108,7 @@ describe('R4.2 — control count compare is separate from the total', () => {
   });
 });
 
-describe('R4.3 — reference matching; unmatched is reported in both directions', () => {
+describe('R4.3 - reference matching; unmatched is reported in both directions', () => {
   it('reports the 820-only and bank-only references from the planted reference break', () => {
     const result = reconcile({ payment: parse820(bad820), bank: parse823(), options: WINDOW });
     const refs = result.findings.filter((f) => f.code === 'REF_UNMATCHED');
@@ -157,7 +157,7 @@ describe('R4.3 — reference matching; unmatched is reported in both directions'
   });
 });
 
-describe('R4.4 — settlement window with configured tolerance', () => {
+describe('R4.4 - settlement window with configured tolerance', () => {
   it('reports the record dated 2026-11-14 as outside 2026-11-18..2026-11-20', () => {
     const result = reconcile({ payment: parse820(bad820), options: WINDOW });
     const date = result.findings.find((f) => f.code === 'DATE_OUT_OF_WINDOW')!;
@@ -216,7 +216,7 @@ describe('finding order and fingerprint normalisation', () => {
   });
 });
 
-describe('formatAmount — exact bigint rendering', () => {
+describe('formatAmount - exact bigint rendering', () => {
   it.each([
     [{ minorUnits: 128_455_000n, currency: 'USD', scale: 2 }, '1,284,550.00 USD'],
     [{ minorUnits: -10_000n, currency: 'USD', scale: 2 }, '-100.00 USD'],

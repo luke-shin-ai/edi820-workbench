@@ -3,7 +3,7 @@
  *
  * Two rules from `design.md` §5 shape this file:
  *  1. the model sees the finding's serialized values and the steering excerpt
- *     for that finding code — nothing else (no file contents, no other findings);
+ *     for that finding code - nothing else (no file contents, no other findings);
  *  2. the model returns prose only. The citation is attached by the guard, so a
  *     mis-citation is impossible by construction rather than by instruction.
  */

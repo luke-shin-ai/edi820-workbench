@@ -1,8 +1,8 @@
 /**
- * Field decoding — the sign and decimal rules of the copybook, by table only.
+ * Field decoding - the sign and decimal rules of the copybook, by table only.
  *
  * `SIGN TRAILING OVERPUNCH` is a lookup, never a guess:
- *   `{` → +0, `}` → -0, `A`..`I` → +1..+9, `J`..`R` → -1..-9.
+ *   `{` -> +0, `}` -> -0, `A`..`I` -> +1..+9, `J`..`R` -> -1..-9.
  * Packed decimal (COMP-3) reads a sign nibble (`C`/`F` positive, `D` negative).
  * Nothing here touches floating point.
  */

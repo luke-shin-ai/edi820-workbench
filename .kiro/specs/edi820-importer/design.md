@@ -1,23 +1,23 @@
-# Design — edi820-importer
+# Design: edi820-importer
 
 ## 1. Layer split (non-negotiable)
 
 ```
 file + copybook
-      │
-      ▼
+      |
+      v
 [L1 parser]        pure, deterministic, no I/O beyond reading the two files
-      │  TypedRecord[] + ParseIssue[]
-      ▼
-[L2 reconciler]    pure functions over TypedRecord[]  → Finding[]
-      │
-      ▼
-[L3 explainer]     agent adapter: Finding → {cause, suggestedFix, citation}
-      │            (rejects unsupported numbers; INSUFFICIENT_EVIDENCE fallback)
-      ▼
+      |  TypedRecord[] + ParseIssue[]
+      v
+[L2 reconciler]    pure functions over TypedRecord[]  -> Finding[]
+      |
+      v
+[L3 explainer]     agent adapter: Finding -> {cause, suggestedFix, citation}
+      |            (rejects unsupported numbers; INSUFFICIENT_EVIDENCE fallback)
+      v
 [L4 human]         exception register: reason + expiry + compensating control
-      │
-      ▼
+      |
+      v
 report.json + report.md + fingerprint
 ```
 
@@ -60,17 +60,17 @@ interface Finding {
 ```
 
 ## 3. Parser algorithm
-1. Compile copybook → fields with cumulative offsets; verify no overlap and that sum(length) = recordLength.
+1. Compile copybook -> fields with cumulative offsets; verify no overlap and that sum(length) = recordLength.
 2. Slice each fixed-length record; do **not** trim, do **not** re-sync on mismatch (report and continue at boundary).
 3. Convert per field type; carry amounts as `bigint` minor units.
 4. Build `ParseResult { records, declaredControl?, computedControl, fingerprint }`.
 
-**Round-trip**: keep the raw record slice (`raw`) plus a `serialize(record, copybook)` that re-emits from `raw` when there were no field writes — this makes byte-identical round-trip a property, not a hope.
+**Round-trip**: keep the raw record slice (`raw`) plus a `serialize(record, copybook)` that re-emits from `raw` when there were no field writes - this makes byte-identical round-trip a property, not a hope.
 
 ## 4. Reconciliation algorithm
 - Group by `(currency)` for totals; compute sum of `bigint`, compare to declared; `delta = declared - computed`.
 - Count compare separately.
-- Reference index: map `trace → record` for 820, `ref → record` for 823/BAI2; report 820-only and bank-only as `REF_UNMATCHED` with direction in `detail`.
+- Reference index: map `trace -> record` for 820, `ref -> record` for 823/BAI2; report 820-only and bank-only as `REF_UNMATCHED` with direction in `detail`.
 - Verdict fingerprint: SHA-256 over `JSON.stringify(sortedNormalizedFindings)` + input file hashes.
 
 ## 5. Agent layer
@@ -88,7 +88,7 @@ interface Finding {
 Exit codes: `0` pass, `2` findings present, `3` spec/IO error. CI uses these codes directly.
 
 ## 7. Web screen
-One page, three columns: **file drop**, **verdict card** (counters: records, findings, exceptions), **evidence panel** (finding → record → field slice highlighted with byte offsets). The bottom strip always shows "guaranteed / not guaranteed" (from `docs/guarantees.md`).
+One page, three columns: **file drop**, **verdict card** (counters: records, findings, exceptions), **evidence panel** (finding -> record -> field slice highlighted with byte offsets). The bottom strip always shows "guaranteed / not guaranteed" (from `docs/guarantees.md`).
 
 ## 8. MCP surface
 Tools: `parse_file(copybookPath, filePath)`, `reconcile(files[])`, `explain_findings(reportPath)`, `verify(outDir)`. Each returns the same JSON as the CLI. Rationale (for the write-up): the deterministic core becomes usable by any agent, so a finance team can drive it from their own assistant without re-implementing fixed-width parsing.
@@ -104,26 +104,26 @@ Tools: `parse_file(copybookPath, filePath)`, `reconcile(files[])`, `explain_find
   is not handled. Record-by-record streaming is future work, not a current property
   (the earlier draft of this section said the opposite; corrected 2026-11-22).
 
-## 10. Implementation deltas (agreed while building T1–T3)
+## 10. Implementation deltas (agreed while building T1-T3)
 
 The design above is the contract; building it forced five additions. Each is recorded here rather than left to be discovered in the code.
 
 1. **`values` holds `bigint`, not `number`.** §2 typed numeric values as `number`. `tech.md` forbids floats for money, and `number` is a float. Amounts are `bigint` minor units; counts and dates are `bigint` display values.
 2. **`Amount` carries `scale`.** `{ minorUnits, currency }` cannot render `1,284,550.00` without knowing the copybook's scale, and the UI needs to render. Nothing downstream infers scale from the currency code; it is carried from the picture.
-3. **The copybook states semantics, not only layout.** `* @semantics`, `* @control`, `* @framing` (documented in `docs/copybook-dialect.md`) let the reconciler learn field roles from the spec. Without them, field names would be hard-coded — the opposite of “the copybook is the key”.
+3. **The copybook states semantics, not only layout.** `* @semantics`, `* @control`, `* @framing` (documented in `docs/copybook-dialect.md`) let the reconciler learn field roles from the spec. Without them, field names would be hard-coded - the opposite of "the copybook is the key".
 4. **Two issue codes were added:** `UNSUPPORTED_STRUCTURE` (§9 already named it) and `CURRENCY_SCALE_MISMATCH` (a `V99` copybook with a `KRW` currency is a spec contradiction that must be visible, not silently scaled by 2). `FIELD_DECLARED_LENGTH_EXCEEDED` is declared in §2 but not emitted yet: fixed-width data cannot exceed its own field width, so the only reachable case is a hand-built record, which `encodeRecord` refuses at the encoder instead.
-5. **Signed delta is `computed − declared`.** `requirements.md` R4.1 says “signed delta” without naming a direction; the demo narrative fixes it as `delta −100.00` for declared 1,284,550.00 vs summed 1,284,450.00. The product reads “this file is short by 100.00”, which is what an auditor asks for.
+5. **Signed delta is `computed - declared`.** `requirements.md` R4.1 says "signed delta" without naming a direction; the demo narrative fixes it as `delta -100.00` for declared 1,284,550.00 vs summed 1,284,450.00. The product reads "this file is short by 100.00", which is what an auditor asks for.
 
 ## 11. Record framing
 `@framing line` joins records with the file's own terminator (CRLF or LF, trailing newline preserved); `@framing fixed` slices the byte stream every `recordLength` bytes. Both are needed: COMP-3 payloads are binary and cannot be newline-delimited safely. Round-trip fidelity (R3.1) is asserted on both, including a short final record.
 
-## 12. Implementation deltas for T4–T5 (written while building them)
+## 12. Implementation deltas for T4-T5 (written while building them)
 
 ### 6. BAI2 is a reader, not a copybook
 §2 modelled one spec shape. BAI2 has no fixed width and no copybook, so the spec object
 carries `format: 'bai2'`, `recordLength: 0` and `fields: []`, and each record carries its
-own field offsets in `TypedRecord.spans`. The alternative — inventing a fixed layout for a
-comma-delimited format — would have made `verify` reproduce a layout the bank never sent.
+own field offsets in `TypedRecord.spans`. The alternative - inventing a fixed layout for a
+comma-delimited format - would have made `verify` reproduce a layout the bank never sent.
 The declared control handed to L2 is BAI2's `03`/`100` total credits, not the `98` group
 total; §4 of `docs/bai2.md` records why.
 
@@ -134,7 +134,7 @@ stdio transport directly: newline-delimited JSON-RPC 2.0, `initialize`,
 `notifications/initialized`, `tools/list`, `tools/call`, `ping`, `-32601` for unknown
 methods, `-32700` for unparsable lines. `test/unit/mcp.test.ts` runs a real stdio session
 against the process, so the transport is tested, not assumed. Swapping in the SDK later
-changes the transport code only — the four tools call `src/core/ops.ts`, which is what
+changes the transport code only - the four tools call `src/core/ops.ts`, which is what
 keeps CLI, MCP and web returning the same JSON.
 
 ### 8. The web screen is one dependency-free document
@@ -143,7 +143,7 @@ build step would have made the demo depend on a toolchain the judge may not have
 screen is one HTML document (embedded CSS + a small script) served by `src/web/server.ts`
 on 127.0.0.1. What the steering asked for is preserved: one page, three columns, the
 guarantee strips top and bottom, byte-offset evidence, empty and error states. What is
-lost: component structure and hot reload — irrelevant for a submission that ships a
+lost: component structure and hot reload - irrelevant for a submission that ships a
 running server, and recorded here rather than discovered by a reviewer.
 
 ### 9. L3 details the design left open
@@ -160,7 +160,7 @@ running server, and recorded here rather than discovered by a reviewer.
   the 50-credit allowance.
 
 
-## 13. L4 — exception register (contract for T7.1)
+## 13. L4: exception register (contract for T7.1)
 
 The register is the one place where a human decision is recorded, and it is built so the
 record cannot be edited back into agreement with a later story.
@@ -207,7 +207,7 @@ export function verifyLedger(ledger: Ledger): { ok: boolean; firstInvalidSeq: nu
 export function classify(findings: Finding[], ledger: Ledger, onDate: string): Classification;
 ```
 
-`WaiverInput = { owner, reason, compensatingControl, expiresOn, decidedOn? }` — `expiresOn` is
+`WaiverInput = { owner, reason, compensatingControl, expiresOn, decidedOn? }` - `expiresOn` is
 required since the red-team pass of 2026-11-22 (§15.1);
 `DecisionContext = { fingerprint: string; decidedOn: string }` (the caller supplies the date,
 so a test can decide "today" without freezing the real clock).
@@ -236,10 +236,10 @@ entry's `hash` (`GENESIS` for the first). `verifyLedger` recomputes both and rep
 
 ```
         waive(reason, owner, control, expiry)          release(id)
-OPEN ───────────────────────────────────▶ WAIVED ──────────────────▶ RELEASED
- ▲                                          │  expiry < onDate          │
- │                                          ▼                          │
- └──────────────────────────────  EXPIRED  ─┘  (a released or expired      )
+OPEN -----------------------------------> WAIVED ------------------> RELEASED
+ ^                                          |  expiry < onDate          |
+ |                                          v                          |
+ +------------------------------  EXPIRED  -+  (a released or expired      )
                                                exception is OPEN for      )
                                                the next adjudication      )
 ```
@@ -266,7 +266,7 @@ and `EXPIRED` are reported as such; neither is silently dropped from the classif
 - It does not require a model: a waiver is a human's typed reason, and the chain proves the
   record was not rewritten afterwards.
 
-## 14. Implementation delta for T8 — `REDEFINES` as a region with declared layouts
+## 14. Implementation delta for T8: `REDEFINES` as a region with declared layouts
 
 §9 first said `REDEFINES` was refused as `UNSUPPORTED_STRUCTURE`. That was honest but it left the
 most common bank copybook shape unreadable, so T8 replaced the refusal with a model:
@@ -277,7 +277,7 @@ most common bank copybook shape unreadable, so T8 replaced the refusal with a mo
   its children, so the flat field list still tiles the record.
 - **The activation rule is the copybook's.** COBOL says which bytes are shared and says nothing
   about which record type uses which layout. The compiler therefore requires one directive per
-  layout (`* @view layout=… typeField=… value=…`), validates that the discriminator is alphabetic
+  layout (`* @view layout=... typeField=... value=...`), validates that the discriminator is alphabetic
   and outside the region, and refuses a `REDEFINES` with no rule or with one value selecting two
   layouts. This is the same principle as the sign convention: a default is not a fact about the
   file.
@@ -309,7 +309,7 @@ moved: `appendWaiver` refuses a missing, blank, malformed or out-of-order `expir
 in the static demo refuses to submit without one. `classify` still reads an entry that has no
 expiry as `WAIVED`, because a ledger written by an earlier build keeps the hash it was written
 with; the new rule governs what can be appended, not what can be read. R8.1, R8.2 and R8.4 were
-amended to say so. The MCP surface has no `waive` tool — it is read-only by design (§13.5) — so there
+amended to say so. The MCP surface has no `waive` tool - it is read-only by design (§13.5) - so there
 is no second write path that could still accept a waiver without an expiry.
 
 ### 15.2 A declared total is never compared against another currency
@@ -339,5 +339,5 @@ rather than hidden: the guard checks numbers, not the sentence around them, so a
 `test/pbt/exception.pbt.test.ts` asserted "unadjudicated always equals OPEN + EXPIRED" while
 §13.4 says a released exception is back in front of a human. The generator never released a
 waiver, so it could not fail. The property now releases some waivers, asserts
-`unadjudicated === OPEN + EXPIRED + RELEASED` and `unadjudicated === findings − WAIVED`, and its
+`unadjudicated === OPEN + EXPIRED + RELEASED` and `unadjudicated === findings - WAIVED`, and its
 title says what it tests.

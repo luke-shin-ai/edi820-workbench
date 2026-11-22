@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `820` — the command-line surface (T5.1–T5.2, T7.1).
+ * `820` - the command-line surface (T5.1-T5.2, T7.1).
  *
  * Exit codes are part of the contract, because a CI job uses them directly:
  *   0  PASS / verified identical / no unadjudicated exceptions
@@ -58,7 +58,7 @@ const defaultStreams: Streams = {
   err: (line) => process.stderr.write(`${line}\n`),
 };
 
-export const USAGE = `820 — resurrection workbench for fixed-width payment files
+export const USAGE = `820 - resurrection workbench for fixed-width payment files
 
 Usage:
   820 parse     --copybook <path> --file <path> [--format fixed|bai2] [--out <dir>] [--json]
@@ -210,7 +210,7 @@ function printGuarantees(report: Report, out: (line: string) => void): void {
   out('');
   out(`guaranteed (${report.guarantees.sourcePath}):`);
   for (const item of report.guarantees.guaranteed) out(`  + ${item}`);
-  out('not guaranteed — a human decides:');
+  out('not guaranteed: a human decides:');
   for (const item of report.guarantees.notGuaranteed) out(`  - ${item}`);
 }
 
@@ -230,7 +230,7 @@ function printExplanation(explanation: Explanation, index: number, out: (line: s
  */
 namespace exceptionCommands {
   /**
-   * `exceptions` — read-only: show the classification of findings against a ledger.
+   * `exceptions` - read-only: show the classification of findings against a ledger.
    */
   export function exceptions(args: ParsedArgs): { classification: ReturnType<typeof classify>; legacyPath: string } {
     const reportDir = args.positional[0] ?? flagString(args, 'report');
@@ -251,7 +251,7 @@ namespace exceptionCommands {
   }
 
   /**
-   * `waive` — append a waiver for a finding to the ledger.
+   * `waive` - append a waiver for a finding to the ledger.
    * Requires --report, --index (0-based finding index), --owner, --reason, --control, --expires, --today.
    */
   export function waive(args: ParsedArgs): { newLedger: ReturnType<typeof appendWaiver>; legacyPath: string } {
@@ -306,7 +306,7 @@ namespace exceptionCommands {
   }
 
   /**
-   * `release` — append a release for a waiver to the ledger.
+   * `release` - append a release for a waiver to the ledger.
    * Requires --report, --id (waiver id), --owner, --reason, optional --control, --today.
    */
   export function release(args: ParsedArgs): { newLedger: ReturnType<typeof appendRelease>; legacyPath: string } {
@@ -366,11 +366,11 @@ export async function runCli(argv: string[], streams: Streams = defaultStreams):
         if (json) {
           out(JSON.stringify(report, null, 2));
         } else {
-          out(`parsed ${inputs.payment.path} (${report.files.payment.format}) — ${report.files.payment.records} records, ${report.files.payment.details} details`);
+          out(`parsed ${inputs.payment.path} (${report.files.payment.format}) - ${report.files.payment.records} records, ${report.files.payment.details} details`);
           for (const issue of report.files.payment.issues as JsonIssue[]) {
             out(`  issue ${issue.code}${issue.recordIndex !== undefined ? ` @record ${issue.recordIndex}` : ''}: ${issue.detail}`);
           }
-          if (report.files.bank) out(`parsed bank ${inputs.bank!.path} — ${report.files.bank.records} records`);
+          if (report.files.bank) out(`parsed bank ${inputs.bank!.path} - ${report.files.bank.records} records`);
           out(`report: ${path}`);
         }
         return report.files.payment.issues.length === 0 && (report.files.bank?.issues.length ?? 0) === 0
@@ -433,17 +433,17 @@ export async function runCli(argv: string[], streams: Streams = defaultStreams):
           out(`  recomputed fingerprint ${outcome.recomputedFingerprint ?? '-'}`);
           out(`  recorded verdict ${outcome.recordedStatus ?? '-'}   recomputed verdict ${outcome.recomputedStatus ?? '-'}`);
           out(
-            `  read-only: report ${outcome.mutation.reportBytesBefore} → ${outcome.mutation.reportBytesAfter} bytes, mtime ${outcome.mutation.reportMtimeBefore} → ${outcome.mutation.reportMtimeAfter}`,
+            `  read-only: report ${outcome.mutation.reportBytesBefore} -> ${outcome.mutation.reportBytesAfter} bytes, mtime ${outcome.mutation.reportMtimeBefore} -> ${outcome.mutation.reportMtimeAfter}`,
           );
           if (outcome.ok) {
-            out('  RESULT: identical — same inputs, same verdict');
+            out('  RESULT: identical - same inputs, same verdict');
           } else {
-            out(`  RESULT: DIFFERENT — first differing field: ${outcome.firstDifference}`);
+            out(`  RESULT: DIFFERENT - first differing field: ${outcome.firstDifference}`);
           }
           out('');
           out(`guaranteed (${outcome.guarantees.sourcePath}):`);
           for (const item of outcome.guarantees.guaranteed) out(`  + ${item}`);
-          out('not guaranteed — a human decides:');
+          out('not guaranteed: a human decides:');
           for (const item of outcome.guarantees.notGuaranteed) out(`  - ${item}`);
         }
         return outcome.ok ? EXIT.PASS : EXIT.FINDINGS;
@@ -555,7 +555,7 @@ export async function runCli(argv: string[], streams: Streams = defaultStreams):
         } else {
           const entry = newLedger.entries[newLedger.entries.length - 1]!;
           out(`waived: ${entry.id}  finding=${entry.findingKey}`);
-          out(`  owner ${entry.owner} · decided ${entry.decidedOn} · expires ${entry.expiresOn}`);
+          out(`  owner ${entry.owner}; decided ${entry.decidedOn}; expires ${entry.expiresOn}`);
           out(`  ledger: ${legacyPath} (${newLedger.entries.length} entries)`);
         }
         return EXIT.PASS;

@@ -1,5 +1,5 @@
 /**
- * T7.1 — L4 Exception Register (pure module, no I/O, no clock).
+ * T7.1 - L4 Exception Register (pure module, no I/O, no clock).
  *
  * The register is the one place where a human decision is recorded, and it is
  * built so the record cannot be edited back into agreement with a later story.
@@ -19,8 +19,8 @@
  * - a release carries the id of the waived entry it releases; the waived entry remains in the ledger
  *
  * Status machine:
- *   OPEN → WAIVED (on waive) → RELEASED (on release of that waiver)
- *   WAIVED → EXPIRED (when expiry < onDate)
+ *   OPEN -> WAIVED (on waive) -> RELEASED (on release of that waiver)
+ *   WAIVED -> EXPIRED (when expiry < onDate)
  *   RELEASED and EXPIRED are reported as such; both are OPEN for the next adjudication.
  */
 
@@ -332,7 +332,7 @@ export function classify(findings: Finding[], ledger: Ledger, onDate: string): C
     throw new LedgerError('LEDGER_CORRUPTED', `Ledger failed verification at seq ${verify.firstInvalidSeq}: ${verify.detail}`);
   }
 
-  // Build a map of findingKey → finding (and check for duplicates).
+  // Build a map of findingKey -> finding (and check for duplicates).
   const findingsByKey = new Map<string, Finding>();
   for (const f of findings) {
     const key = findingKey(f);

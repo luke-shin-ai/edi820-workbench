@@ -2,11 +2,11 @@
 inclusion: always
 ---
 
-# Conventions — build discipline for 「820」
+# Conventions: build discipline for 「820」
 
 ## Evidence over claims
 - When a feature is finished, append a line to `EVIDENCE.md`: date, task id, command run, result (counts), and the commit-ish. A hook does this on `PostTaskExecution`; if the hook is off, do it by hand.
-- A "passing" claim must name the command and the number (`vitest run` → 41 passed). No unqualified "tests pass".
+- A "passing" claim must name the command and the number (`vitest run` -> 41 passed). No unqualified "tests pass".
 
 ## Safety around files
 - Never write to `samples/` from code paths; samples are fixtures.
@@ -22,7 +22,7 @@ inclusion: always
 ## Forbidden
 - Floating-point money. Ever.
 - Network calls at runtime.
-- Adding `/.kiro` (or any of its subfolders) to `.gitignore` — Kiroween submission requires the directory in the repo root.
+- Adding `/.kiro` (or any of its subfolders) to `.gitignore` - Kiroween submission requires the directory in the repo root.
 - Copying text or code from other Kiroween participants' submissions.
 
 ## Honesty rules for the write-up

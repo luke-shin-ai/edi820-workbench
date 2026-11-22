@@ -1,5 +1,5 @@
 /**
- * L3 orchestration — the only path an explanation can take.
+ * L3 orchestration - the only path an explanation can take.
  *
  *     Finding ──▶ adapter draft ──▶ numeric guard ──▶ Explanation (or INSUFFICIENT_EVIDENCE)
  *

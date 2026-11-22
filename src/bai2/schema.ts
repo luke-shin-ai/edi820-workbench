@@ -1,5 +1,5 @@
 /**
- * BAI2 record layouts — the CSV side of the product.
+ * BAI2 record layouts - the CSV side of the product.
  *
  * BAI2 is **not** a fixed-width format: it is comma-delimited, record-code
  * prefixed, with the last field optionally terminated by `/`. Masking it as a
@@ -87,7 +87,7 @@ export const BAI2_LAYOUTS: Record<Bai2RecordCode, Bai2FieldSpec[]> = {
 export interface Bai2Field {
   /** Field text with the trailing `/` terminator removed. */
   text: string;
-  /** 1-based character offset inside the record — this is a real byte offset in latin1. */
+  /** 1-based character offset inside the record - this is a real byte offset in latin1. */
   start: number;
   length: number;
 }
@@ -162,7 +162,7 @@ export function toFieldMap(
   return { values, spans };
 }
 
-/** BAI type codes 100–399 are credits, 400–699 debits; anything else has no direction. */
+/** BAI type codes 100-399 are credits, 400-699 debits; anything else has no direction. */
 export function directionOfTypeCode(typeCode: string): 'credit' | 'debit' | 'unknown' {
   if (!/^\d{3}$/.test(typeCode)) return 'unknown';
   const code = Number(typeCode);
@@ -192,7 +192,7 @@ export function decodeBai2Amount(raw: string, scale: number): { minorUnits: bigi
   return { minorUnits: negative && magnitude !== 0n ? -magnitude : magnitude, negative };
 }
 
-/** `YYMMDD` → `CCYY-MM-DD` for the 2000s (BAI2 carries no century; documented, not guessed silently). */
+/** `YYMMDD` -> `CCYY-MM-DD` for the 2000s (BAI2 carries no century; documented, not guessed silently). */
 export function isoFromBai2Date(raw: string, century = 2000): string | null {
   if (!/^\d{6}$/.test(raw)) return null;
   const year = century + Number(raw.slice(0, 2));

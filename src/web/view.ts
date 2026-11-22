@@ -3,7 +3,7 @@
  *
  * The screen shows three things and nothing else: what came in (left), what the
  * deterministic layers decided (middle), and the bytes that decision rests on
- * (right). Every string here is already a display string — the browser never does
+ * (right). Every string here is already a display string - the browser never does
  * arithmetic, and never divides a minor unit by 100.
  */
 import { formatAmount, type Finding, type VerdictStatus } from '../reconcile/index.js';
@@ -36,7 +36,7 @@ export interface ViewRecord {
   isTrailer: boolean;
   raw: string;
   length: number;
-  /** The record sliced by its own spec — this is what "the file becomes readable" looks like. */
+  /** The record sliced by its own spec - this is what "the file becomes readable" looks like. */
   fields: ViewField[];
   issues: Array<{ code: string; field?: string; detail: string }>;
 }
@@ -161,7 +161,7 @@ function evidenceFor(
       side,
       recordIndex: finding.recordIndex,
       raw: record.raw,
-      note: `record ${finding.recordIndex}, ${record.length} characters — the finding is file-wide`,
+      note: `record ${finding.recordIndex}, ${record.length} characters - the finding is file-wide`,
     };
   }
   const spec = result.copybook.fields.find((f) => f.name === field);
@@ -176,7 +176,7 @@ function evidenceFor(
     ...(span ? { span } : {}),
     ...(fieldText !== undefined ? { fieldText } : {}),
     note: span
-      ? `${field}${spec ? ` ${spec.pic}` : ''} at bytes ${span.start}–${span.start + span.length - 1} of record ${finding.recordIndex} (1-based)`
+      ? `${field}${spec ? ` ${spec.pic}` : ''} at bytes ${span.start}-${span.start + span.length - 1} of record ${finding.recordIndex} (1-based)`
       : `record ${finding.recordIndex}: the field ??${field}?? is not in this file's spec`,
   };
 }

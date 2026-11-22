@@ -21,7 +21,7 @@ stops over-claiming in the wrong direction.
 | Video public on YouTube | pass | https://youtu.be/rncG1wwqTAM (public, subtitles uploaded, 2:55) |
 | English | pass | all artefacts |
 | Kiro write-up, all topics | pass, with session evidence | `devpost-submission-draft.md` §3, §6, §8 and the closing section |
-| Category identified | Resurrection | — |
+| Category identified | Resurrection | - |
 | Free access for judging | pass with Node 22, and with no Node at all | `docs/demo` needs only a browser |
 
 ## 2. Scores
@@ -62,7 +62,7 @@ the documents no longer claim more than the code does (13 corrections, `design.m
 3. **No fingerprint drift.** The `views:` component is added to the fingerprint only for copybooks
    that declare a region, and `test/regressions/redefines-view.test.ts` pins all six pre-existing
    scenario fingerprints, so a report recorded yesterday still verifies today.
-4. **`L3 · mock` is gone.** The default explanation layer is `L3 · grounded`: a deterministic,
+4. **`L3: mock` is gone.** The default explanation layer is `L3: grounded`: a deterministic,
    zero-credit template whose numbers come from the finding, named for what it is. The old label
    invited a judge to read the layer as a mock-up.
 5. **The submission text matches the video.** §9 describes the 2:55 cut shot by shot, and the

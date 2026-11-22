@@ -1,5 +1,5 @@
 /**
- * The guarantee strip — read from `docs/guarantees.md`, not restated in code.
+ * The guarantee strip - read from `docs/guarantees.md`, not restated in code.
  *
  * R6.3 says the report lists what it guarantees and what it does not, referencing
  * that document. Parsing the document means the CLI and the web screen cannot
@@ -16,18 +16,18 @@ export interface Guarantees {
 
 const FALLBACK: Guarantees = {
   guaranteed: [
-    'Format interpretation — each field is sliced exactly at the byte position and length the spec declares.',
-    'One layout per record — a REDEFINES region decodes only the layout its discriminator selects; an unmatched record is REDEFINES_VIEW_UNMATCHED.',
-    'Arithmetic — amounts are bigint minor units with an ISO-4217 currency; totals and deltas are exact.',
-    'Reference reconciliation — every reference either matches or appears in the report as REF_UNMATCHED.',
-    'Reproducibility — verify re-derives the verdict and compares a SHA-256 fingerprint.',
-    'Explanation grounding — an explanation may cite only numbers in the finding it explains; the default explainer is a zero-credit template.',
+    'Format interpretation - each field is sliced exactly at the byte position and length the spec declares.',
+    'One layout per record - a REDEFINES region decodes only the layout its discriminator selects; an unmatched record is REDEFINES_VIEW_UNMATCHED.',
+    'Arithmetic - amounts are bigint minor units with an ISO-4217 currency; totals and deltas are exact.',
+    'Reference reconciliation - every reference either matches or appears in the report as REF_UNMATCHED.',
+    'Reproducibility - verify re-derives the verdict and compares a SHA-256 fingerprint.',
+    'Explanation grounding - an explanation may cite only numbers in the finding it explains; the default explainer is a zero-credit template.',
   ],
   notGuaranteed: [
     'Legal or accounting adequacy of a payment or its remittance advice.',
-    'Whether an exception is acceptable — a human attaches reason, expiry and compensating control.',
-    'Coverage of unmodelled clauses — OCCURS DEPENDING ON, binary COMP, EBCDIC and unbound REDEFINES are refused, never guessed.',
-    'Source data authenticity — the tool verifies internal consistency, not who sent the file.',
+    'Whether an exception is acceptable - a human attaches reason, expiry and compensating control.',
+    'Coverage of unmodelled clauses - OCCURS DEPENDING ON, binary COMP, EBCDIC and unbound REDEFINES are refused, never guessed.',
+    'Source data authenticity - the tool verifies internal consistency, not who sent the file.',
   ],
   sourcePath: '(built-in copy of docs/guarantees.md)',
 };

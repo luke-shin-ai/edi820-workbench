@@ -1,5 +1,5 @@
 /**
- * L1 (BAI2) — the dedicated reader for bank balance/transaction files.
+ * L1 (BAI2) - the dedicated reader for bank balance/transaction files.
  *
  * The reconciler does not know or care where a typed record came from: it reads
  * `values`, `slices` and `isTrailer`. This reader therefore produces the same
@@ -8,7 +8,7 @@
  * decides direction").
  *
  * What it checks internally (and reports as `BAI2_*` issues, never silently):
- *   - record nesting: 01 → 02 → 03 → 16* → 49 → 98 → 99;
+ *   - record nesting: 01 -> 02 -> 03 -> 16* -> 49 -> 98 -> 99;
  *   - the account trailer's record count and control total;
  *   - the group trailer's record count and control total;
  *   - the file trailer's record and group counts.
@@ -17,7 +17,7 @@
  * `100` ("total credits"): the one number in a BAI2 file that is directly
  * comparable to a payment file's declared total. The `98` group control total is
  * *not* used as a payment total, because BAI2 defines it over account control
- * totals (which already include `03` summary amounts) — comparing it to detail
+ * totals (which already include `03` summary amounts) - comparing it to detail
  * sums would be a category error. `docs/bai2.md` records that reasoning.
  */
 import type { Copybook } from '../copybook/types.js';
@@ -392,7 +392,7 @@ export function parseBai2(source: Bytes | string, options: Bai2ParseOptions = {}
   const detailCount = records.filter((r) => !r.isTrailer).length;
   const copybook = bai2Spec([
     declaredControl
-      ? 'declared control: 03 account summary code 100 (total credits) — the only BAI2 number comparable to a payment total'
+      ? 'declared control: 03 account summary code 100 (total credits), the only BAI2 number comparable to a payment total'
       : 'declared control: none (no single 03 code 100 total)',
     'the 98 group control total covers account control totals (which include 03 summary amounts), so it is checked at the BAI2 level and not used as a payment total',
     'dates: BAI2 carries YYMMDD without a century; this reader applies 2000 (documented in docs/bai2.md §3)',

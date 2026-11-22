@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * append-evidence.mjs — called by the `.kiro/hooks` PostTaskExec hook.
+ * append-evidence.mjs - called by the `.kiro/hooks` PostTaskExec hook.
  * Receives the session context as JSON on STDIN (Kiro passes event data that way),
  * and appends one row to EVIDENCE.md.
  *
@@ -61,7 +61,7 @@ function pick(payload, keys) {
     const v = payload?.[k] ?? payload?.data?.[k] ?? payload?.event?.[k];
     if (typeof v === 'string' && v.trim()) return v.trim().slice(0, 120);
   }
-  return '—';
+  return '-';
 }
 
 const raw = await readStdin();

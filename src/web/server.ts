@@ -1,8 +1,8 @@
 /**
- * T5.3 — the local web screen.
+ * T5.3 - the local web screen.
  *
  * Binds to 127.0.0.1 only: this is a screen for one analyst looking at files that
- * never leave their machine (`docs/guarantees.md` "not guaranteed" — nothing about
+ * never leave their machine (`docs/guarantees.md` "not guaranteed" - nothing about
  * privacy is claimed here that the transport does not enforce).
  *
  * Routes:

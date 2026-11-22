@@ -1,5 +1,5 @@
 /**
- * L2 — the deterministic reconciliation engine.
+ * L2 - the deterministic reconciliation engine.
  *
  * It holds no model and makes no judgement about acceptability: it compares
  * declared against summed values, matches references, checks the settlement
@@ -76,7 +76,7 @@ export interface ReconcileSummary {
 }
 
 /**
- * PASS · INCOMPLETE · FAIL.
+ * PASS ; INCOMPLETE ; FAIL.
  *
  * `INCOMPLETE` exists because a parse issue is not a reconciliation finding: a
  * record that is one byte short, or a BAI2 file whose own trailer total does not

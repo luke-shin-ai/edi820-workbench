@@ -1,5 +1,5 @@
 /**
- * T4.2 — properties of the numeric grounding guard.
+ * T4.2: properties of the numeric grounding guard.
  *
  * These are the properties the product claim rests on:
  *   1. a number the finding does not contain is always rejected;
@@ -40,7 +40,7 @@ const findingArb: fc.Arbitrary<Finding> = fc
     detail: `declared ${formatAmount(declared)} computed ${formatAmount(computed)} delta ${formatAmount(delta)}`,
   }));
 
-describe('T4.2 — a foreign number is always rejected', () => {
+describe('T4.2 - a foreign number is always rejected', () => {
   it('rejects any rendering of an amount the finding does not hold', () => {
     fc.assert(
       fc.property(findingArb, fc.bigInt({ min: 1n, max: 10n ** 9n }), (finding, offset) => {
@@ -76,7 +76,7 @@ describe('T4.2 — a foreign number is always rejected', () => {
   });
 });
 
-describe('T4.2 — the finding\'s own values are always accepted', () => {
+describe('T4.2 - the finding\'s own values are always accepted', () => {
   it('accepts text composed only of the finding\'s renderings', () => {
     fc.assert(
       fc.property(findingArb, (finding) => {
@@ -110,7 +110,7 @@ describe('T4.2 — the finding\'s own values are always accepted', () => {
   });
 });
 
-describe('T4.2 — evidence is monotone', () => {
+describe('T4.2 - evidence is monotone', () => {
   it('adding a reference never removes a literal the finding already supported', () => {
     fc.assert(
       fc.property(findingArb, fc.string({ minLength: 1, maxLength: 10 }), (finding, suffix) => {

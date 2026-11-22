@@ -54,7 +54,7 @@ const mockContextArb = () =>
       decidedOn: d.toISOString().split('T')[0]!,
     }));
 
-describe('Exception register — property-based tests (T7.1)', () => {
+describe('Exception register - property-based tests (T7.1)', () => {
   describe('Hash chain integrity', () => {
     it('a sequence of appends keeps verifyLedger OK', () => {
       fc.assert(

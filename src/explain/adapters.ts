@@ -5,7 +5,7 @@
  * is the default: it can be reviewed, it costs nothing, and it cannot invent a
  * number. The two live adapters exist so the same guard can be demonstrated in
  * front of a real model, but nothing here calls out unless a caller names the
- * adapter — the free-tier build runs with the 50-credit allowance untouched.
+ * adapter - the free-tier build runs with the 50-credit allowance untouched.
  */
 import { spawn } from 'node:child_process';
 import { parseDraft } from './prompt.js';
@@ -48,7 +48,7 @@ export interface KiroCliOptions {
 /**
  * Kiro CLI headless adapter (`kiro-cli chat --no-interactive`).
  *
- * Off by default — it spends credits. Enabled per run with
+ * Off by default - it spends credits. Enabled per run with
  * `820 explain --adapter kiro-cli --model <0.05x model>`.
  */
 export function createKiroCliAdapter(options: KiroCliOptions = {}): ExplainerAdapter {

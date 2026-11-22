@@ -3,7 +3,7 @@
 What this checks, all from the built `docs/demo/` directory served over plain HTTP:
 
   1. eight scenarios run in the tab, each with the verdict the CLI gives for the same files;
-  2. the browser fingerprint **equals** the CLI's fingerprint for the same scenario — the
+  2. the browser fingerprint **equals** the CLI's fingerprint for the same scenario - the
      strongest single check that the browser engine is the same engine;
   3. a dropped COMP-3 file is read as bytes and reconciles to the same file hash as by path;
   4. a waiver moves a finding to WAIVED, the verdict badge stays FAIL, the chain stays intact,
@@ -54,7 +54,7 @@ failures = []
 
 
 def check(label, condition, detail=""):
-    print(("  ok   " if condition else "  FAIL ") + label + (f" — {detail}" if detail else ""))
+    print(("  ok   " if condition else "  FAIL ") + label + (f" - {detail}" if detail else ""))
     if not condition:
         failures.append(label)
 
@@ -133,7 +133,7 @@ def main():
             check(
                 f"{scenario} fingerprint equals the CLI fingerprint",
                 state["fingerprint"] == expected_fp,
-                f"tab={state['fingerprint'][:12]}… cli={expected_fp[:12]}…",
+                f"tab={state['fingerprint'][:12]}... cli={expected_fp[:12]}...",
             )
             check(
                 f"{scenario} finding count matches ({expected_findings})",
@@ -144,7 +144,7 @@ def main():
             if scenario in ("S1", "S3", "S6"):
                 page.screenshot(path=os.path.join(VIDEO_SHOTS, f"static-{scenario.lower()}@1920.png"))
 
-        # 2b · the REDEFINES trailer is sliced by its own layout, not by the detail's
+        # 2b ; the REDEFINES trailer is sliced by its own layout, not by the detail's
         page.click('.scenario[data-id="S7"]')
         page.wait_for_function("window.demo.state.run.scenarioId === 'S7'")
         page.click('#records li[data-index="10"]')
@@ -176,7 +176,7 @@ def main():
         page.screenshot(path=os.path.join(SHOTS, "demo-s7-trailer.png"))
         page.screenshot(path=os.path.join(VIDEO_SHOTS, "static-s7-trailer@1920.png"))
 
-        # 3 · a dropped COMP-3 file is read as bytes in the page
+        # 3 ; a dropped COMP-3 file is read as bytes in the page
         page.click('.scenario[data-id="S1"]')
         page.wait_for_function("window.demo.state.run.scenarioId === 'S1'")
         with page.expect_file_chooser() as chooser:
@@ -200,7 +200,7 @@ def main():
         check("the dropped file is labelled by its own name", dropped["path"] == "820-packed-good.txt", dropped["path"])
         page.screenshot(path=os.path.join(SHOTS, "demo-dropped.png"))
 
-        # 4 · L4: waive the selected finding, then release it
+        # 4 ; L4: waive the selected finding, then release it
         page.click('.scenario[data-id="S3"]')
         page.wait_for_function("window.demo.state.run.scenarioId === 'S3'")
         page.click('#findings li[data-i="0"]')
@@ -252,13 +252,13 @@ def main():
         after_release = page.evaluate("() => ({ counts: window.demo.classification().counts, badge: document.getElementById('status').textContent })")
         check("a release returns the finding to open adjudication", after_release["counts"]["RELEASED"] == 1 and after_release["badge"] == "FAIL", json.dumps(after_release["counts"]))
 
-        # 5 · re-derive
+        # 5 ; re-derive
         page.click("#btnVerify")
         page.wait_for_timeout(400)
         verify_text = page.inner_text("#verifyOut")
         check("re-derive prints identical", "identical" in verify_text, verify_text.replace("\n", " "))
 
-        # 6 · nothing left the tab after the first load
+        # 6 ; nothing left the tab after the first load
         late = requests[requests_after_load:]
         late_bad = [r for r in late if r[2] in ("xhr", "fetch", "beacon", "websocket")]
         check("no request leaves the tab after load", not late_bad, json.dumps(late_bad[:3]))

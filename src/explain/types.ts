@@ -1,11 +1,11 @@
 /**
- * L3 — the explanation layer's contract.
+ * L3 - the explanation layer's contract.
  *
  * The verdict never comes from here. L2 hands over a `Finding`; L3 may only
  * return a plain-language cause, a suggested next action, and a citation that
  * this module attaches deterministically. Anything a model wrote that cites a
  * number L2 did not produce is replaced with `INSUFFICIENT_EVIDENCE`
- * (`requirements.md` R5.2–R5.3, `docs/guarantees.md` §5).
+ * (`requirements.md` R5.2-R5.3, `docs/guarantees.md` §5).
  */
 import type { Finding } from '../reconcile/index.js';
 

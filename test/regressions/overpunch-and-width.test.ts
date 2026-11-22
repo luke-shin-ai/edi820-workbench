@@ -10,14 +10,14 @@ import {
 } from '../../src/parser/index.js';
 
 /**
- * REGRESSION — overpunch letter offset
+ * REGRESSION: overpunch letter offset
  *
  * Found by: `test/pbt/amounts.pbt.test.ts` (property "every convention round-trips
  * every representable value") on the first run, and by the table test in
  * `test/unit/overpunch.test.ts`.
  *
  * The bug: the table was built as `string.fromCharCode('A' + digit)` with digit
- * starting at 0, which maps `A → +0, B → +1 … I → +8, J → +9`. The convention
+ * starting at 0, which maps `A -> +0, B -> +1 ... I -> +8, J -> +9`. The convention
  * (`.kiro/steering/finance-file-conventions.md`) is `A..I = +1..+9`, `J..R = -1..-9`.
  * Consequence: every overpunched amount was off by one and negative amounts read
  * as positive above 9.
@@ -47,7 +47,7 @@ describe('regression: overpunch table starts at +1, not +0', () => {
     expect(decodeZonedDecimal('I', field)).toBe(9n);
   });
 
-  it('J is −1 and R is −9', () => {
+  it('J is -1 and R is -9', () => {
     expect(decodeZonedDecimal('J', field)).toBe(-1n);
     expect(decodeZonedDecimal('R', field)).toBe(-9n);
   });
@@ -61,7 +61,7 @@ describe('regression: overpunch table starts at +1, not +0', () => {
 });
 
 /**
- * REGRESSION — implied decimals were dropped when encoding
+ * REGRESSION: implied decimals were dropped when encoding
  *
  * Found by: `test/pbt/parser.pbt.test.ts` (property "typed values re-encode to the
  * same bytes") on a copybook containing `PIC 9(3)V99`: `encodeUnsignedInt` sized the
@@ -88,7 +88,7 @@ describe('regression: implied decimals are part of the encoded width', () => {
 });
 
 /**
- * REGRESSION — packed decimal padding nibble at the odd width boundary
+ * REGRESSION: packed decimal padding nibble at the odd width boundary
  *
  * Found by: the hand-written case in `test/unit/overpunch.test.ts` (13 digits + sign
  * fills the nibbles exactly, so there is no padding nibble). A `PIC S9(2)` field is

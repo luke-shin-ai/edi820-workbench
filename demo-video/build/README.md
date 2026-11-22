@@ -22,7 +22,7 @@
 | # | shot | source |
 |---|---|---|
 | 1 | Kiro hook log + the stop hook's own run | `grep -E "PostFileSave|PostTaskExec" out/hook-log.txt | tail -6` and the stop hook's verify run, captured in `build/outputs/hook-fire.txt` |
-| 2 | the reviewer agent's MCP calls | `node scripts/mcp-call.mjs`, captured in `build/outputs/mcp-call.txt`: verdict FAIL, 4 findings, fingerprint `7af64454…` |
+| 2 | the reviewer agent's MCP calls | `node scripts/mcp-call.mjs`, captured in `build/outputs/mcp-call.txt`: verdict FAIL, 4 findings, fingerprint `7af64454...` |
 | 3 | the bank copybook, with byte ranges and its two layouts | `samples/copybooks/820-redefines.cpy`; ranges and layouts printed by `dump-copybook.mjs` |
 | 4 | the trailer read through its own `REDEFINES` layout | `docs/images/demo-s7-trailer.png`: `TOTAL-AMOUNT` at bytes 22-34, the detail fields absent from that record |
 | 5 | PASS on the clickable screen | `docs/images/demo-s1.png` (static build, eight-scenario run) |
@@ -81,7 +81,7 @@ because `make_tts.py` keeps existing audio; a shot whose plate changed must have
   the same segment are pixel-identical apart from encoder noise; `zoompan` stepped 1 px at a time)
 - 0 page errors across every browser capture
 - the numbers in the narration match the files and the captured stdout (1,284,550.00 declared,
-  1,284,450.00 summed, -100.00 delta, 4 findings, 311 tests, fingerprints `7af64454…` for the FAIL
+  1,284,450.00 summed, -100.00 delta, 4 findings, 311 tests, fingerprints `7af64454...` for the FAIL
   case and the S6 delta -79,025.00 with credits 1,205,550.00 minus debits 25.00; `TOTAL-AMOUNT`
   at bytes 22-34 on the REDEFINES trailer)
 

@@ -3,7 +3,7 @@
  *
  * One deliberate screen, three columns, two guarantee strips: what came in, what
  * was decided, and the bytes that decision rests on. No component library, no
- * router, no build step — the whole surface is one document served by
+ * router, no build step - the whole surface is one document served by
  * `server.ts`, so a reviewer can open it and read it top to bottom.
  *
  * `.kiro/steering/tech.md` names Vite + React for this screen. This environment
@@ -19,7 +19,7 @@ export function renderPage(): string {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>「820」 — resurrection workbench</title>
+<title>「820」: resurrection workbench</title>
 <style>
 ${PAGE_CSS}
 
@@ -28,15 +28,15 @@ ${PAGE_CSS}
 <body>
 <header>
   <h1>「820」 resurrection workbench</h1>
-  <span class="sub">fixed-width 820/823 + BAI2 · verdict by code, narration by agent</span>
-  <span class="fingerprint" id="fp">fingerprint —</span>
+  <span class="sub">fixed-width 820/823 + BAI2: verdict by code, narration by agent</span>
+  <span class="fingerprint" id="fp">fingerprint -</span>
 </header>
 
-<div class="strip top" id="strip-top"><span class="tag">Guaranteed</span><span class="item">loading…</span></div>
+<div class="strip top" id="strip-top"><span class="tag">Guaranteed</span><span class="item">loading...</span></div>
 
 <main>
   <section class="col col-left">
-    <h2>1 · Input</h2>
+    <h2>1. Input</h2>
     <div class="card">
       <label for="selCopybook">Copybook (the byte contract)</label>
       <select id="selCopybook"></select>
@@ -59,7 +59,7 @@ ${PAGE_CSS}
     </div>
 
     <h3>Drop your own files</h3>
-    <div class="drop" id="dropFile"><strong>Drop a payment file</strong>bytes are read in the browser · never written</div>
+    <div class="drop" id="dropFile"><strong>Drop a payment file</strong>bytes are read in the browser; never written</div>
     <div class="drop" id="dropCopybook"><strong>Drop its copybook</strong>fixed-width only</div>
     <div class="small muted" id="dropped" style="margin-top:6px"></div>
 
@@ -68,17 +68,17 @@ ${PAGE_CSS}
   </section>
 
   <section class="col col-mid">
-    <h2>2 · Verdict</h2>
+    <h2>2. Verdict</h2>
     <div class="card">
       <div class="verdict">
-        <span class="chip info" id="status">—</span>
+        <span class="chip info" id="status">-</span>
         <span class="muted small" id="verdictMeta">run a case to see a verdict</span>
       </div>
       <div class="counters">
-        <div class="counter"><div class="n" id="cDet">—</div><div class="k">details</div></div>
-        <div class="counter"><div class="n" id="cFind">—</div><div class="k">findings</div></div>
-        <div class="counter"><div class="n" id="cMatched">—</div><div class="k">refs matched</div></div>
-        <div class="counter"><div class="n" id="cUnmatched">—</div><div class="k">refs unmatched</div></div>
+        <div class="counter"><div class="n" id="cDet">-</div><div class="k">details</div></div>
+        <div class="counter"><div class="n" id="cFind">-</div><div class="k">findings</div></div>
+        <div class="counter"><div class="n" id="cMatched">-</div><div class="k">refs matched</div></div>
+        <div class="counter"><div class="n" id="cUnmatched">-</div><div class="k">refs unmatched</div></div>
       </div>
       <h3>Control totals (minor units)</h3>
       <table id="totals"><thead><tr><th>currency</th><th>declared</th><th>summed</th><th>delta</th></tr></thead><tbody></tbody></table>
@@ -86,14 +86,14 @@ ${PAGE_CSS}
 
     <h3>Findings</h3>
     <ul class="findings" id="findings"></ul>
-    <div class="empty" id="noFindings">No findings — every control total, reference and value date agrees.</div>
+    <div class="empty" id="noFindings">No findings: every control total, reference and value date agrees.</div>
 
     <h3>Parse issues</h3>
     <ul class="issues" id="issues"></ul>
   </section>
 
   <section class="col col-right">
-    <h2>3 · Evidence — the bytes this decision rests on</h2>
+    <h2>3. Evidence: the bytes this decision rests on</h2>
     <div class="card">
       <div class="small muted" id="evidenceNote">Select a finding to highlight its field.</div>
       <div class="ruler" id="ruler"></div>
@@ -104,7 +104,7 @@ ${PAGE_CSS}
   </section>
 </main>
 
-<div class="strip bottom" id="strip-bottom"><span class="tag">Not guaranteed — a human decides</span><span class="item">loading…</span></div>
+<div class="strip bottom" id="strip-bottom"><span class="tag">Not guaranteed: a human decides</span><span class="item">loading...</span></div>
 
 <script>
 (function () {
@@ -133,7 +133,7 @@ ${PAGE_CSS}
   function loadSamples() {
     return fetch('/api/samples').then(function (r) { return r.json(); }).then(function (data) {
       state.samples = data;
-      fillSelect(el('selCopybook'), data.copybooks, '(none — BAI2 needs no copybook)');
+      fillSelect(el('selCopybook'), data.copybooks, '(none; BAI2 needs no copybook)');
       fillSelect(el('selFile'), data.files, '(choose a payment file)');
       fillSelect(el('selBank'), data.files, '(no bank side)');
       var stripTop = el('strip-top');
@@ -141,7 +141,7 @@ ${PAGE_CSS}
       stripTop.innerHTML = '<span class="tag">Guaranteed</span>' + data.guarantees.guaranteed.map(function (g) {
         return '<span class="item">' + esc(g) + '</span>';
       }).join('');
-      stripBottom.innerHTML = '<span class="tag">Not guaranteed — a human decides</span>' + data.guarantees.notGuaranteed.map(function (g) {
+      stripBottom.innerHTML = '<span class="tag">Not guaranteed: a human decides</span>' + data.guarantees.notGuaranteed.map(function (g) {
         return '<span class="item">' + esc(g) + '</span>';
       }).join('');
       return data;
@@ -168,7 +168,7 @@ ${PAGE_CSS}
   }
 
   function runWith(body) {
-    el('evidenceNote').textContent = 'reconciling…';
+    el('evidenceNote').textContent = 'reconciling...';
     return fetch('/api/run', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -227,7 +227,7 @@ ${PAGE_CSS}
     var html = '';
     for (var i = 0; i < raw.length; i++) {
       var ch = raw.charAt(i);
-      var label = ch === ' ' ? '·' : esc(ch);
+      var label = ch === ' ' ? '.' : esc(ch);
       html += '<span class="byte' + (owner[i] === undefined ? '' : ' f' + owner[i]) + '" title="byte ' + (i + 1) + '">' + label + '</span>';
     }
     el('bytes').innerHTML = html;
@@ -255,7 +255,7 @@ ${PAGE_CSS}
     var html = '';
     for (var i = 0; i < raw.length; i++) {
       var ch = raw.charAt(i);
-      var label = ch === ' ' ? '·' : esc(ch);
+      var label = ch === ' ' ? '.' : esc(ch);
       var cls = 'byte';
       if (span && i >= span.start - 1 && i < span.start - 1 + span.length) cls += ' hl';
       html += '<span class="' + cls + '" title="byte ' + (i + 1) + '">' + label + '</span>';
@@ -278,7 +278,7 @@ ${PAGE_CSS}
       var spot = state.spotlight || { side: 'payment', index: firstDetailIndex(view, 'payment') };
       var spotRecord = findRecord(view, spot.side, spot.index);
       el('evidenceNote').textContent = view.findings.length === 0
-        ? 'No findings. Record ' + spot.index + ' (' + spot.side + ') sliced by its own spec — every field at its declared byte offset.'
+        ? 'No findings. Record ' + spot.index + ' (' + spot.side + ') sliced by its own spec: every field at its declared byte offset.'
         : 'Pick a finding to highlight the field it names, or a record below to read its layout.';
       renderFields(spotRecord);
       el('explain').innerHTML = view.findings.length === 0
@@ -292,11 +292,11 @@ ${PAGE_CSS}
     for (var i = 0; i < view.records.length; i++) {
       if (view.records[i].side === evidence.side && view.records[i].index === evidence.recordIndex) { record = view.records[i]; break; }
     }
-    el('evidenceNote').textContent = evidence.note + ' · ' + evidence.side + ' file';
+    el('evidenceNote').textContent = evidence.note + ', ' + evidence.side + ' file';
     renderBytes(record, evidence.span || null);
     var rows = '<dt>record</dt><dd>' + esc(evidence.side) + ' #' + esc(evidence.recordIndex) + '</dd>';
-    if (evidence.field) rows += '<dt>field</dt><dd>' + esc(evidence.field) + (evidence.pic ? ' · ' + esc(evidence.pic) : '') + '</dd>';
-    if (evidence.span) rows += '<dt>bytes</dt><dd>' + esc(evidence.span.start) + '–' + esc(evidence.span.start + evidence.span.length - 1) + ' (' + esc(evidence.span.length) + ' bytes)</dd>';
+    if (evidence.field) rows += '<dt>field</dt><dd>' + esc(evidence.field) + (evidence.pic ? ', ' + esc(evidence.pic) : '') + '</dd>';
+    if (evidence.span) rows += '<dt>bytes</dt><dd>' + esc(evidence.span.start) + '-' + esc(evidence.span.start + evidence.span.length - 1) + ' (' + esc(evidence.span.length) + ' bytes)</dd>';
     if (evidence.fieldText !== undefined) rows += '<dt>as read</dt><dd>' + esc(JSON.stringify(evidence.fieldText)) + '</dd>';
     if (finding.declared !== undefined) rows += '<dt>declared</dt><dd>' + esc(finding.declared) + '</dd>';
     if (finding.computed !== undefined) rows += '<dt>computed</dt><dd>' + esc(finding.computed) + '</dd>';
@@ -311,7 +311,7 @@ ${PAGE_CSS}
     var blocked = explanation.status !== 'EXPLAINED';
     var html = '<div class="explain ' + (blocked ? 'blocked' : '') + '">' +
       '<div class="row" style="gap:8px;align-items:center"><span class="chip ' + (blocked ? 'warn' : 'info') + '">' + esc(explanation.status) + '</span>' +
-      '<span class="small muted">L3 · ' + esc(explanation.adapter) + ' · cites ' + esc((explanation.citedValues || []).length) + ' value(s)</span></div>' +
+      '<span class="small muted">L3: ' + esc(explanation.adapter) + '; cites ' + esc((explanation.citedValues || []).length) + ' value(s)</span></div>' +
       '<div class="cause">' + esc(explanation.cause) + '</div>' +
       '<div class="fix">' + esc(explanation.suggestedFix) + '</div>';
     if (explanation.citedValues && explanation.citedValues.length) {
@@ -319,7 +319,7 @@ ${PAGE_CSS}
     }
     if (explanation.rejection) {
       html += '<div class="small" style="color:#e2b33c;margin-top:8px">blocked draft cited ' +
-        esc(explanation.rejection.unsupported.join(', ')) + ' — replaced with INSUFFICIENT_EVIDENCE</div>';
+        esc(explanation.rejection.unsupported.join(', ')) + '; replaced with INSUFFICIENT_EVIDENCE</div>';
     }
     html += '<div class="small muted" style="margin-top:6px">citation ' + esc(explanation.citation) + '</div></div>';
     el('explain').innerHTML = html;
@@ -328,14 +328,14 @@ ${PAGE_CSS}
   function render() {
     var view = state.view;
     if (!view) return;
-    el('fp').textContent = 'fingerprint ' + view.fingerprint.slice(0, 16) + '…';
+    el('fp').textContent = 'fingerprint ' + view.fingerprint.slice(0, 16) + '...';
     var status = el('status');
     status.textContent = view.status;
     status.className = 'chip ' + (view.status === 'PASS' ? 'pass' : view.status === 'INCOMPLETE' ? 'warn' : 'fail');
-    el('verdictMeta').textContent = view.files.payment.details + ' details · ' + view.files.payment.format +
+    el('verdictMeta').textContent = view.files.payment.details + ' details, ' + view.files.payment.format +
       (view.files.bank ? ' + bank ' + view.files.bank.details + ' details (' + view.files.bank.format + ')' : '') +
-      (view.summary.blockingParseIssues ? ' · ' + view.summary.blockingParseIssues + ' blocking parse issue(s)' : '') +
-      ' · ' + view.files.payment.path;
+      (view.summary.blockingParseIssues ? ', ' + view.summary.blockingParseIssues + ' blocking parse issue(s)' : '') +
+      '; ' + view.files.payment.path;
     el('cDet').textContent = view.files.payment.details;
     el('cFind').textContent = view.findings.length;
     el('cMatched').textContent = view.summary.referencesMatched;
@@ -345,7 +345,7 @@ ${PAGE_CSS}
     for (var i = 0; i < view.totals.length; i++) {
       var t = view.totals[i];
       var basis = t.basis ? '<div class="small muted">' + esc(t.basis) +
-        (t.credits || t.debits ? ' · credits ' + esc(t.credits || '0') + ' / debits ' + esc(t.debits || '0') : '') + '</div>' : '';
+        (t.credits || t.debits ? '; credits ' + esc(t.credits || '0') + ' / debits ' + esc(t.debits || '0') : '') + '</div>' : '';
       totalsBody += '<tr><td>' + esc(t.currency) + basis + '</td><td>' + esc(t.declared) + '</td><td>' + esc(t.computed) +
         '</td><td class="' + (t.delta.charAt(0) === '-' ? 'neg' : '') + '">' + esc(t.delta) + '</td></tr>';
     }
@@ -355,9 +355,9 @@ ${PAGE_CSS}
     for (var j = 0; j < view.findings.length; j++) {
       var f = view.findings[j];
       list += '<li data-i="' + j + '" class="' + (j === state.selected ? 'sel' : '') + '">' +
-        '<div class="code"><span class="chip fail">' + esc(f.code) + '</span> record ' + esc(f.recordIndex) + (f.field ? ' · ' + esc(f.field) : '') + '</div>' +
+        '<div class="code"><span class="chip fail">' + esc(f.code) + '</span> record ' + esc(f.recordIndex) + (f.field ? '; ' + esc(f.field) : '') + '</div>' +
         (f.reference ? '<div class="meta">ref ' + esc(f.reference) + '</div>' : '') +
-        '<div class="amt">declared ' + esc(f.declared === undefined ? '—' : f.declared) + ' · computed ' + esc(f.computed === undefined ? '—' : f.computed) + ' · delta ' + esc(f.delta === undefined ? '—' : f.delta) + '</div>' +
+        '<div class="amt">declared ' + esc(f.declared === undefined ? '-' : f.declared) + '; computed ' + esc(f.computed === undefined ? '-' : f.computed) + '; delta ' + esc(f.delta === undefined ? '-' : f.delta) + '</div>' +
         '</li>';
     }
     el('findings').innerHTML = list;
@@ -367,7 +367,7 @@ ${PAGE_CSS}
     var issues = '';
     for (var k = 0; k < view.issues.length; k++) {
       var issue = view.issues[k];
-      issues += '<li>' + esc(issue.side) + ' · ' + esc(issue.code) + (issue.recordIndex !== undefined ? ' @record ' + esc(issue.recordIndex) : '') + ' — ' + esc(issue.detail) + '</li>';
+      issues += '<li>' + esc(issue.side) + ', ' + esc(issue.code) + (issue.recordIndex !== undefined ? ' @record ' + esc(issue.recordIndex) : '') + ': ' + esc(issue.detail) + '</li>';
     }
     el('issues').innerHTML = issues;
 
@@ -434,8 +434,8 @@ ${PAGE_CSS}
   }
 
   function describeDropped() {
-    el('dropped').textContent = (state.droppedFile ? 'file: ' + state.droppedFile.name + ' · ' + state.droppedFile.bytes.length + ' bytes' : '') +
-      (state.droppedCopybook ? ' · copybook: ' + state.droppedCopybook.name : '');
+    el('dropped').textContent = (state.droppedFile ? 'file: ' + state.droppedFile.name + ' (' + state.droppedFile.bytes.length + ' bytes)' : '') +
+      (state.droppedCopybook ? ', copybook: ' + state.droppedCopybook.name : '');
   }
 
   function wireDrop(zone, key, accept) {

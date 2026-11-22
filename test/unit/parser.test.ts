@@ -18,7 +18,7 @@ const bad820 = readBuf('samples/data/820-bad.txt');
 const packed820 = readBuf('samples/data/820-packed-good.txt');
 const bank823 = readBuf('samples/data/823-bank.txt');
 
-describe('R2.1 — slicing follows the copybook exactly, without trimming', () => {
+describe('R2.1 - slicing follows the copybook exactly, without trimming', () => {
   it('types every field of the first 820 record', () => {
     const result = parseFile({ copybook: cob820, source: good820 });
     expect(result.records).toHaveLength(11);
@@ -56,7 +56,7 @@ describe('R2.1 — slicing follows the copybook exactly, without trimming', () =
   });
 });
 
-describe('R2.2 — a record of the wrong width is reported, and parsing continues at the boundary', () => {
+describe('R2.2 - a record of the wrong width is reported, and parsing continues at the boundary', () => {
   it('finds the 99-byte record and still reads the records after it', () => {
     const result = parseFile({ copybook: cob820, source: bad820 });
     const mismatch = result.issues.filter((i) => i.code === 'RECORD_LENGTH_MISMATCH');
@@ -77,7 +77,7 @@ describe('R2.2 — a record of the wrong width is reported, and parsing continue
   });
 });
 
-describe('R2.3 — an invalid numeric character is a coded issue, not an exception', () => {
+describe('R2.3 - an invalid numeric character is a coded issue, not an exception', () => {
   it('reports FIELD_INVALID_NUMERIC with the record index and field name', () => {
     const broken = Buffer.from(good820.toString('latin1').replace('000001500000{', '00000150000X{'), 'latin1');
     const result = parseFile({ copybook: cob820, source: broken });
@@ -94,7 +94,7 @@ describe('R2.3 — an invalid numeric character is a coded issue, not an excepti
   });
 });
 
-describe('R2.4 — sign handling follows the copybook, and direction comes from TXN-TYPE', () => {
+describe('R2.4 - sign handling follows the copybook, and direction comes from TXN-TYPE', () => {
   it('decodes a negative 820 amount with the overpunch table', () => {
     const source = Buffer.from(good820.toString('latin1').replace('000001500000{', '000001500000}'), 'latin1');
     const result = parseFile({ copybook: cob820, source });
@@ -116,7 +116,7 @@ describe('R2.4 — sign handling follows the copybook, and direction comes from 
   });
 });
 
-describe('R2.5 — implied decimals scale to minor units, with the ISO-4217 code attached', () => {
+describe('R2.5 - implied decimals scale to minor units, with the ISO-4217 code attached', () => {
   const scaleCopybook = compileCopybook(
     [
       '      * @semantics amount=AMT currency=CUR',
@@ -138,7 +138,7 @@ describe('R2.5 — implied decimals scale to minor units, with the ISO-4217 code
   });
 });
 
-describe('R2.6 — declared and computed control values are both returned', () => {
+describe('R2.6 - declared and computed control values are both returned', () => {
   it('exposes declared count/total next to the computed sum', () => {
     const result = parseFile({ copybook: cob820, source: bad820 });
     expect(result.declaredControl?.count).toBe(10n);
@@ -155,7 +155,7 @@ describe('R2.6 — declared and computed control values are both returned', () =
   });
 });
 
-describe('framing — the copybook decides how records are delimited', () => {
+describe('framing - the copybook decides how records are delimited', () => {
   it('reads a COMP-3 stream with no line breaks as fixed 88-byte records', () => {
     const result = parseFile({ copybook: cobPacked, source: packed820 });
     expect(result.framing).toBe('fixed');
@@ -171,7 +171,7 @@ describe('framing — the copybook decides how records are delimited', () => {
   });
 });
 
-describe('R3.1/R3.2 — round-trip fidelity', () => {
+describe('R3.1/R3.2 - round-trip fidelity', () => {
   it('serializes the 820 file back to identical bytes', () => {
     const result = parseFile({ copybook: cob820, source: good820 });
     expect(bytesEqual(serializeParseResult(result), good820)).toBe(true);
@@ -202,7 +202,7 @@ describe('R3.1/R3.2 — round-trip fidelity', () => {
   });
 });
 
-describe('fingerprint — same input, same value', () => {
+describe('fingerprint - same input, same value', () => {
   it('is stable across two parses of the same bytes', () => {
     const a = parseFile({ copybook: cob820, source: good820 });
     const b = parseFile({ copybook: cob820, source: good820 });

@@ -18,3 +18,4 @@
 2026-11-22T01:33:24.272Z  trigger=Stop  run=final-check  command=/workspace/hackathons/kiroween-2026/node_modules/.bin/tsx /workspace/hackathons/kiroween-2026/src/cli/main.ts verify /workspace/hackathons/kiroween-2026/out/final-check  exit=0
 2026-11-22T01:45:25.455Z  trigger=PostTaskExec  evidence row appended
 2026-11-22T01:45:27.543Z  trigger=Stop  run=final-check  command=/workspace/hackathons/kiroween-2026/node_modules/.bin/tsx /workspace/hackathons/kiroween-2026/src/cli/main.ts verify /workspace/hackathons/kiroween-2026/out/final-check  exit=0
+2026-11-22T04:38:21.199Z  trigger=manual  run=evidence  command=/workspace/hackathons/kiroween-2026/node_modules/.bin/tsx /workspace/hackathons/kiroween-2026/src/cli/main.ts verify /workspace/hackathons/kiroween-2026/out/evidence  exit=0

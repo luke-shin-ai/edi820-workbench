@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * demo-reconcile.mjs — end-to-end proof of the deterministic core (L1+L2).
+ * demo-reconcile.mjs - end-to-end proof of the deterministic core (L1+L2).
  *
  * This is not the product CLI (that is task T5.1); it is the script the build
  * evidence and the demo video run, so that "it works" is a command anyone can
@@ -79,7 +79,7 @@ for (const scenario of scenarios) {
   for (const [currency, totals] of Object.entries(result.summary.totals)) {
     console.log(
       `  total ${currency}: declared ${Number(totals.declared) / 100}` +
-        ` vs summed ${Number(totals.computed) / 100} → delta ${Number(totals.delta) / 100}`,
+        ` vs summed ${Number(totals.computed) / 100} -> delta ${Number(totals.delta) / 100}`,
     );
   }
   for (const finding of result.findings) {

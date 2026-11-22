@@ -66,7 +66,7 @@ function logFiring(result, command) {
 
 const run = newestRunWithReport();
 if (!run) {
-  const message = 'verify: no report.json with a verdict under out/ yet — run `npm run cli reconcile` first, or `npm run evidence`';
+  const message = 'verify: no report.json with a verdict under out/ yet - run `npm run cli reconcile` first, or `npm run evidence`';
   console.log(message);
   logFiring(null, 'none');
   process.exit(0);

@@ -1,5 +1,5 @@
 /**
- * L1 — the deterministic fixed-width parser.
+ * L1 - the deterministic fixed-width parser.
  *
  * Rules (`.kiro/steering/tech.md`):
  *  - slice by copybook boundaries, never trim inside parsing;
@@ -56,7 +56,7 @@ export type ParsedValue = string | bigint | Amount | null;
 
 export interface TypedRecord {
   index: number;
-  /** Exact record bytes as latin1 characters — the round-trip source. */
+  /** Exact record bytes as latin1 characters - the round-trip source. */
   raw: string;
   length: number;
   values: Record<string, ParsedValue>;
@@ -71,7 +71,7 @@ export interface TypedRecord {
   issues: ParseIssue[];
   isTrailer: boolean;
   /**
-   * Active `REDEFINES` layout per region (region name → layout name), when the
+   * Active `REDEFINES` layout per region (region name -> layout name), when the
    * copybook declares views. Absent for a copybook without `REDEFINES`.
    */
   views?: Record<string, string>;

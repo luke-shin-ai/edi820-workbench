@@ -1,7 +1,7 @@
 """Captures the local back-office screen (127.0.0.1) for docs/images and README.
 
 Four states: PASS, FAIL with the second finding selected (so the evidence panel and the
-`L3 · grounded` line are on screen), the empty state, and an error state. Every image is a
+`L3: grounded` line are on screen), the empty state, and an error state. Every image is a
 real render of `src/web`, against the same samples the CLI reads, so the README cannot show
 a screen the product does not produce.
 

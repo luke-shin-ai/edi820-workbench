@@ -1,7 +1,7 @@
 /**
  * The static demo's client: one browser tab, no server.
  *
- * Every number on the screen is produced here by the same modules the CLI imports —
+ * Every number on the screen is produced here by the same modules the CLI imports -
  * `parseFile`, `parseBai2`, `reconcile`, `explainFindings` (the deterministic template adapter),
  * `buildViewModel` and the L4 register. Nothing is fetched after `bundle.js` loads, and a
  * dropped file is read as bytes (`arrayBuffer`), not as text, so a COMP-3 amount survives.
@@ -239,25 +239,25 @@ function renderRecords(): void {
 function renderVerdict(): void {
   const view = state.run?.view;
   if (!view) return;
-  el('fp').textContent = `fingerprint ${view.fingerprint.slice(0, 16)}…`;
+  el('fp').textContent = `fingerprint ${view.fingerprint.slice(0, 16)}...`;
   const status = el('status');
   status.textContent = view.status;
   status.className = `chip ${view.status === 'PASS' ? 'pass' : view.status === 'INCOMPLETE' ? 'warn' : 'fail'}`;
-  el('verdictMeta').textContent = `${view.files.payment.details} details · ${view.files.payment.format}` +
+  el('verdictMeta').textContent = `${view.files.payment.details} details, ${view.files.payment.format}` +
     (view.files.bank ? ` + bank ${view.files.bank.details} details (${view.files.bank.format})` : '') +
-    (view.summary.blockingParseIssues ? ` · ${view.summary.blockingParseIssues} blocking parse issue(s)` : '') +
-    ` · ${view.files.payment.path}`;
+    (view.summary.blockingParseIssues ? `, ${view.summary.blockingParseIssues} blocking parse issue(s)` : '') +
+    `, ${view.files.payment.path}`;
   el('cDet').textContent = String(view.files.payment.details);
   el('cFind').textContent = String(view.findings.length);
   el('cMatched').textContent = String(view.summary.referencesMatched);
   const c = classification();
-  el('cOpen').textContent = c ? String(c.counts.OPEN + c.counts.EXPIRED) : '—';
+  el('cOpen').textContent = c ? String(c.counts.OPEN + c.counts.EXPIRED) : '-';
 
   el('totals').querySelector('tbody')!.innerHTML = view.totals.length
     ? view.totals
         .map((total) => {
           const basis = total.basis
-            ? `<div class="small muted">${esc(total.basis)}${total.credits || total.debits ? ` · credits ${esc(total.credits ?? '0')} / debits ${esc(total.debits ?? '0')}` : ''}</div>`
+            ? `<div class="small muted">${esc(total.basis)}${total.credits || total.debits ? `, credits ${esc(total.credits ?? '0')} / debits ${esc(total.debits ?? '0')}` : ''}</div>`
             : '';
           return `<tr><td>${esc(total.currency)}${basis}</td><td>${esc(total.declared)}</td><td>${esc(total.computed)}</td><td class="${total.delta.startsWith('-') ? 'neg' : ''}">${esc(total.delta)}</td></tr>`;
         })
@@ -268,9 +268,9 @@ function renderVerdict(): void {
     .map(
       (finding, index) =>
         `<li data-i="${index}" class="${index === state.selected ? 'sel' : ''}">
-          <div class="code"><span class="chip fail">${esc(finding.code)}</span> record ${esc(finding.recordIndex)}${finding.field ? ` · ${esc(finding.field)}` : ''}</div>
+          <div class="code"><span class="chip fail">${esc(finding.code)}</span> record ${esc(finding.recordIndex)}${finding.field ? `, ${esc(finding.field)}` : ''}</div>
           ${finding.reference ? `<div class="meta">ref ${esc(finding.reference)}</div>` : ''}
-          <div class="amt">declared ${esc(finding.declared ?? '—')} · computed ${esc(finding.computed ?? '—')} · delta ${esc(finding.delta ?? '—')}</div>
+          <div class="amt">declared ${esc(finding.declared ?? '-')}; computed ${esc(finding.computed ?? '-')}; delta ${esc(finding.delta ?? '-')}</div>
         </li>`,
     )
     .join('');
@@ -280,7 +280,7 @@ function renderVerdict(): void {
   el('issues').innerHTML = view.issues
     .map(
       (issue) =>
-        `<li>${esc(issue.side)} · ${esc(issue.code)}${issue.recordIndex !== undefined ? ` @record ${esc(issue.recordIndex)}` : ''} — ${esc(issue.detail)}</li>`,
+        `<li>${esc(issue.side)}, ${esc(issue.code)}${issue.recordIndex !== undefined ? ` @record ${esc(issue.recordIndex)}` : ''}: ${esc(issue.detail)}</li>`,
     )
     .join('');
 }
@@ -298,14 +298,14 @@ function renderLedger(): void {
         .map((entry) => {
           const waiver = state.ledger.entries.find((candidate) => candidate.id === entry.waiverId);
           return `<tr><td><span class="st ${entry.status}">${entry.status}</span></td>
-            <td>${esc(entry.code)}<div class="small muted">record ${esc(entry.recordIndex)}${entry.expiresOn ? ` · expires ${esc(entry.expiresOn)}` : ''}</div></td>
-            <td>${waiver ? `${esc(waiver.owner)}<div class="small muted">${esc(waiver.reason)}</div>` : '<span class="muted">—</span>'}</td></tr>`;
+            <td>${esc(entry.code)}<div class="small muted">record ${esc(entry.recordIndex)}${entry.expiresOn ? `; expires ${esc(entry.expiresOn)}` : ''}</div></td>
+            <td>${waiver ? `${esc(waiver.owner)}<div class="small muted">${esc(waiver.reason)}</div>` : '<span class="muted">-</span>'}</td></tr>`;
         })
         .join('')
     : '<tr><td colspan="3" class="muted">run a scenario to see the register</td></tr>';
   el('chain').textContent = state.ledger.entries.length
-    ? `${state.ledger.entries.length} entr${state.ledger.entries.length === 1 ? 'y' : 'ies'} · chain ${integrity.ok ? 'intact' : `BROKEN at seq ${integrity.firstInvalidSeq}`} · head ${state.ledger.entries[state.ledger.entries.length - 1]!.hash.slice(0, 16)}…`
-    : 'ledger empty — no decision recorded yet';
+    ? `${state.ledger.entries.length} entr${state.ledger.entries.length === 1 ? 'y' : 'ies'}; chain ${integrity.ok ? 'intact' : `BROKEN at seq ${integrity.firstInvalidSeq}`}; head ${state.ledger.entries[state.ledger.entries.length - 1]!.hash.slice(0, 16)}...`
+    : 'ledger empty: no decision recorded yet';
 }
 
 function firstDetail(side: 'payment' | 'bank'): number {
@@ -323,11 +323,11 @@ function renderEvidence(): void {
     const spot = state.spotlight ?? { side: 'payment' as const, index: firstDetail('payment') };
     const record = view.records.find((entry) => entry.side === spot.side && entry.index === spot.index);
     el('evidenceNote').textContent = record
-      ? `${record.side} record ${record.index} sliced by its own spec — every field at the declared byte offset${record.isTrailer ? ' (control trailer)' : ''}.`
+      ? `${record.side} record ${record.index} sliced by its own spec: every field at the declared byte offset${record.isTrailer ? ' (control trailer)' : ''}.`
       : 'Pick a record below to read its layout.';
     if (!record) return;
     el('bytes').innerHTML = [...record.raw]
-      .map((char, index) => `<span class="byte" title="byte ${index + 1}">${char === ' ' ? '·' : esc(char)}</span>`)
+      .map((char, index) => `<span class="byte" title="byte ${index + 1}">${char === ' ' ? '.' : esc(char)}</span>`)
       .join('');
     el('ruler').textContent = ruler(record.raw.length);
     el('fieldmeta').innerHTML = `<table class="legend"><tr><th>field</th><th>pic</th><th>bytes</th><th>as read</th></tr>${record.fields
@@ -342,19 +342,19 @@ function renderEvidence(): void {
 
   const evidence = finding.evidence;
   const record = view.records.find((entry) => entry.side === evidence.side && entry.index === evidence.recordIndex);
-  el('evidenceNote').textContent = `${evidence.note} · ${evidence.side} file`;
+  el('evidenceNote').textContent = `${evidence.note}, ${evidence.side} file`;
   if (record) {
     el('bytes').innerHTML = [...record.raw]
       .map((char, index) => {
         const inSpan = evidence.span && index >= evidence.span.start - 1 && index < evidence.span.start - 1 + evidence.span.length;
-        return `<span class="byte${inSpan ? ' hl' : ''}" title="byte ${index + 1}">${char === ' ' ? '·' : esc(char)}</span>`;
+        return `<span class="byte${inSpan ? ' hl' : ''}" title="byte ${index + 1}">${char === ' ' ? '.' : esc(char)}</span>`;
       })
       .join('');
     el('ruler').textContent = ruler(record.raw.length);
   }
   const rows: string[] = [`<dt>record</dt><dd>${esc(evidence.side)} #${esc(evidence.recordIndex)}</dd>`];
-  if (evidence.field) rows.push(`<dt>field</dt><dd>${esc(evidence.field)}${evidence.pic ? ` · ${esc(evidence.pic)}` : ''}</dd>`);
-  if (evidence.span) rows.push(`<dt>bytes</dt><dd>${evidence.span.start}–${evidence.span.start + evidence.span.length - 1} (${evidence.span.length} bytes)</dd>`);
+  if (evidence.field) rows.push(`<dt>field</dt><dd>${esc(evidence.field)}${evidence.pic ? `, ${esc(evidence.pic)}` : ''}</dd>`);
+  if (evidence.span) rows.push(`<dt>bytes</dt><dd>${evidence.span.start}-${evidence.span.start + evidence.span.length - 1} (${evidence.span.length} bytes)</dd>`);
   if (evidence.fieldText !== undefined) rows.push(`<dt>as read</dt><dd>${esc(JSON.stringify(evidence.fieldText))}</dd>`);
   if (finding.declared !== undefined) rows.push(`<dt>declared</dt><dd>${esc(finding.declared)}</dd>`);
   if (finding.computed !== undefined) rows.push(`<dt>computed</dt><dd>${esc(finding.computed)}</dd>`);
@@ -370,7 +370,7 @@ function renderEvidence(): void {
   el('explain').innerHTML = `<div class="explain ${blocked ? 'blocked' : ''}">
     <div class="row" style="gap:8px;align-items:center">
       <span class="chip ${blocked ? 'warn' : 'info'}">${esc(explanation.status)}</span>
-      <span class="small muted">L3 · ${esc(explanation.adapter)} · cites ${esc((explanation.citedValues ?? []).length)} value(s)</span>
+      <span class="small muted">L3: ${esc(explanation.adapter)}; cites ${esc((explanation.citedValues ?? []).length)} value(s)</span>
     </div>
     <div class="cause">${esc(explanation.cause)}</div>
     <div class="fix">${esc(explanation.suggestedFix)}</div>
@@ -401,8 +401,8 @@ function selectedFinding(): Finding | null {
 
 function renderVerify(identical: boolean, note: string): void {
   el('verifyOut').innerHTML = identical
-    ? `<span style="color:#79d492">identical — same inputs, same verdict</span><br/>${esc(note)}`
-    : `<span style="color:#ff9c94">DIFFERENT — ${esc(note)}</span>`;
+    ? `<span style="color:#79d492">identical: same inputs, same verdict</span><br/>${esc(note)}`
+    : `<span style="color:#ff9c94">DIFFERENT: ${esc(note)}</span>`;
 }
 
 function wire(): void {
@@ -437,12 +437,12 @@ function wire(): void {
       if (!scenario) {
         await runDropped();
         const afterDropped = state.run!.fingerprint;
-        renderVerify(before === afterDropped, `dropped file · recorded ${before.slice(0, 16)}… · recomputed ${afterDropped.slice(0, 16)}…`);
+        renderVerify(before === afterDropped, `dropped file, recorded ${before.slice(0, 16)}..., recomputed ${afterDropped.slice(0, 16)}...`);
         return;
       }
       await runScenario(scenario.id);
       const after = state.run!.fingerprint;
-      renderVerify(before === after, `recorded ${before.slice(0, 16)}… · recomputed ${after.slice(0, 16)}…`);
+      renderVerify(before === after, `recorded ${before.slice(0, 16)}..., recomputed ${after.slice(0, 16)}...`);
     })();
   });
 
@@ -471,7 +471,7 @@ function wire(): void {
       );
       persist();
       render();
-      toast(`waived ${finding.code} — the verdict above is unchanged`);
+      toast(`waived ${finding.code}. The verdict above is unchanged`);
     } catch (error) {
       toast((error as Error).message);
     }
@@ -499,7 +499,7 @@ function wire(): void {
       );
       persist();
       render();
-      toast('released — the finding is open again');
+      toast('released: the finding is open again');
     } catch (error) {
       toast((error as Error).message);
     }
@@ -536,7 +536,7 @@ function wire(): void {
       void file.arrayBuffer().then((buffer) => {
         state[key] = { name: file.name, bytes: new Uint8Array(buffer) };
         el('dropped').textContent = `${state.droppedFile ? `file: ${state.droppedFile.name} (${state.droppedFile.bytes.length} bytes)` : ''}` +
-          `${state.droppedCopybook ? ` · copybook: ${state.droppedCopybook.name}` : ''}`;
+          `${state.droppedCopybook ? `, copybook: ${state.droppedCopybook.name}` : ''}`;
       });
     };
     node.addEventListener('dragover', (event) => {
@@ -579,7 +579,7 @@ function restore(): void {
 function stripGuarantees(): void {
   el('strip-top').innerHTML = '<span class="tag">Guaranteed</span>' +
     GUARANTEES.guaranteed.map((item) => `<span class="item">${esc(item)}</span>`).join('');
-  el('strip-bottom').innerHTML = '<span class="tag">Not guaranteed — a human decides</span>' +
+  el('strip-bottom').innerHTML = '<span class="tag">Not guaranteed: a human decides</span>' +
     GUARANTEES.notGuaranteed.map((item) => `<span class="item">${esc(item)}</span>`).join('');
 }
 

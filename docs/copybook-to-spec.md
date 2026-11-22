@@ -1,4 +1,4 @@
-# Copybook → Kiro spec: the conversion log
+# Copybook to Kiro spec: the conversion log
 
 > This document is both a build artifact and a demo asset. It records **what actually happened**
 > when three legacy record definitions were turned into a Kiro spec, including the parts that were
@@ -17,7 +17,7 @@ written down in the copybook. It lived in the heads of people who ran the settle
 So the conversion is:
 
 ```
-copybook (bytes)  →  requirements (what must hold)  →  design (how the code enforces it)  →  tasks (small verifiable steps)
+copybook (bytes)  ->  requirements (what must hold)  ->  design (how the code enforces it)  ->  tasks (small verifiable steps)
 ```
 
 The output of that conversion is `.kiro/specs/edi820-importer/{requirements,design,tasks}.md`.
@@ -31,9 +31,9 @@ the real compiler (`src/copybook/compiler.ts`), not a hand count.
 
 | copybook | record length | framing | amount field | sign convention | bytes of AMOUNT |
 |---|---|---|---|---|---|
-| `820.cpy` | 100 | line (LF) | `PIC S9(11)V99` | trailing overpunch | 24–36 (13) |
-| `820-packed.cpy` | 88 | fixed (no newlines) | `PIC S9(11)V99 COMP-3` | packed nibble C/D | 24–30 (7) |
-| `823.cpy` | 80 | line (LF) | `PIC S9(11)V99 SIGN LEADING SEPARATE` | leading separate | 25–38 (14) |
+| `820.cpy` | 100 | line (LF) | `PIC S9(11)V99` | trailing overpunch | 24-36 (13) |
+| `820-packed.cpy` | 88 | fixed (no newlines) | `PIC S9(11)V99 COMP-3` | packed nibble C/D | 24-30 (7) |
+| `823.cpy` | 80 | line (LF) | `PIC S9(11)V99 SIGN LEADING SEPARATE` | leading separate | 25-38 (14) |
 
 Two facts came out of writing them:
 
@@ -48,7 +48,7 @@ Two facts came out of writing them:
 ## Step 1: what a copybook decides by itself (no human, no agent)
 
 - field name, start offset, length, type
-- picture → width: `X(n)` is n bytes, `9(n)V9(m)` is n+m, `COMP-3` is ⌈(digits+1)/2⌉
+- picture -> width: `X(n)` is n bytes, `9(n)V9(m)` is n+m, `COMP-3` is ceil((digits+1)/2)
 - record length, therefore the boundary at which a corrupted record must be reported
 - sign convention, when the copybook declares one
 
@@ -56,13 +56,13 @@ The compiler refuses everything it cannot derive: a signed display field without
 `COPYBOOK_UNPARSABLE`, `OCCURS` / `COMP` / EBCDIC source are `UNSUPPORTED_STRUCTURE`, and two fields
 of one layout that overlap are `COPYBOOK_OVERLAP` naming both.
 
-`REDEFINES` is the interesting middle case: the clause itself is data — it says two layouts share
+`REDEFINES` is the interesting middle case: the clause itself is data - it says two layouts share
 one byte range, which is what `820-redefines.cpy` does with a payment detail and the trailer that
 closes the file. What it does **not** say is which record type uses which layout. So the compiler
-accepts `REDEFINES` only together with an activation rule the copybook states (`* @view layout=…
-typeField=… value=…`), and refuses a bound-to-nothing `REDEFINES` as `COPYBOOK_SEMANTICS` rather
+accepts `REDEFINES` only together with an activation rule the copybook states (`* @view layout=...
+typeField=... value=...`), and refuses a bound-to-nothing `REDEFINES` as `COPYBOOK_SEMANTICS` rather
 than reading whichever layout fits. The full list is in
-[`copybook-dialect.md`](copybook-dialect.md) §4–5.
+[`copybook-dialect.md`](copybook-dialect.md) §4-5.
 
 ## Step 2: what the copybook does not decide, and where each answer went
 
@@ -74,7 +74,7 @@ cannot.
 | Is a short record re-synchronised, or reported? | `R2.2` | `[manual]` human decision: report and continue at the declared boundary | `test/unit/parser.test.ts`, `RECORD_LENGTH_MISMATCH` on record 6 of `820-bad` |
 | Are declared totals compared per currency or as one number? | `R4.1` | `[manual]` human decision: a mixed-currency total is meaningless | `test/unit/reconcile.test.ts` (multi-currency case) |
 | Is a reference match exact only, or is a fallback allowed? | `R4.3` | `[manual]` exact first, then amount + currency + value date inside the window; a fallback match is still a match and is never dropped | `src/reconcile/reconciler.ts` §matching, `docs/copybook-dialect.md` |
-| May the agent explain a finding without values? | `R5.1–R5.3` | `[manual]` no: `INSUFFICIENT_EVIDENCE` instead | `test/unit/explain.test.ts` (adapter spy call count 0) |
+| May the agent explain a finding without values? | `R5.1-R5.3` | `[manual]` no: `INSUFFICIENT_EVIDENCE` instead | `test/unit/explain.test.ts` (adapter spy call count 0) |
 | Are amounts floats? | `.kiro/steering/tech.md` §Amounts | `[manual]` never: `bigint` minor units plus the copybook's scale | `design.md` §10 delta 1 |
 | Which field is the amount, the reference, the date? | `@semantics` directive | `[manual]` the copybook states it, so the reconciler never hard-codes a field name | `src/copybook/compiler.ts`, `COPYBOOK_SEMANTICS` on a bad reference |
 | Does a trailer declare a count and a total? | `@control` directive | `[manual]` the file says so; without it the parse is valid but not reconcilable | `samples/copybooks/*.cpy`, `notes` on the compiled copybook |
@@ -86,17 +86,17 @@ the compiler says so in `notes` rather than guessing a mapping.
 
 ## Step 3: the spec chain as it was built
 
-- `requirements.md` — 33 requirements in EARS form across seven groups (copybook model, parsing,
+- `requirements.md` - 33 requirements in EARS form across seven groups (copybook model, parsing,
   round trip, reconciliation, explanation, verification, and R8 for the exception register), plus an
   explicit out-of-scope section. It was 24 in six groups when this page was first written, before
   the register existed.
-- `design.md` — the layer split (L1 parser → L2 reconciler → L3 explainer → L4 human), the data
+- `design.md` - the layer split (L1 parser -> L2 reconciler -> L3 explainer -> L4 human), the data
   model, the algorithms, and a **delta log** written while building (§10, §12, §14, §15), each
   naming what the design said first and why it changed.
-- `tasks.md` — T0.1 through T9.5, each with the command whose output goes into `EVIDENCE.md`.
+- `tasks.md` - T0.1 through T9.5, each with the command whose output goes into `EVIDENCE.md`.
 
 The chain was used backwards as well as forwards: when the PBT suite found that an overpunch table
-mapped `A → 0` instead of `A → +1`, the fix landed in code and the regression was recorded in
+mapped `A -> 0` instead of `A -> +1`, the fix landed in code and the regression was recorded in
 `tasks.md` T2.5, not quietly patched.
 
 ## Step 4: where Kiro changed the outcome
@@ -133,7 +133,7 @@ The four questions this section was created to answer, answered honestly.
 
 **What Kiro did not do, stated plainly (this is also in the video and the write-up):**
 
-- The Kiro IDE spec flow (`spec → tasks → implementation inside a session`) was **not** run. The
+- The Kiro IDE spec flow (`spec -> tasks -> implementation inside a session`) was **not** run. The
   spec was authored in this workspace from the copybooks, and the code was implemented here with
   the spec as the contract. `kiro-cli` was the Kiro surface actually executed: `whoami`,
   `agent list`, `agent validate`, and four `chat` turns with the custom reviewer agent.

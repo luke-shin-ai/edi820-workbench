@@ -1,5 +1,5 @@
 /**
- * T5 — the BAI2 reader.
+ * T5: the BAI2 reader.
  *
  * BAI2 is the reason T0.3 refused to fake a comma-delimited format as a copybook.
  * These tests pin the two things a disguise would have lost: the reader's own
@@ -25,7 +25,7 @@ const good = () => parseBai2(readBuf('samples/data/bai2-good.txt'));
 const bad = () => parseBai2(readBuf('samples/data/bai2-bad.txt'));
 const payment820 = () => parseFile({ copybook: cob820, source: readBuf('samples/data/820-good.txt') });
 
-describe('T5.1 — the reader is a BAI2 reader, not a copybook in disguise', () => {
+describe('T5.1 - the reader is a BAI2 reader, not a copybook in disguise', () => {
   it('declares itself as a delimiter format with no fixed width', () => {
     const result = good();
     expect(result.copybook.format).toBe('bai2');
@@ -53,7 +53,7 @@ describe('T5.1 — the reader is a BAI2 reader, not a copybook in disguise', () 
   });
 });
 
-describe('T5.1 — amounts and direction', () => {
+describe('T5.1 - amounts and direction', () => {
   it('reads a 15-digit BAI2 amount as minor units with the currency scale', () => {
     expect(decodeBai2Amount('1500000', 2).minorUnits).toBe(1_500_000n);
     expect(decodeBai2Amount('1000}', 2).minorUnits).toBe(-1_000n);
@@ -90,7 +90,7 @@ describe('T5.1 — amounts and direction', () => {
   });
 });
 
-describe('T5.1 — the reader checks the bank file against itself', () => {
+describe('T5.1 - the reader checks the bank file against itself', () => {
   it('a clean statement produces no issues and a declared credit total', () => {
     const result = good();
     expect(result.issues).toEqual([]);
@@ -168,7 +168,7 @@ describe('T5.1 — the reader checks the bank file against itself', () => {
   });
 });
 
-describe('T5.1 — BAI2 plugs into the same L2 reconciler', () => {
+describe('T5.1 - BAI2 plugs into the same L2 reconciler', () => {
   it('a clean statement reconciles to PASS against the 820 file', () => {
     const result = reconcile({ payment: payment820(), bank: good(), options: WINDOW });
     expect(result.status).toBe('PASS');

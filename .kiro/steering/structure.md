@@ -2,16 +2,16 @@
 inclusion: always
 ---
 
-# Structure — 「820」
+# Structure: 「820」
 
 ```
-/                       repo root (this folder) — must contain .kiro/ and LICENSE
+/                       repo root (this folder) - must contain .kiro/ and LICENSE
   README.md             what it does, how to run, what is guaranteed
   LICENSE               Apache-2.0 (About area on GitHub)
-  .kiro/                specs, steering, hooks, agents — never .gitignore'd
+  .kiro/                specs, steering, hooks, agents - never .gitignore'd
   src/
-    copybook/           copybook model + compiler (text → Field[])
-    parser/             fixed-width → typed records
+    copybook/           copybook model + compiler (text -> Field[])
+    parser/             fixed-width -> typed records
     reconcile/          control totals, references, dates
     explain/            L3 agent adapter (structured findings in, narration out)
     cli/                parse | reconcile | explain | verify

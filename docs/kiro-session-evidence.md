@@ -1,4 +1,4 @@
-# Kiro sessions — what the agent did, what fired, what it returned
+# Kiro sessions: what the agent did, what fired, what it returned
 
 This file is evidence, not a write-up of an intention. Every line below comes from a command
 that ran on **2026-11-21** in this repository with `kiro-cli 3.5.0`, logged in with a Builder ID
@@ -34,7 +34,7 @@ verbatim; times are UTC.
 (An earlier line at `09:28:20.092Z` records the same `Stop` hook verifying `out/evidence` with
 `exit=0` at the end of S1.)
 
-The `Stop` hook's own terminal output — the one a session shows to the agent:
+The `Stop` hook's own terminal output - the one a session shows to the agent:
 
 ```
 verify: newest run out/l4-review
@@ -43,8 +43,8 @@ verify .../out/l4-review/report.json
   recorded fingerprint   7af64454555de8d89b5c4f763009547caaa6f53b1c040db8d8c462c04335c118
   recomputed fingerprint 7af64454555de8d89b5c4f763009547caaa6f53b1c040db8d8c462c04335c118
   recorded verdict FAIL   recomputed verdict FAIL
-  read-only: report 6107 → 6107 bytes, mtime unchanged
-  RESULT: identical — same inputs, same verdict
+  read-only: report 6107 -> 6107 bytes, mtime unchanged
+  RESULT: identical - same inputs, same verdict
 ```
 
 ### 2.1 Two trigger names were wrong, and one of them hid a dead hook
@@ -55,7 +55,7 @@ verify .../out/l4-review/report.json
   the docs; on CLI V3 the trigger is `Stop`. The file now says `Stop`.
 - The command itself pointed at `src/cli/index.ts`, which exports `runCli` and has no entry
   point, and at `out/`, while reports live in `out/<timestamp>/`. That produced no output and
-  `exit 0` — the exact "silent no-op" a reviewer would call a fake. It now calls
+  `exit 0` - the exact "silent no-op" a reviewer would call a fake. It now calls
   `scripts/verify-latest.mjs`, which resolves the newest `out/*/report.json` that holds a
   verdict and hands it to the real entry point `src/cli/main.ts verify`, exiting with the CLI's
   own code and logging the firing.
@@ -91,7 +91,7 @@ returned:
 Reconcile: status FAIL with 4 findings
   fingerprint 7af64454555de8d89b5c4f763009547caaa6f53b1c040db8d8c462c04335c118
   CONTROL_TOTAL_MISMATCH, DATE_OUT_OF_WINDOW, REF_UNMATCHED (x2)
-Verify: ok true — recomputed fingerprint equals recorded, report bytes 6107 -> 6107,
+Verify: ok true - recomputed fingerprint equals recorded, report bytes 6107 -> 6107,
   mtime unchanged, recorded FAIL = recomputed FAIL
 Exceptions: all 4 findings OPEN, unadjudicated 4
 ```
@@ -156,7 +156,7 @@ Both were re-run independently after the session: `npx tsc --noEmit` exits 0, an
 
 1. **Typing at the boundary.** The CLI and MCP passed `report.verdict.findings` (JSON) straight
    into `classify` with `as any`. Both now call `reviveFindings()`, so a finding's amounts are
-   `bigint` again before its key is computed — the same code path L3 uses.
+   `bigint` again before its key is computed - the same code path L3 uses.
 2. **A tampered ledger could be extended.** `waive` and `release` appended to whatever the file
    held. Both now run `verifyLedger` first and exit 3 (`error (SPEC): ledger integrity failed at
    seq 1: hash mismatch at seq 1`) instead of chaining a new decision onto a broken history.
@@ -168,8 +168,8 @@ Both were re-run independently after the session: `npx tsc --noEmit` exits 0, an
    control. This closes the reviewer's only MINOR finding (see §6).
 5. **EPIPE guard** in `src/cli/main.ts`: piping the CLI to `head` (which a hook does) used to
    crash with an unhandled `EPIPE` stack trace.
-6. **CLI-level exit-code tests** were added for R8.6 (OPEN→2, all waived→0, release→2, tampered
-   ledger→3, expired→2), because the authored tests exercised the module but not the process
+6. **CLI-level exit-code tests** were added for R8.6 (OPEN->2, all waived->0, release->2, tampered
+   ledger->3, expired->2), because the authored tests exercised the module but not the process
    boundary.
 
 After those repairs the suite is **275 tests, 20 files** (`npx vitest run`, 2026-11-21 18:32 KST).
@@ -218,15 +218,15 @@ Report: Added one test ... 'npx vitest run test/unit/exception.test.ts' -> 38 pa
 
 The only item it raised against the register:
 
-> **MINOR** — `src/exception/register.ts`: the release entry's `compensatingControl` defaults to
+> **MINOR** - `src/exception/register.ts`: the release entry's `compensatingControl` defaults to
 > `''` when not provided, but R8.1 says every entry carries a compensating control.
 
 Resolved by requiring `--control` on `kiro-cli`'s release path (§4.1 item 4), so the field is
 never empty from the CLI. The module still accepts an empty one from a direct caller; that is
 recorded in `design.md` §13.6 as a caller's responsibility rather than papered over.
 
-Everything else it marked ✓ against R8.1–R8.8 with file and line references, and it answered the
-three contract questions from tool output rather than from the prose — which is the reason the
+Everything else it marked as met against R8.1-R8.8 with file and line references, and it answered the
+three contract questions from tool output rather than from the prose - which is the reason the
 MCP server exists.
 
 ## 7. Limits of this evidence
@@ -241,7 +241,7 @@ MCP server exists.
   after the trigger name was corrected; that section carries the payload and the rows it wrote.
 - The credit balance is not visible to the CLI, so no credit count is claimed here.
 
-## 8. The task runner (2026-11-22) — `PostTaskExec` fires
+## 8. The task runner (2026-11-22): `PostTaskExec` fires
 
 The second review's attack #15 was that `PostTaskExecution` was declared and never fired, because no
 session had ever run a spec task **through Kiro's task tools**. This section is that run.
@@ -291,9 +291,9 @@ rewrite what already happened.)
 `EVIDENCE.md` rows written by the hook, not by hand:
 
 ```
-| 2026-11-22 10:32 | n/a | — | — | — |
-| 2026-11-22 10:32 | T9.5 **Claim checker** — a script that fails when a published document states a  (.kiro/specs/edi820-importer/tasks.md) | — | — | — |
-| 2026-11-22 10:33 | T9.5 (.kiro/specs/edi820-importer/tasks.md) | — | task_success=true | — |
+| 2026-11-22 10:32 | n/a | - | - | - |
+| 2026-11-22 10:32 | T9.5 **Claim checker** - a script that fails when a published document states a  (.kiro/specs/edi820-importer/tasks.md) | - | - | - |
+| 2026-11-22 10:33 | T9.5 (.kiro/specs/edi820-importer/tasks.md) | - | task_success=true | - |
 ```
 
 The first two rows are kept as they were written. They are the payload-picker defect, not a claim:
@@ -303,8 +303,9 @@ The first two rows are kept as they were written. They are the payload-picker de
 ### 8.4 The payload, as the hook received it
 
 Kiro passes the event as JSON on the hook's stdin. `scripts/append-evidence.mjs` now keeps it under
-`out/hook-payload/<timestamp>.json` — a runtime path outside the committed tree, like `out/*` — so the
-shape is recorded rather than guessed. The excerpt below is that file, from this session:
+`out/hook-payload/<timestamp>.json` - a runtime path outside the committed tree, like `out/*` - so the
+shape is recorded rather than guessed. The excerpt below is that file, from this session, with the
+punctuation of the task name normalised to ASCII (2026-11-22):
 
 ```json
 {
@@ -312,7 +313,7 @@ shape is recorded rather than guessed. The excerpt below is that file, from this
   "hook_event_name": "PostTaskExec",
   "cwd": "/workspace/hackathons/kiroween-2026",
   "spec_name": ".kiro/specs/edi820-importer/tasks.md",
-  "task_name": "T9.5 **Claim checker** — a script that fails when a published document states a test count, ...",
+  "task_name": "T9.5 **Claim checker** - a script that fails when a published document states a test count, ...",
   "task_success": true
 }
 ```

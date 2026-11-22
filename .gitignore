@@ -18,7 +18,7 @@ out/evidence/*
 
 # Internal planning / procedure records: they stay in the workspace, not in the
 # public repository. They contain the Kiro user ID, Devpost account details and
-# unpublished submission strategy — none of which belong in a public repo.
+# unpublished submission strategy: none of which belong in a public repo.
 logs/
 screenshots/
 CONCEPT.md

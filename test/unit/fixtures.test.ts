@@ -24,7 +24,7 @@ const cobRedefines = compileCopybook(readText('samples/copybooks/820-redefines.c
 
 const WINDOW = { settlementWindow: { start: '2026-11-18', end: '2026-11-20' } };
 
-describe('T0.3 — the fixture set matches its documented defects', () => {
+describe('T0.3 - the fixture set matches its documented defects', () => {
   it('has the expected files and sizes', () => {
     const files = readdirSync(join(root, 'samples/data')).sort();
     expect(files).toEqual([

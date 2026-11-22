@@ -1,5 +1,5 @@
 /**
- * T5.3 — the web screen's HTTP surface.
+ * T5.3: the web screen's HTTP surface.
  *
  * The browser test comes later (it needs screenshots); these assertions cover what
  * a screenshot cannot: that the three columns exist in the served document, that
@@ -37,14 +37,14 @@ async function run(body: unknown): Promise<ViewModel> {
   return payload.view!;
 }
 
-describe('T5.3 — the page is one screen with three columns and two guarantee strips', () => {
+describe('T5.3 - the page is one screen with three columns and two guarantee strips', () => {
   it('serves the document with the three panels and both strips', async () => {
     const response = await fetch(`${web.url()}/`);
     expect(response.status).toBe(200);
     const html = await response.text();
-    expect(html).toContain('1 · Input');
-    expect(html).toContain('2 · Verdict');
-    expect(html).toContain('3 · Evidence');
+    expect(html).toContain('1. Input');
+    expect(html).toContain('2. Verdict');
+    expect(html).toContain('3. Evidence');
     expect(html).toContain('id="strip-top"');
     expect(html).toContain('id="strip-bottom"');
     expect(html).toContain('grid-template-columns: 330px');
@@ -66,7 +66,7 @@ describe('T5.3 — the page is one screen with three columns and two guarantee s
   });
 });
 
-describe('T5.3 — the verdict column matches the deterministic layers', () => {
+describe('T5.3 - the verdict column matches the deterministic layers', () => {
   it('shows PASS for the clean pair with zero findings', async () => {
     const view = await run({
       filePath: 'samples/data/820-good.txt',
@@ -128,7 +128,7 @@ describe('T5.3 — the verdict column matches the deterministic layers', () => {
   });
 });
 
-describe('T5.3 — BAI2 and dropped files go through the same screen', () => {
+describe('T5.3 - BAI2 and dropped files go through the same screen', () => {
   it('reconciles a BAI2 statement and labels evidence with the BAI2 side', async () => {
     const view = await run({
       filePath: 'samples/data/820-good.txt',

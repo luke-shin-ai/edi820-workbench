@@ -1636,7 +1636,7 @@
     }
     const detailCount = records.filter((r) => !r.isTrailer).length;
     const copybook = bai2Spec([
-      declaredControl ? "declared control: 03 account summary code 100 (total credits) \u2014 the only BAI2 number comparable to a payment total" : "declared control: none (no single 03 code 100 total)",
+      declaredControl ? "declared control: 03 account summary code 100 (total credits), the only BAI2 number comparable to a payment total" : "declared control: none (no single 03 code 100 total)",
       "the 98 group control total covers account control totals (which include 03 summary amounts), so it is checked at the BAI2 level and not used as a payment total",
       "dates: BAI2 carries YYMMDD without a century; this reader applies 2000 (documented in docs/bai2.md \xA73)"
     ]);
@@ -2387,7 +2387,7 @@ ${draft.suggestedFix}`, finding);
         side,
         recordIndex: finding.recordIndex,
         raw: record.raw,
-        note: `record ${finding.recordIndex}, ${record.length} characters \u2014 the finding is file-wide`
+        note: `record ${finding.recordIndex}, ${record.length} characters - the finding is file-wide`
       };
     }
     const spec = result.copybook.fields.find((f) => f.name === field);
@@ -2401,7 +2401,7 @@ ${draft.suggestedFix}`, finding);
       ...spec ? { pic: spec.pic } : {},
       ...span ? { span } : {},
       ...fieldText !== void 0 ? { fieldText } : {},
-      note: span ? `${field}${spec ? ` ${spec.pic}` : ""} at bytes ${span.start}\u2013${span.start + span.length - 1} of record ${finding.recordIndex} (1-based)` : `record ${finding.recordIndex}: the field ??${field}?? is not in this file's spec`
+      note: span ? `${field}${spec ? ` ${spec.pic}` : ""} at bytes ${span.start}-${span.start + span.length - 1} of record ${finding.recordIndex} (1-based)` : `record ${finding.recordIndex}: the field ??${field}?? is not in this file's spec`
     };
   }
   function buildViewModel(input) {
@@ -2772,18 +2772,18 @@ ${draft.suggestedFix}`, finding);
   ];
   var GUARANTEES = {
     "guaranteed": [
-      "Format interpretation \u2014 each field is sliced exactly at the copybook's byte position and length; no trimming, no re-synchronisation.",
-      "One layout per record \u2014 a REDEFINES region (one byte range, several layouts) decodes exactly the layout its discriminator selects; an unmatched record is REDEFINES_VIEW_UNMATCHED and its bytes stay undecoded, never guessed.",
-      "Arithmetic \u2014 amounts are bigint minor units with an ISO-4217 currency; totals and deltas are exact, and never computed in floating point.",
-      "Reference reconciliation \u2014 every 820 reference either matches a bank record or appears in the report as REF_UNMATCHED; nothing is dropped silently.",
-      "Reproducibility \u2014 running verify on an output directory re-derives the verdict and compares a SHA-256 fingerprint. Same inputs \u21D2 same verdict, or the differing field path is printed.",
-      "Explanation grounding \u2014 an explanation may cite only numbers present in the finding it explains, or it is replaced with INSUFFICIENT_EVIDENCE; the default explainer is a zero-credit template, not a model."
+      "Format interpretation - each field is sliced exactly at the copybook's byte position and length; no trimming, no re-synchronisation.",
+      "One layout per record - a REDEFINES region (one byte range, several layouts) decodes exactly the layout its discriminator selects; an unmatched record is REDEFINES_VIEW_UNMATCHED and its bytes stay undecoded, never guessed.",
+      "Arithmetic - amounts are bigint minor units with an ISO-4217 currency; totals and deltas are exact, and never computed in floating point.",
+      "Reference reconciliation - every 820 reference either matches a bank record or appears in the report as REF_UNMATCHED; nothing is dropped silently.",
+      "Reproducibility - running verify on an output directory re-derives the verdict and compares a SHA-256 fingerprint. Same inputs, same verdict; otherwise the differing field path is printed.",
+      "Explanation grounding - an explanation may cite only numbers present in the finding it explains, or it is replaced with INSUFFICIENT_EVIDENCE; the default explainer is a zero-credit template, not a model."
     ],
     "notGuaranteed": [
       "Legal or accounting adequacy of a payment or its remittance advice.",
-      "Whether an exception is acceptable \u2014 a human must attach a reason, an expiry date, and a compensating control. The tool only refuses to let an exception exist without them.",
-      "Coverage of unmodelled clauses \u2014 OCCURS DEPENDING ON, binary COMP, SIGN LEADING OVERPUNCH and EBCDIC source are UNSUPPORTED_STRUCTURE; a REDEFINES with no activation rule is COPYBOOK_SEMANTICS; no copybook is SPEC_MISSING. None is guessed.",
-      "Source data authenticity \u2014 the tool verifies internal consistency, not whether the bank sent the right file."
+      "Whether an exception is acceptable - a human must attach a reason, an expiry date, and a compensating control. The tool only refuses to let an exception exist without them.",
+      "Coverage of unmodelled clauses - OCCURS DEPENDING ON, binary COMP, SIGN LEADING OVERPUNCH and EBCDIC source are UNSUPPORTED_STRUCTURE; a REDEFINES with no activation rule is COPYBOOK_SEMANTICS; no copybook is SPEC_MISSING. None is guessed.",
+      "Source data authenticity - the tool verifies internal consistency, not whether the bank sent the right file."
     ],
     "sourcePath": "docs/guarantees.md"
   };
@@ -2930,31 +2930,31 @@ ${draft.suggestedFix}`, finding);
   function renderVerdict() {
     const view = state.run?.view;
     if (!view) return;
-    el("fp").textContent = `fingerprint ${view.fingerprint.slice(0, 16)}\u2026`;
+    el("fp").textContent = `fingerprint ${view.fingerprint.slice(0, 16)}...`;
     const status = el("status");
     status.textContent = view.status;
     status.className = `chip ${view.status === "PASS" ? "pass" : view.status === "INCOMPLETE" ? "warn" : "fail"}`;
-    el("verdictMeta").textContent = `${view.files.payment.details} details \xB7 ${view.files.payment.format}` + (view.files.bank ? ` + bank ${view.files.bank.details} details (${view.files.bank.format})` : "") + (view.summary.blockingParseIssues ? ` \xB7 ${view.summary.blockingParseIssues} blocking parse issue(s)` : "") + ` \xB7 ${view.files.payment.path}`;
+    el("verdictMeta").textContent = `${view.files.payment.details} details, ${view.files.payment.format}` + (view.files.bank ? ` + bank ${view.files.bank.details} details (${view.files.bank.format})` : "") + (view.summary.blockingParseIssues ? `, ${view.summary.blockingParseIssues} blocking parse issue(s)` : "") + `, ${view.files.payment.path}`;
     el("cDet").textContent = String(view.files.payment.details);
     el("cFind").textContent = String(view.findings.length);
     el("cMatched").textContent = String(view.summary.referencesMatched);
     const c = classification();
-    el("cOpen").textContent = c ? String(c.counts.OPEN + c.counts.EXPIRED) : "\u2014";
+    el("cOpen").textContent = c ? String(c.counts.OPEN + c.counts.EXPIRED) : "-";
     el("totals").querySelector("tbody").innerHTML = view.totals.length ? view.totals.map((total) => {
-      const basis = total.basis ? `<div class="small muted">${esc(total.basis)}${total.credits || total.debits ? ` \xB7 credits ${esc(total.credits ?? "0")} / debits ${esc(total.debits ?? "0")}` : ""}</div>` : "";
+      const basis = total.basis ? `<div class="small muted">${esc(total.basis)}${total.credits || total.debits ? `, credits ${esc(total.credits ?? "0")} / debits ${esc(total.debits ?? "0")}` : ""}</div>` : "";
       return `<tr><td>${esc(total.currency)}${basis}</td><td>${esc(total.declared)}</td><td>${esc(total.computed)}</td><td class="${total.delta.startsWith("-") ? "neg" : ""}">${esc(total.delta)}</td></tr>`;
     }).join("") : '<tr><td colspan="4" class="muted">no declared total</td></tr>';
     el("findings").innerHTML = view.findings.map(
       (finding, index) => `<li data-i="${index}" class="${index === state.selected ? "sel" : ""}">
-          <div class="code"><span class="chip fail">${esc(finding.code)}</span> record ${esc(finding.recordIndex)}${finding.field ? ` \xB7 ${esc(finding.field)}` : ""}</div>
+          <div class="code"><span class="chip fail">${esc(finding.code)}</span> record ${esc(finding.recordIndex)}${finding.field ? `, ${esc(finding.field)}` : ""}</div>
           ${finding.reference ? `<div class="meta">ref ${esc(finding.reference)}</div>` : ""}
-          <div class="amt">declared ${esc(finding.declared ?? "\u2014")} \xB7 computed ${esc(finding.computed ?? "\u2014")} \xB7 delta ${esc(finding.delta ?? "\u2014")}</div>
+          <div class="amt">declared ${esc(finding.declared ?? "-")}; computed ${esc(finding.computed ?? "-")}; delta ${esc(finding.delta ?? "-")}</div>
         </li>`
     ).join("");
     el("findings").style.display = view.findings.length ? "block" : "none";
     el("noFindings").style.display = view.findings.length ? "none" : "block";
     el("issues").innerHTML = view.issues.map(
-      (issue) => `<li>${esc(issue.side)} \xB7 ${esc(issue.code)}${issue.recordIndex !== void 0 ? ` @record ${esc(issue.recordIndex)}` : ""} \u2014 ${esc(issue.detail)}</li>`
+      (issue) => `<li>${esc(issue.side)}, ${esc(issue.code)}${issue.recordIndex !== void 0 ? ` @record ${esc(issue.recordIndex)}` : ""}: ${esc(issue.detail)}</li>`
     ).join("");
   }
   function renderLedger() {
@@ -2963,10 +2963,10 @@ ${draft.suggestedFix}`, finding);
     el("l4table").querySelector("tbody").innerHTML = c ? c.entries.map((entry) => {
       const waiver = state.ledger.entries.find((candidate) => candidate.id === entry.waiverId);
       return `<tr><td><span class="st ${entry.status}">${entry.status}</span></td>
-            <td>${esc(entry.code)}<div class="small muted">record ${esc(entry.recordIndex)}${entry.expiresOn ? ` \xB7 expires ${esc(entry.expiresOn)}` : ""}</div></td>
-            <td>${waiver ? `${esc(waiver.owner)}<div class="small muted">${esc(waiver.reason)}</div>` : '<span class="muted">\u2014</span>'}</td></tr>`;
+            <td>${esc(entry.code)}<div class="small muted">record ${esc(entry.recordIndex)}${entry.expiresOn ? `; expires ${esc(entry.expiresOn)}` : ""}</div></td>
+            <td>${waiver ? `${esc(waiver.owner)}<div class="small muted">${esc(waiver.reason)}</div>` : '<span class="muted">-</span>'}</td></tr>`;
     }).join("") : '<tr><td colspan="3" class="muted">run a scenario to see the register</td></tr>';
-    el("chain").textContent = state.ledger.entries.length ? `${state.ledger.entries.length} entr${state.ledger.entries.length === 1 ? "y" : "ies"} \xB7 chain ${integrity.ok ? "intact" : `BROKEN at seq ${integrity.firstInvalidSeq}`} \xB7 head ${state.ledger.entries[state.ledger.entries.length - 1].hash.slice(0, 16)}\u2026` : "ledger empty \u2014 no decision recorded yet";
+    el("chain").textContent = state.ledger.entries.length ? `${state.ledger.entries.length} entr${state.ledger.entries.length === 1 ? "y" : "ies"}; chain ${integrity.ok ? "intact" : `BROKEN at seq ${integrity.firstInvalidSeq}`}; head ${state.ledger.entries[state.ledger.entries.length - 1].hash.slice(0, 16)}...` : "ledger empty: no decision recorded yet";
   }
   function firstDetail(side) {
     const view = state.run?.view;
@@ -2981,9 +2981,9 @@ ${draft.suggestedFix}`, finding);
     if (!finding) {
       const spot = state.spotlight ?? { side: "payment", index: firstDetail("payment") };
       const record2 = view.records.find((entry) => entry.side === spot.side && entry.index === spot.index);
-      el("evidenceNote").textContent = record2 ? `${record2.side} record ${record2.index} sliced by its own spec \u2014 every field at the declared byte offset${record2.isTrailer ? " (control trailer)" : ""}.` : "Pick a record below to read its layout.";
+      el("evidenceNote").textContent = record2 ? `${record2.side} record ${record2.index} sliced by its own spec: every field at the declared byte offset${record2.isTrailer ? " (control trailer)" : ""}.` : "Pick a record below to read its layout.";
       if (!record2) return;
-      el("bytes").innerHTML = [...record2.raw].map((char, index) => `<span class="byte" title="byte ${index + 1}">${char === " " ? "\xB7" : esc(char)}</span>`).join("");
+      el("bytes").innerHTML = [...record2.raw].map((char, index) => `<span class="byte" title="byte ${index + 1}">${char === " " ? "." : esc(char)}</span>`).join("");
       el("ruler").textContent = ruler(record2.raw.length);
       el("fieldmeta").innerHTML = `<table class="legend"><tr><th>field</th><th>pic</th><th>bytes</th><th>as read</th></tr>${record2.fields.map(
         (field, index) => `<tr><td><span class="sw f${index % 6}"></span><span class="nm">${esc(field.name)}</span></td><td class="nm">${esc(field.pic)}</td><td class="nm">${field.start}-${field.start + field.length - 1}</td><td class="pv">${esc(JSON.stringify(field.text))}</td></tr>`
@@ -2993,17 +2993,17 @@ ${draft.suggestedFix}`, finding);
     }
     const evidence = finding.evidence;
     const record = view.records.find((entry) => entry.side === evidence.side && entry.index === evidence.recordIndex);
-    el("evidenceNote").textContent = `${evidence.note} \xB7 ${evidence.side} file`;
+    el("evidenceNote").textContent = `${evidence.note}, ${evidence.side} file`;
     if (record) {
       el("bytes").innerHTML = [...record.raw].map((char, index) => {
         const inSpan = evidence.span && index >= evidence.span.start - 1 && index < evidence.span.start - 1 + evidence.span.length;
-        return `<span class="byte${inSpan ? " hl" : ""}" title="byte ${index + 1}">${char === " " ? "\xB7" : esc(char)}</span>`;
+        return `<span class="byte${inSpan ? " hl" : ""}" title="byte ${index + 1}">${char === " " ? "." : esc(char)}</span>`;
       }).join("");
       el("ruler").textContent = ruler(record.raw.length);
     }
     const rows = [`<dt>record</dt><dd>${esc(evidence.side)} #${esc(evidence.recordIndex)}</dd>`];
-    if (evidence.field) rows.push(`<dt>field</dt><dd>${esc(evidence.field)}${evidence.pic ? ` \xB7 ${esc(evidence.pic)}` : ""}</dd>`);
-    if (evidence.span) rows.push(`<dt>bytes</dt><dd>${evidence.span.start}\u2013${evidence.span.start + evidence.span.length - 1} (${evidence.span.length} bytes)</dd>`);
+    if (evidence.field) rows.push(`<dt>field</dt><dd>${esc(evidence.field)}${evidence.pic ? `, ${esc(evidence.pic)}` : ""}</dd>`);
+    if (evidence.span) rows.push(`<dt>bytes</dt><dd>${evidence.span.start}-${evidence.span.start + evidence.span.length - 1} (${evidence.span.length} bytes)</dd>`);
     if (evidence.fieldText !== void 0) rows.push(`<dt>as read</dt><dd>${esc(JSON.stringify(evidence.fieldText))}</dd>`);
     if (finding.declared !== void 0) rows.push(`<dt>declared</dt><dd>${esc(finding.declared)}</dd>`);
     if (finding.computed !== void 0) rows.push(`<dt>computed</dt><dd>${esc(finding.computed)}</dd>`);
@@ -3018,7 +3018,7 @@ ${draft.suggestedFix}`, finding);
     el("explain").innerHTML = `<div class="explain ${blocked ? "blocked" : ""}">
     <div class="row" style="gap:8px;align-items:center">
       <span class="chip ${blocked ? "warn" : "info"}">${esc(explanation.status)}</span>
-      <span class="small muted">L3 \xB7 ${esc(explanation.adapter)} \xB7 cites ${esc((explanation.citedValues ?? []).length)} value(s)</span>
+      <span class="small muted">L3: ${esc(explanation.adapter)}; cites ${esc((explanation.citedValues ?? []).length)} value(s)</span>
     </div>
     <div class="cause">${esc(explanation.cause)}</div>
     <div class="fix">${esc(explanation.suggestedFix)}</div>
@@ -3044,7 +3044,7 @@ ${draft.suggestedFix}`, finding);
     return state.run && state.selected >= 0 ? state.run.findings[state.selected] ?? null : null;
   }
   function renderVerify(identical, note) {
-    el("verifyOut").innerHTML = identical ? `<span style="color:#79d492">identical \u2014 same inputs, same verdict</span><br/>${esc(note)}` : `<span style="color:#ff9c94">DIFFERENT \u2014 ${esc(note)}</span>`;
+    el("verifyOut").innerHTML = identical ? `<span style="color:#79d492">identical: same inputs, same verdict</span><br/>${esc(note)}` : `<span style="color:#ff9c94">DIFFERENT: ${esc(note)}</span>`;
   }
   function wire() {
     el("scenarios").addEventListener("click", (event) => {
@@ -3075,12 +3075,12 @@ ${draft.suggestedFix}`, finding);
         if (!scenario) {
           await runDropped();
           const afterDropped = state.run.fingerprint;
-          renderVerify(before === afterDropped, `dropped file \xB7 recorded ${before.slice(0, 16)}\u2026 \xB7 recomputed ${afterDropped.slice(0, 16)}\u2026`);
+          renderVerify(before === afterDropped, `dropped file, recorded ${before.slice(0, 16)}..., recomputed ${afterDropped.slice(0, 16)}...`);
           return;
         }
         await runScenario(scenario.id);
         const after = state.run.fingerprint;
-        renderVerify(before === after, `recorded ${before.slice(0, 16)}\u2026 \xB7 recomputed ${after.slice(0, 16)}\u2026`);
+        renderVerify(before === after, `recorded ${before.slice(0, 16)}..., recomputed ${after.slice(0, 16)}...`);
       })();
     });
     el("btnWaive").addEventListener("click", () => {
@@ -3106,7 +3106,7 @@ ${draft.suggestedFix}`, finding);
         );
         persist();
         render2();
-        toast(`waived ${finding.code} \u2014 the verdict above is unchanged`);
+        toast(`waived ${finding.code}. The verdict above is unchanged`);
       } catch (error) {
         toast(error.message);
       }
@@ -3133,7 +3133,7 @@ ${draft.suggestedFix}`, finding);
         );
         persist();
         render2();
-        toast("released \u2014 the finding is open again");
+        toast("released: the finding is open again");
       } catch (error) {
         toast(error.message);
       }
@@ -3165,7 +3165,7 @@ ${draft.suggestedFix}`, finding);
         if (!file) return;
         void file.arrayBuffer().then((buffer) => {
           state[key] = { name: file.name, bytes: new Uint8Array(buffer) };
-          el("dropped").textContent = `${state.droppedFile ? `file: ${state.droppedFile.name} (${state.droppedFile.bytes.length} bytes)` : ""}${state.droppedCopybook ? ` \xB7 copybook: ${state.droppedCopybook.name}` : ""}`;
+          el("dropped").textContent = `${state.droppedFile ? `file: ${state.droppedFile.name} (${state.droppedFile.bytes.length} bytes)` : ""}${state.droppedCopybook ? `, copybook: ${state.droppedCopybook.name}` : ""}`;
         });
       };
       node.addEventListener("dragover", (event) => {
@@ -3203,7 +3203,7 @@ ${draft.suggestedFix}`, finding);
   }
   function stripGuarantees() {
     el("strip-top").innerHTML = '<span class="tag">Guaranteed</span>' + GUARANTEES.guaranteed.map((item) => `<span class="item">${esc(item)}</span>`).join("");
-    el("strip-bottom").innerHTML = '<span class="tag">Not guaranteed \u2014 a human decides</span>' + GUARANTEES.notGuaranteed.map((item) => `<span class="item">${esc(item)}</span>`).join("");
+    el("strip-bottom").innerHTML = '<span class="tag">Not guaranteed: a human decides</span>' + GUARANTEES.notGuaranteed.map((item) => `<span class="item">${esc(item)}</span>`).join("");
   }
   function boot() {
     wire();

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>「820」 — reconciliation workbench (runs in this tab)</title>
+<title>「820」: reconciliation workbench (runs in this tab)</title>
 <style>
 
   :root {
@@ -163,8 +163,8 @@
 <body>
 <header>
   <h1>「820」 resurrection workbench</h1>
-  <span class="sub">fixed-width 820/823 + BAI2 · verdict by code, narration by agent</span>
-  <span class="fingerprint" id="fp">fingerprint —</span>
+  <span class="sub">fixed-width 820/823 + BAI2: verdict by code, narration by agent</span>
+  <span class="fingerprint" id="fp">fingerprint -</span>
 </header>
 
 <div class="banner">
@@ -172,16 +172,16 @@
   <span>Nothing is uploaded, nothing is stored on a server. The parser, reconciler, BAI2 reader, explainer and exception register are the same code the CLI runs, compiled for the browser.</span>
 </div>
 
-<div class="strip top" id="strip-top"><span class="tag">Guaranteed</span><span class="item">loading…</span></div>
+<div class="strip top" id="strip-top"><span class="tag">Guaranteed</span><span class="item">loading...</span></div>
 
 <main>
   <section class="col col-left">
-    <h2>1 · Scenario</h2>
+    <h2>1. Scenario</h2>
     <div class="scenarios" id="scenarios"></div>
 
     <h3>Drop your own file</h3>
-    <div class="drop" id="dropFile"><strong>Drop a payment file</strong>bytes are read here · the file never leaves the tab</div>
-    <div class="drop" id="dropCopybook"><strong>Drop its copybook</strong>fixed-width only · 820.cpy is used otherwise</div>
+    <div class="drop" id="dropFile"><strong>Drop a payment file</strong>bytes are read here, and the file never leaves the tab</div>
+    <div class="drop" id="dropCopybook"><strong>Drop its copybook</strong>fixed-width only, and 820.cpy is used otherwise</div>
     <div class="small muted" id="dropped" style="margin-top:6px"></div>
     <div class="row" style="margin-top:8px">
       <select id="selFormat">
@@ -199,17 +199,17 @@
   </section>
 
   <section class="col col-mid">
-    <h2>2 · Verdict</h2>
+    <h2>2. Verdict</h2>
     <div class="card">
       <div class="verdict">
-        <span class="chip info" id="status">—</span>
+        <span class="chip info" id="status">-</span>
         <span class="muted small" id="verdictMeta">pick a scenario</span>
       </div>
       <div class="counters">
-        <div class="counter"><div class="n" id="cDet">—</div><div class="k">details</div></div>
-        <div class="counter"><div class="n" id="cFind">—</div><div class="k">findings</div></div>
-        <div class="counter"><div class="n" id="cMatched">—</div><div class="k">refs matched</div></div>
-        <div class="counter"><div class="n" id="cOpen">—</div><div class="k">open exceptions</div></div>
+        <div class="counter"><div class="n" id="cDet">-</div><div class="k">details</div></div>
+        <div class="counter"><div class="n" id="cFind">-</div><div class="k">findings</div></div>
+        <div class="counter"><div class="n" id="cMatched">-</div><div class="k">refs matched</div></div>
+        <div class="counter"><div class="n" id="cOpen">-</div><div class="k">open exceptions</div></div>
       </div>
       <h3>Control totals (minor units)</h3>
       <table id="totals"><thead><tr><th>currency</th><th>declared</th><th>summed</th><th>delta</th></tr></thead><tbody></tbody></table>
@@ -221,18 +221,18 @@
 
     <h3>Findings</h3>
     <ul class="findings" id="findings"></ul>
-    <div class="empty" id="noFindings">No findings — every control total, reference and value date agrees.</div>
+    <div class="empty" id="noFindings">No findings: every control total, reference and value date agrees.</div>
 
     <h3>Parse issues</h3>
     <ul class="issues" id="issues"></ul>
 
     <div class="l4">
-      <h2>4 · Exception register (L4) — what a human decided</h2>
+      <h2>4. Exception register (L4): what a human decided</h2>
       <div class="small muted" id="l4note">A waiver records a reason, an owner, a compensating control and an expiry. It never changes the verdict above.</div>
       <table id="l4table"><thead><tr><th>status</th><th>finding</th><th>owner / reason</th></tr></thead><tbody></tbody></table>
       <form id="l4form" autocomplete="off">
         <input id="l4owner" class="full" placeholder="owner (a person, not a team)" />
-        <input id="l4reason" class="full" placeholder="reason — why this exception is acceptable" />
+        <input id="l4reason" class="full" placeholder="reason: why this exception is acceptable" />
         <input id="l4control" placeholder="compensating control" />
         <input id="l4expires" placeholder="expires YYYY-MM-DD (required)" />
         <div class="full row2">
@@ -247,7 +247,7 @@
   </section>
 
   <section class="col col-right">
-    <h2>3 · Evidence — the bytes this decision rests on</h2>
+    <h2>3. Evidence: the bytes this decision rests on</h2>
     <div class="card">
       <div class="small muted" id="evidenceNote">Select a finding to highlight its field.</div>
       <div class="ruler" id="ruler"></div>
@@ -258,7 +258,7 @@
   </section>
 </main>
 
-<div class="strip bottom" id="strip-bottom"><span class="tag">Not guaranteed — a human decides</span><span class="item">loading…</span></div>
+<div class="strip bottom" id="strip-bottom"><span class="tag">Not guaranteed: a human decides</span><span class="item">loading...</span></div>
 <div class="toast" id="toast"></div>
 
 <script src="bundle.js"></script>
