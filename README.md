@@ -1,8 +1,8 @@
-# 「820」 — resurrection workbench for dead payment files
+# 「820」: resurrection workbench for dead payment files
 
-> Kiroween 2026 · **Resurrection** category · built with Kiro (spec-driven, steering, hooks, MCP, PBT)
+> Kiroween 2026, **Resurrection** category, built with Kiro (spec-driven, steering, hooks, MCP, PBT)
 
-> **Build status (2026-11-22):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **311 tests / 23 files** (unit, property-based and regression, 31 of them properties). The repository is public at https://github.com/luke-shin-ai/edi820-workbench, the static build is live on GitHub Pages, and the demo video is public on YouTube (links below). The Devpost entry is the last open item; see `review.md` §5.
+> **Build status (2026-11-22):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **311 tests / 23 files** (unit, property-based and regression, 31 of them properties). The repository is public at https://github.com/luke-shin-ai/edi820-workbench, the static build is live on GitHub Pages, and the demo video is public on YouTube (links below). The Devpost entry is submitted at https://devpost.com/software/820-a-reconciliation-workbench-for-dead-payment-files.
 
 Corporate payment files never died. The people and tools that could read them did.
 
@@ -13,7 +13,7 @@ Corporate payment files never died. The people and tools that could read them di
 | Layer | What it does | AI? | Where |
 |---|---|---|---|
 | L1 parser | types every record exactly per the copybook or the BAI2 layout (position, length, sign, implied decimals), including `REDEFINES` regions where one byte range has two layouts | no | `src/copybook`, `src/parser`, `src/bai2` |
-| L2 reconciler | control totals, counts, references, date windows → coded findings with signed `bigint` deltas | no | `src/reconcile` |
+| L2 reconciler | control totals, counts, references, date windows -> coded findings with signed `bigint` deltas | no | `src/reconcile` |
 | L3 explainer | explains each finding in plain language, citing only numbers L1/L2 produced; anything else becomes `INSUFFICIENT_EVIDENCE`. Default is the `grounded` template: deterministic, zero credits | agent, optional | `src/explain` |
 | L4 register | records a human decision per finding: owner, reason, compensating control, expiry, hash chained and append only | human | `src/exception` |
 
@@ -56,7 +56,7 @@ npm install
 npx tsx src/cli/main.ts reconcile --copybook samples/copybooks/820.cpy \
   --file samples/data/820-bad.txt --bank samples/data/823-bank.txt \
   --bank-copybook samples/copybooks/823.cpy --window 2026-11-18..2026-11-20 --out out/judge
-# verdict: FAIL   findings: 4   fingerprint: 7af64454…   exit code 2
+# verdict: FAIL   findings: 4   fingerprint: 7af64454...   exit code 2
 npx tsx src/cli/main.ts verify out/judge
 # RESULT: identical: same inputs, same verdict   (report bytes and mtime unchanged)
 npx tsx src/cli/main.ts exceptions out/judge --today 2026-11-21
@@ -89,7 +89,7 @@ npm run cli -- release --report out/demo --id <waiver id> --owner "S. Shin (TPM)
                        --reason "Corrected trailer received." --control "Trailer re-issued" --today 2026-11-22
 ```
 
-Exit codes: `0` all checks pass (and no open exception where the command reports exceptions) · `2` findings present, `INCOMPLETE`, a verification difference, or an open/expired/released exception · `3` spec, I/O or ledger-integrity error. `explain` exits `2` when a finding cannot be grounded. `--json` prints the same document the report file holds.
+Exit codes: `0` all checks pass (and no open exception where the command reports exceptions); `2` findings present, `INCOMPLETE`, a verification difference, or an open/expired/released exception; `3` spec, I/O or ledger-integrity error. `explain` exits `2` when a finding cannot be grounded. `--json` prints the same document the report file holds.
 
 ### Web screen (three columns)
 
@@ -97,7 +97,7 @@ Exit codes: `0` all checks pass (and no open exception where the command reports
 npm run web -- --port 8720     # then open http://127.0.0.1:8720/
 ```
 
-[Left] copybook/file pickers, drop zones for your own files, records as read · [middle] verdict card, counters, control totals (with the comparison basis and the credit/debit split), findings, parse issues · [right] the record with the finding's field highlighted **at its byte offsets**, or the copybook's field-by-field layout when there is nothing to highlight, plus the L3 explanation and the values it cited. The guaranteed / not-guaranteed strips are fixed at the top and bottom of the screen.
+[Left] copybook/file pickers, drop zones for your own files, records as read; [middle] verdict card, counters, control totals (with the comparison basis and the credit/debit split), findings, parse issues; [right] the record with the finding's field highlighted **at its byte offsets**, or the copybook's field-by-field layout when there is nothing to highlight, plus the L3 explanation and the values it cited. The guaranteed / not-guaranteed strips are fixed at the top and bottom of the screen.
 
 ![PASS](docs/images/ui-pass.png)
 ![FAIL with a highlighted byte range](docs/images/ui-fail.png)
@@ -132,20 +132,20 @@ A bank copybook does not give the control trailer its own bytes. It gives the re
 
 ## BAI2 is read, not disguised
 
-BAI2 has no fixed width and no copybook. Rather than fake a layout for a comma-delimited format, `src/bai2` is a dedicated reader for records `01/02/03/16/49/88/98/99` that produces the same `ParseResult` the reconciler already understands: amounts as `bigint` minor units with the currency's exponent, direction from the type code (`100–399` credit, `400–699` debit), per-record field offsets for the evidence panel, and its own checks of the account, group and file trailers. A `03` code `100` declares *total credits*, while the detail records it is compared against net credits against debits, so the reader keeps gross credit and debit totals per currency and every delta names both parts. See [`docs/bai2.md`](docs/bai2.md).
+BAI2 has no fixed width and no copybook. Rather than fake a layout for a comma-delimited format, `src/bai2` is a dedicated reader for records `01/02/03/16/49/88/98/99` that produces the same `ParseResult` the reconciler already understands: amounts as `bigint` minor units with the currency's exponent, direction from the type code (`100-399` credit, `400-699` debit), per-record field offsets for the evidence panel, and its own checks of the account, group and file trailers. A `03` code `100` declares *total credits*, while the detail records it is compared against net credits against debits, so the reader keeps gross credit and debit totals per currency and every delta names both parts. See [`docs/bai2.md`](docs/bai2.md).
 
 ## How Kiro built it (evidence, not adjectives)
 
-- `.kiro/specs/edi820-importer/` — `requirements.md` (EARS, R1 to R8) → `design.md` → `tasks.md`; `design.md` §12 and §13 record every implementation delta, including the two stack substitutions (MCP protocol implemented directly instead of `@modelcontextprotocol/sdk`; the screen as one dependency-free document instead of Vite + React) and why
-- `.kiro/steering/` — product, tech (parsing rules), structure, conventions, and finance-file domain rules
-- `.kiro/hooks/` — tests on save, re-verify on `Stop`, evidence appended on task completion. All three have fired in a live session: `out/hook-log.txt` is committed and holds every firing, and `docs/kiro-session-evidence.md` explains the three that were broken before (a command with no entry point, the wrong stop trigger, and the wrong task trigger)
-- `.kiro/agents/reviewer.json` and `.kiro/agents/820-implementer.json` — the adversarial reviewer and the spec executor, both with `@820` MCP access
-- `EVIDENCE.md` — the build log, with the defects the build found in itself (overpunch table off by one, implied decimals dropped when encoding, a blank reference silently dropped, BAI2 record counting, a truncated record that reached PASS, a verify that depended on the working directory)
-- `docs/kiro-session-evidence.md` — the T7 session that implemented the exception register (what the agent wrote, what fired, what the reviewer got back from the MCP server, the repairs afterwards) and §8, the task-runner run that made `PostTaskExec` fire and wrote its own `EVIDENCE.md` row
-- `docs/copybook-to-spec.md` — how a legacy spec document became a Kiro spec (what it got right, what it got wrong)
-- `docs/kiro-cli-validation.md` — the earlier CLI session, the agent validation, and the reviewer run that was confidently wrong
-- `review.md` — self scoring on the five criteria, with what a cold judge would still mark down
-- `devpost-submission-draft.md` — the submission text and the write-up, including how spec, steering, the custom agent, hooks, MCP and the CLI combine, and the five boundaries the submission keeps
+- `.kiro/specs/edi820-importer/`: `requirements.md` (EARS, R1 to R8) -> `design.md` -> `tasks.md`; `design.md` §12 and §13 record every implementation delta, including the two stack substitutions (MCP protocol implemented directly instead of `@modelcontextprotocol/sdk`; the screen as one dependency-free document instead of Vite + React) and why
+- `.kiro/steering/`: product, tech (parsing rules), structure, conventions, and finance-file domain rules
+- `.kiro/hooks/`: tests on save, re-verify on `Stop`, evidence appended on task completion. All three have fired in a live session: `out/hook-log.txt` is committed and holds every firing, and `docs/kiro-session-evidence.md` explains the three that were broken before (a command with no entry point, the wrong stop trigger, and the wrong task trigger)
+- `.kiro/agents/reviewer.json` and `.kiro/agents/820-implementer.json`: the adversarial reviewer and the spec executor, both with `@820` MCP access
+- `EVIDENCE.md`: the build log, with the defects the build found in itself (overpunch table off by one, implied decimals dropped when encoding, a blank reference silently dropped, BAI2 record counting, a truncated record that reached PASS, a verify that depended on the working directory)
+- `docs/kiro-session-evidence.md`: the T7 session that implemented the exception register (what the agent wrote, what fired, what the reviewer got back from the MCP server, the repairs afterwards) and §8, the task-runner run that made `PostTaskExec` fire and wrote its own `EVIDENCE.md` row
+- `docs/copybook-to-spec.md`: how a legacy spec document became a Kiro spec (what it got right, what it got wrong)
+- `docs/kiro-cli-validation.md`: the earlier CLI session, the agent validation, and the reviewer run that was confidently wrong
+- `review.md`: self scoring on the five criteria, with what a cold judge would still mark down
+- `devpost-submission-draft.md`: the submission text and the write-up, including how spec, steering, the custom agent, hooks, MCP and the CLI combine, and the five boundaries the submission keeps
 
 ## What this guarantees / does not guarantee
 See [`docs/guarantees.md`](docs/guarantees.md), which is parsed and printed by `820 verify` and shown in both strips of the screen. Short version: it guarantees format interpretation (including one active layout per `REDEFINES` region), exact arithmetic, reference reconciliation, reproducibility and explanation grounding; it does **not** guarantee legal or accounting adequacy, and whether an exception is acceptable is a human's call, on purpose.
