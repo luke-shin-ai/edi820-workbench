@@ -1,8 +1,11 @@
-# samples/: synthetic fixtures only
+# samples/: fixtures, and two files banks published
 
-**Never place real bank, customer or employer data in this folder.** Everything here is generated
-for the demo under the fictional company *Northwind Pay*, by `scripts/gen-fixtures.mjs`, and every
-planted defect is asserted by `test/unit/fixtures.test.ts`.
+**Never place real bank, customer or employer data in this folder.** Everything directly under
+`copybooks/` and `data/` is generated for the demo under the fictional company *Northwind Pay*, by
+`scripts/gen-fixtures.mjs`, and every planted defect is asserted by `test/unit/fixtures.test.ts`.
+`samples/public/` holds the exception: two BAI2 files that banks published as format examples, copied
+verbatim so the reader can be checked against bytes this project did not choose. Their sources and
+copy notes are in `public/SOURCES.md`.
 
 ## Copybooks
 
@@ -37,3 +40,13 @@ npx tsx scripts/gen-fixtures.mjs     # deterministic: same tables in, same bytes
 
 Amounts are round numbers so a delta is obvious at a glance; references are sequential
 (`NWP-2611-0001` ...); every account, name and reference is invented.
+
+## Published files (`public/`)
+
+| file | published by | why it is here |
+|---|---|---|
+| `public/bai2-westpac-npp.txt` | Westpac / Qvalent | CRLF, `88` continuations, a `100` total at the end of an `03` |
+| `public/bai2-southstate-guide.txt` | SouthState Bank | four accounts in one group, multi-summary `03` records |
+
+`npm run verify:public` parses both and prints the result; `test/unit/public-bai2.test.ts` asserts
+that each one reports no issues and the declared totals above.

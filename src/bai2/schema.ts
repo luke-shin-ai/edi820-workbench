@@ -56,7 +56,7 @@ export const BAI2_LAYOUTS: Record<Bai2RecordCode, Bai2FieldSpec[]> = {
   ],
   '16': [
     { name: 'REC-CODE', index: 1 },
-    { name: 'TYPE-CODE', index: 2, note: '100–399 credit, 400–699 debit' },
+    { name: 'TYPE-CODE', index: 2, note: '100-399 credit, 400-699 debit' },
     { name: 'AMOUNT', index: 3, note: 'unsigned; direction comes from TYPE-CODE' },
     { name: 'FUNDS-TYPE', index: 4 },
     { name: 'BANK-REF', index: 5 },
@@ -160,6 +160,47 @@ export function toFieldMap(
     spans['EXTRA'] = { start: extraStart.start, length: line.length - extraStart.start + 1 };
   }
   return { values, spans };
+}
+
+export interface Bai2SummaryTriple {
+  /** A three-digit BAI summary or status code, e.g. `100` (total credits). */
+  typeCode: string;
+  /** The amount as it appears, before the currency scale is applied. */
+  amount: string;
+}
+
+export interface Bai2SummaryScan {
+  triples: Bai2SummaryTriple[];
+  /** A trailing type code whose amount is carried by the next `88` record. */
+  pendingTypeCode?: string;
+}
+
+/**
+ * Read every [type code, amount] pair of an `03` record (or of an `88` that continues one).
+ *
+ * A BAI2 `03` record is a list of groups: type code, amount, item count, funds type. The item
+ * count and funds type are optional, and a funds type may itself carry a date, so the groups are
+ * not a fixed stride. A pair is therefore recognised by what it is: a three-digit code followed
+ * directly by a numeric amount. A code at the end of the record whose amount continues on the
+ * next `88` is returned as `pendingTypeCode` instead of being guessed.
+ *
+ * `from` is 0-based: 3 for an `03` record (after record code, account and currency), 1 for an `88`.
+ */
+export function summaryTriples(fields: Bai2Field[], from: number): Bai2SummaryScan {
+  const triples: Bai2SummaryTriple[] = [];
+  let pendingTypeCode: string | undefined;
+  for (let i = from; i < fields.length; i += 1) {
+    const text = fields[i]!.text.trim();
+    if (!/^\d{3}$/.test(text)) continue;
+    const next = fields[i + 1] ? fields[i + 1]!.text.trim() : '';
+    if (/^[+-]?\d+$/.test(next)) {
+      triples.push({ typeCode: text, amount: next });
+      i += 1;
+      continue;
+    }
+    if (next === '') pendingTypeCode = text;
+  }
+  return pendingTypeCode ? { triples, pendingTypeCode } : { triples };
 }
 
 /** BAI type codes 100-399 are credits, 400-699 debits; anything else has no direction. */

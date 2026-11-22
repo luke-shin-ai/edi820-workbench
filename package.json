@@ -23,7 +23,8 @@
     "verify:latest": "node scripts/verify-latest.mjs",
     "build:static": "tsx scripts/build-static.ts",
     "check:static": "python3 scripts/check-static.py",
-    "check:claims": "node scripts/check-claims.mjs"
+    "check:claims": "node scripts/check-claims.mjs",
+    "verify:public": "tsx scripts/verify-public-bai2.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

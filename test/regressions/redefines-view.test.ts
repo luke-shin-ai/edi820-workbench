@@ -12,7 +12,8 @@ import { reconcile, blockingIssuesOf } from '../../src/reconcile/index.js';
  * Two things must not move without a deliberate decision:
  *
  * 1. The six sample scenarios keep the fingerprints they had before `REDEFINES`
- *    existed. A copybook without views contributes no new component to the hash,
+ *    existed (S5 and S6 are the two BAI2 scenarios, re-pinned once on 2026-11-23 with the
+ *    reader change recorded in the comment above them). A copybook without views contributes no new component to the hash,
  *    so a recorded verdict from an earlier build still verifies.
  * 2. A record whose discriminator selects no layout earns `INCOMPLETE`, not a
  *    verdict read from whichever layout happens to fit. That is the same rule the
@@ -36,8 +37,11 @@ const PINNED: Record<string, string> = {
   S2: '85646a69a235c0ba23f567559c7660d6863e591f91d3677b567802ca489ef165',
   S3: '7af64454555de8d89b5c4f763009547caaa6f53b1c040db8d8c462c04335c118',
   S4: '071371bfdeac730e4895e157084a903b9533f3be86ac2cd889f30417e26eee77',
-  S5: '923e8f7e321fd309bb04c7d82fb354cca47dffd289f326536e04778df3d2a915',
-  S6: '84fd2c5eb638cbb1e10928d4f78826510451e0bd00592ec7218a04a5b56c44c2',
+  // S5 and S6 moved on 2026-11-23, on purpose: the BAI2 reader's own spec line lost a non-ASCII
+  // dash and the account control-total rule changed (docs/bai2.md §4). No committed report uses a
+  // BAI2 input, so `out/evidence/report.json` still verifies; only these two pins moved.
+  S5: 'bf7940f1f38704fd1e4537ed6d64b2d13641136a5ed3a14886879623de651a99',
+  S6: '339d14d32dfe0e8933d210bca834ab09e729a0a15aba71efb494524a5eac3d4b',
 };
 
 describe('REDEFINES did not move a verdict that has no views', () => {

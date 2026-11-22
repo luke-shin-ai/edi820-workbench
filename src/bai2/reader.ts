@@ -41,7 +41,9 @@ import {
   isoFromBai2Date,
   recordCodeOf,
   splitRecordFields,
+  summaryTriples,
   toFieldMap,
+  type Bai2SummaryTriple,
 } from './schema.js';
 
 /**
@@ -72,7 +74,7 @@ export function bai2Spec(notes: string[] = []): Copybook {
       ...notes,
     ],
     source: [
-      '# BAI2 (cash management balance reporting) — declared record layouts',
+      '# BAI2 (cash management balance reporting) - declared record layouts',
       ...Object.entries(BAI2_LAYOUTS).map(([code, fields]) => `${code}: ${fields.map((f) => f.name).join(', ')}`),
     ].join('\n'),
   };
@@ -89,8 +91,12 @@ interface AccountState {
   account: string;
   currency: string;
   startIndex: number;
+  /** Sum of the amounts a `03` record (and its `88` continuations) declare, as magnitudes. */
   summaryMinorUnits: bigint;
+  /** Sum of the `16` detail amounts, as magnitudes. */
   detailMinorUnits: bigint;
+  /** A trailing type code in the `03` whose amount arrives on the next `88` record. */
+  pendingTypeCode: string | null;
 }
 
 interface GroupState {
@@ -129,6 +135,46 @@ export function parseBai2(source: Bytes | string, options: Bai2ParseOptions = {}
   let fileTrailerIssues: ParseIssue[] = [];
 
   const declaredCredits = new Map<string, { minorUnits: bigint; scale: number; recordIndex: number }>();
+  /** Whether the previous amount-bearing record was a `03` (its `88` carries summaries) or a `16`. */
+  let lastAmountRecord: '03' | '16' | null = null;
+
+  /**
+   * Add the amount of each [type code, amount] pair of an `03` record, or of an `88` that
+   * continues one, to the account's control-total sum.
+   *
+   * The `49` control total is the sum of the amount values in the `03`, `16` and `88` records
+   * as they appear on the wire: a debit is a positive number whose direction comes from its type
+   * code, so the control total adds magnitudes. That is the rule the two bank-published
+   * files in `samples/public/` satisfy exactly, and what `docs/bai2.md` §4 records.
+   */
+  const addSummary = (
+    state: AccountState,
+    triples: Bai2SummaryTriple[],
+    scale: number,
+    recordIndex: number,
+  ): void => {
+    for (const triple of triples) {
+      let minorUnits: bigint;
+      try {
+        minorUnits = decodeBai2Amount(triple.amount, scale).minorUnits;
+      } catch (error) {
+        issues.push({
+          code: 'FIELD_INVALID_NUMERIC',
+          recordIndex,
+          field: 'AMOUNT',
+          detail: `${triple.typeCode} summary amount is not a BAI2 amount: ${(error as Error).message}`,
+        });
+        continue;
+      }
+      const magnitude = minorUnits < 0n ? -minorUnits : minorUnits;
+      state.summaryMinorUnits += magnitude;
+      if (triple.typeCode === '100') {
+        const bucket = declaredCredits.get(state.currency);
+        if (bucket) bucket.minorUnits += magnitude;
+        else declaredCredits.set(state.currency, { minorUnits: magnitude, scale, recordIndex });
+      }
+    }
+  };
 
   lines.forEach((line, index) => {
     const recordIssues: ParseIssue[] = [];
@@ -139,7 +185,8 @@ export function parseBai2(source: Bytes | string, options: Bai2ParseOptions = {}
     };
 
     const code = recordCodeOf(line);
-    const { values: rawFields, spans } = toFieldMap(code, splitRecordFields(line), line);
+    const splitFields = splitRecordFields(line);
+    const { values: rawFields, spans } = toFieldMap(code, splitFields, line);
     const values: Record<string, ParsedValue> = {};
     const slices: Record<string, string> = {};
     for (const [name, fieldText] of Object.entries(rawFields)) {
@@ -180,7 +227,6 @@ export function parseBai2(source: Bytes | string, options: Bai2ParseOptions = {}
         if (currency !== '' && exponents[currency] === undefined) {
           pushIssue('CURRENCY_SCALE_MISMATCH', `${currency} is not in the ISO-4217 table; a ${scale}-digit scale was assumed for the 03 amount`);
         }
-        const typeCode = (rawFields['TYPE-CODE'] ?? '').trim();
         let minorUnits: bigint | undefined;
         try {
           minorUnits = decodeBai2Amount(rawFields['AMOUNT'] ?? '', scale).minorUnits;
@@ -188,22 +234,26 @@ export function parseBai2(source: Bytes | string, options: Bai2ParseOptions = {}
         } catch (error) {
           pushIssue('FIELD_INVALID_NUMERIC', `03 amount is not a BAI2 amount: ${(error as Error).message}`, { field: 'AMOUNT' });
         }
+        // An `03` record is a list of [type code, amount, item count, funds type] groups and a
+        // trailing type code may push its amount onto the next `88`. Reading only the first group
+        // (which this reader did until 2026-11-22) missed a `100` total that was not declared
+        // first, and could not check the `49` total over the whole record.
+        const summaryScan = summaryTriples(splitFields, 3);
         account = {
           account: (rawFields['ACCOUNT'] ?? '').trim(),
           currency,
           startIndex: index,
-          summaryMinorUnits: minorUnits ?? 0n,
+          summaryMinorUnits: 0n,
           detailMinorUnits: 0n,
+          pendingTypeCode: summaryScan.pendingTypeCode ?? null,
         };
-        if (typeCode === '100' && minorUnits !== undefined) {
-          const bucket = declaredCredits.get(currency);
-          if (bucket) bucket.minorUnits += minorUnits;
-          else declaredCredits.set(currency, { minorUnits, scale, recordIndex: index });
-        }
+        addSummary(account, summaryScan.triples, scale, index);
+        lastAmountRecord = '03';
         break;
       }
       case '16': {
         isTrailer = false;
+        lastAmountRecord = '16';
         if (!account) pushIssue('BAI2_STRUCTURE', 'a detail record (16) appears outside an account block');
         const typeCode = (rawFields['TYPE-CODE'] ?? '').trim();
         const currency = account?.currency || currentCurrency;
@@ -222,7 +272,8 @@ export function parseBai2(source: Bytes | string, options: Bai2ParseOptions = {}
           const amount: Amount = { minorUnits: signed, currency, scale };
           values['AMOUNT'] = amount;
           if (account) {
-            account.detailMinorUnits += signed;
+            // The `49` control total adds the amount values as they appear on the wire.
+            account.detailMinorUnits += signed < 0n ? -signed : signed;
           }
           const bucket = (totalsByCurrency[currency] ??= { minorUnits: 0n, scale, records: 0 });
           bucket.minorUnits += signed;
@@ -265,7 +316,7 @@ export function parseBai2(source: Bytes | string, options: Bai2ParseOptions = {}
             if (minorUnits !== computed) {
               pushIssue(
                 'BAI2_CONTROL_MISMATCH',
-                `account ${account.account} control total declares ${minorUnits} minor units but the 03 summary plus 16 detail amounts sum to ${computed}`,
+                `account ${account.account} control total declares ${minorUnits} minor units but the 03 summaries, 16 details and 88 continuations sum to ${computed}`,
                 { field: 'ACCOUNT-CONTROL-TOTAL', declared: minorUnits.toString(), actual: computed.toString() },
               );
             }
@@ -274,10 +325,26 @@ export function parseBai2(source: Bytes | string, options: Bai2ParseOptions = {}
           }
         }
         account = null;
+        lastAmountRecord = null;
         break;
       }
       case '88': {
         if (!seenFileHeader) pushIssue('BAI2_STRUCTURE', 'a continuation record (88) appears before the file header');
+        // A continuation carries either the rest of an `03` summary list or the text of a `16`.
+        // Only the summary case has amounts that the `49` control total counts.
+        if (account && lastAmountRecord === '03') {
+          const scan = summaryTriples(splitFields, 1);
+          const triples: Bai2SummaryTriple[] = [...scan.triples];
+          if (account.pendingTypeCode) {
+            const first = (splitFields[1]?.text ?? '').trim();
+            if (/^[+-]?\d+$/.test(first)) {
+              triples.unshift({ typeCode: account.pendingTypeCode, amount: first });
+              account.pendingTypeCode = null;
+            }
+          }
+          addSummary(account, triples, exponents[account.currency] ?? 2, index);
+          account.pendingTypeCode = scan.pendingTypeCode ?? account.pendingTypeCode;
+        }
         break;
       }
       case '98': {
