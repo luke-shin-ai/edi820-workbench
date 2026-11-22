@@ -4,10 +4,10 @@
 
 | file | what it is |
 |---|---|
-| `820-demo-en.mp4` | the cut: **2:55.30** (175.30 s), 1920×1080, 30 fps, H.264 (~776 kb/s) + AAC 90 kb/s, **19.2 MB**, English narration, burned-in subtitles, no music |
+| `820-demo-en.mp4` | the cut: **2:55.30** (175.30 s), 1920×1080, 30 fps, H.264 (~273 kb/s) + AAC 90 kb/s, **8.2 MB**, English narration, burned-in subtitles, no music |
 | `820-demo-en.srt` | 40 subtitle cues, same words and timings as the burn |
 | `build/README.md` | this file: what is real, how it was made, how to rebuild |
-| `build/config.py` | the shot list: plate, narration, subtitle cues, accent colour, camera move |
+| `build/config.py` | the shot list: plate, narration, subtitle cues, accent colour, framing (zoom and focus) |
 | `build/plates.py` | builds every 1920×1080 still from real inputs (see below) |
 | `build/build.py` | `seg` / `assemble` / `check` stages (segment render, crossfade, audio mix, subtitle burn, ffprobe) |
 | `build/capture_hd.py`, `capture_states.py` | Playwright captures of the running screen at devicePixelRatio 2 |
@@ -46,7 +46,7 @@ cd demo-video/build
 python3 dump-copybook.mjs > copybook-fields.json   # byte ranges from the real compiler
 python3 plates.py                 # 13 plates, 1920x1080 design, drawn at 2x and resampled to 2560x1440
 python3 make_tts.py               # edge-tts en-US-AndrewNeural at +6%, one mp3 per shot (retries on an empty response)
-python3 build.py seg              # one zoompan segment per shot
+python3 build.py seg              # one fixed-frame segment per shot
 python3 build.py assemble         # xfade, narration on a sample-accurate timeline, subtitle burn
 python3 build.py check            # duration, size, streams, cue count
 
@@ -72,10 +72,13 @@ because `make_tts.py` keeps existing audio; a shot whose plate changed must have
 
 - duration 175.30 s (2:55.30), under the 180 s rule
 - 1920×1080, 30 fps, yuv420p, H.264 + AAC, `+faststart`
-- 19.2 MB, under Devpost's 25 MB upload limit
+- 8.2 MB, under YouTube's 25 MB upload limit
 - 40 subtitle cues; every cue is inside its shot's narration window (built from the same timeline)
 - no em dash, en dash, minus sign, emoji or stock phrase in the narration or the cues (checked against
   `config.py`)
+- nothing moves inside a shot: the plate is cropped to the shot's framing and scaled once, so text
+  cannot shimmer the way the earlier `zoompan` cut did (two frames an arbitrarily long way apart in
+  the same segment are pixel-identical apart from encoder noise; `zoompan` stepped 1 px at a time)
 - 0 page errors across every browser capture
 - the numbers in the narration match the files and the captured stdout (1,284,550.00 declared,
   1,284,450.00 summed, -100.00 delta, 4 findings, 311 tests, fingerprints `7af64454…` for the FAIL

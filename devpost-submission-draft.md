@@ -218,7 +218,7 @@ CLI prints.
 `.kiro/settings/mcp.json` registers it, and `.kiro/agents/reviewer.json` sets `includeMcpJson:
 true` with `@820` in `allowedTools`. In the review session the agent called `@820/reconcile`,
 `@820/exceptions` and `@820/verify`, and got back the verdict `FAIL` with 4 findings and the
-fingerprint `7af64454…`. The same call replayed outside an agent (`node scripts/mcp-call.mjs`)
+fingerprint `7af64454...`. The same call replayed outside an agent (`node scripts/mcp-call.mjs`)
 prints the same values, which is the point: the agent and the CLI are not two implementations.
 
 ### 7. Property-based testing

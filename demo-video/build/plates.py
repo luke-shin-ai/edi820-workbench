@@ -1,7 +1,7 @@
 """Builds the 1920x1080 plates for the 「820」 demo video.
 
 Design coordinates are 1920x1080. Everything is drawn on a 2x canvas and resampled to
-2560x1440, so the Ken Burns move always downscales and text stays sharp.
+2560x1440, so the crop each shot is framed with always downscales and text stays sharp.
 
 Material: the fixture files as they are on disk, the copybook as it is on disk with byte
 offsets taken from the compiler's own output, screenshots of the running screen, and
@@ -253,7 +253,7 @@ VIDEO_STATIC = os.path.join(WORK, "shots-static")
 
 
 def static_plate(shot, name, pad=True):
-    """A screenshot of docs/demo (1920x1080), padded so the Ken Burns move never clips it."""
+    """A screenshot of docs/demo (1920x1080), padded so the shot framing never clips it."""
     im = Image.open(os.path.join(STATIC_SHOTS, shot)).convert("RGB")
     if pad:
         im = im.resize((1880, 1046), Image.LANCZOS)

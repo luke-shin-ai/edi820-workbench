@@ -1,6 +1,7 @@
 """Renders the 「820」 demo video.
 
-Pipeline: plate (2560x1440 still) -> per-shot segment with a slow Ken Burns move
+Pipeline: plate (2560x1440 still) -> per-shot segment, a fixed frame cropped to the
+          shot's framing and scaled once with lanczos
           -> xfade assembly -> narration mixed on a sample-accurate timeline
           -> one final encode that burns the English subtitles -> mp4 + srt.
 
@@ -99,18 +100,31 @@ PLATE_FILE = {
 
 
 def render_segment(p):
+    """One shot as a still frame held for its duration.
+
+    The earlier build animated a slow Ken Burns move with zoompan. zoompan rounds its
+    crop origin to whole pixels, so the step between frames was a 1 px jump on a 1080p
+    frame: on thin text (code, table rules, small labels) that reads as a shiver for the
+    whole shot. Nothing moves here, so there is nothing to round. The shot's own framing
+    is kept by cropping the 2560x1440 plate to the declared zoom around the declared
+    focus, and that crop is scaled to 1920x1080 once with lanczos rather than per frame.
+    """
     shot = p["shot"]
     seg = os.path.join(SEGS, shot["id"] + ".mp4")
     plate = os.path.join(PLATES, PLATE_FILE[shot["plate"]] + ".png")
-    n = max(2, int(round(p["dur"] * FPS)))
     z0, z1 = shot["zoom"]
+    z = (z0 + z1) / 2.0          # the framing the Ken Burns move sat around
     fx, fy = shot["focus"]
-    vf = ("zoompan=z='{z0}+({dz})*min(max(on,0),{n1})/{n1}':"
-          "x='(iw-iw/zoom)*{fx}':y='(ih-ih/zoom)*{fy}':d={n}:s={w}x{h}:fps={fps}") \
-        .format(z0=z0, dz=z1 - z0, n1=n - 1, fx=fx, fy=fy, n=n, w=W, h=H, fps=FPS)
+    # Even crop dimensions keep yuv420p chroma subsampling clean; x/y are clamped so the
+    # crop never leaves the plate at extreme focus values.
+    vf = ("crop=w='2*floor(iw/{z}/2)':h='2*floor(ih/{z}/2)':"
+          "x='2*floor(min(max((iw-ow)*{fx},0),iw-ow)/2)':"
+          "y='2*floor(min(max((ih-oh)*{fy},0),ih-oh)/2)',"
+          "scale={w}:{h}:flags=lanczos,setsar=1,format=yuv420p") \
+        .format(z=z, fx=fx, fy=fy, w=W, h=H)
     cmd = [FF, "-y", "-hide_banner", "-loglevel", "error",
            "-loop", "1", "-framerate", str(FPS), "-i", plate, "-t", "%.3f" % p["dur"],
-           "-vf", vf + ",format=yuv420p", "-r", str(FPS),
+           "-vf", vf, "-r", str(FPS),
            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
            seg]
     subprocess.run(cmd, check=True)
