@@ -6,6 +6,7 @@
  * drift from the file a reviewer reads.
  */
 import { readFileSync } from 'node:fs';
+import { dirname, isAbsolute, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export interface Guarantees {
@@ -34,6 +35,20 @@ const FALLBACK: Guarantees = {
 
 export function guaranteesPath(): string {
   return fileURLToPath(new URL('../../docs/guarantees.md', import.meta.url));
+}
+
+/**
+ * The path as it is printed and recorded: project-relative when the file is inside the project.
+ *
+ * `report.json` is committed as evidence, so an absolute path there would publish the home
+ * directory of whoever ran the command. The fallback copy keeps its description, which is
+ * already relative.
+ */
+function displayPath(path: string): string {
+  const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
+  const rel = relative(root, path);
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return path;
+  return rel.split(sep).join('/');
 }
 
 /** Parse the two numbered lists out of the markdown. */
@@ -67,6 +82,6 @@ export function loadGuarantees(path = guaranteesPath()): Guarantees {
     if (section === 'yes') guaranteed.push(entry);
     else notGuaranteed.push(entry);
   }
-  if (guaranteed.length === 0 || notGuaranteed.length === 0) return { ...FALLBACK, sourcePath: path };
-  return { guaranteed, notGuaranteed, sourcePath: path };
+  if (guaranteed.length === 0 || notGuaranteed.length === 0) return { ...FALLBACK, sourcePath: displayPath(path) };
+  return { guaranteed, notGuaranteed, sourcePath: displayPath(path) };
 }

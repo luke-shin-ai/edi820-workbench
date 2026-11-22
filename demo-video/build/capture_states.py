@@ -6,13 +6,13 @@ from urllib.parse import urlencode
 
 from playwright.sync_api import sync_playwright
 
-ROOT = "/workspace/hackathons/kiroween-2026"
+from paths import NODE_BIN, ROOT  # noqa: E402  (see paths.py)
 PORT = 8733
 OUT = os.path.join(ROOT, "docs/images")
 BASE = "http://127.0.0.1:%d" % PORT
 
 env = dict(os.environ)
-env["PATH"] = "/workspace/.toolchain/node-v22.23.5-linux-x64/bin:" + env.get("PATH", "")
+env["PATH"] = NODE_BIN + os.pathsep + env.get("PATH", "")
 server = subprocess.Popen(["npx", "tsx", "src/web/main.ts", "--port", str(PORT)],
                           cwd=ROOT, env=env, stdout=subprocess.DEVNULL,
                           stderr=subprocess.DEVNULL, start_new_session=True)

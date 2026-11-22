@@ -12,7 +12,7 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
-ROOT = "/workspace/hackathons/kiroween-2026"
+from paths import ROOT  # noqa: E402  (repository root, see paths.py)
 WORK = os.path.join(ROOT, "demo-video/build")
 OUT = os.path.join(WORK, "plates")
 SHOTS = os.path.join(ROOT, "demo-video/screenshots")
@@ -453,7 +453,7 @@ def terminal(lines, name, chip_label, accent, title, hl=(), size=None, top=None)
 
 def plate_verify():
     lines = [ln for ln in open(os.path.join(OUTPUTS, "verify.txt"), encoding="utf-8").read().split("\n") if ln.strip()]
-    keep = [ln.replace("/workspace/hackathons/kiroween-2026/", "") for ln in lines[:8]]
+    keep = [ln.replace(ROOT + "/", "") for ln in lines[:8]]
     return terminal(keep, "p07_verify", "7 / VERIFY   read-only re-derivation", "#3FB950",
                     "820 verify out/evidence", hl=("RESULT",))
 

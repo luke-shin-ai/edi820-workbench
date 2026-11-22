@@ -341,3 +341,39 @@ rather than hidden: the guard checks numbers, not the sentence around them, so a
 waiver, so it could not fail. The property now releases some waivers, asserts
 `unadjudicated === OPEN + EXPIRED + RELEASED` and `unadjudicated === findings - WAIVED`, and its
 title says what it tests.
+
+## 16. Implementation deltas for the hardening pass (2026-11-23)
+
+A cold read of the source (`review.md` is not the only review this build got: a second reader went
+through `src/mcp`, `src/exception` and the published documents on 2026-11-22 and reproduced three
+defects) produced a hardening pass. As in §15, only what changed a rule is recorded here.
+
+### 16.1 The MCP surface is a surface too
+
+The web screen restricted path reads to `samples/`; the MCP server did not, and `mcp.json`
+auto-approved `reconcile` and `explain_findings`. A model-facing tool argument is untrusted input, so
+the restriction now lives in `src/mcp/server.ts` (`resolveAllowedPath`): reads under `samples/`,
+`out/` or the working directory, writes only under `out/`, symlinks resolved before the check, and
+`maxLiveCalls` capped at 3. `mcp.json` auto-approves only `parse_file` and `verify`. §13.5 said MCP
+was read-only; it now also cannot be pointed outside the project.
+
+### 16.2 The ledger hash had ambiguous field boundaries
+
+`hashEntry` joined 16 fields with `|`, so `owner="A. Kim|approved by CFO"` with reason
+`timing difference` and `owner="A. Kim"` with reason `approved by CFO|timing difference` hashed
+identically. The canonical form is a JSON array now (R8.3). Two related gaps closed with it: every
+write records `head {count, hash}`, so a ledger whose trailing entries were removed is
+`LEDGER_TRUNCATED` at parse time and `820 verify` fails on the ledger while the report still
+re-derives; and `decidedOn`, the CLI `--today` and the MCP `today` are checked with `isIsoDate`,
+which had only ever been applied to `expiresOn`.
+
+### 16.3 The BAI2 account control total summed the wrong things
+
+The `49` check used the first `03` amount plus signed `16` details. Published BAI2 files add the
+amounts of every `03` group and every `88` continuation as magnitudes, and neither file in
+`samples/public/` matched the old rule (both match the new one to the unit). The synthetic pair in
+`samples/data/` was written to the old rule and still agrees under the new one, which is why the
+correction did not change a fixture: the defect only showed on files this project did not write.
+The reader now reads every summary group and the `88` that continues one, and adds magnitudes;
+`docs/bai2.md` §4 records the rule and the correction.
+EBCDIC remains out of scope and is stated as a roadmap item in `docs/guarantees.md`, not as a claim.

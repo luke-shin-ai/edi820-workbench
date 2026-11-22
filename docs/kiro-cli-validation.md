@@ -1,9 +1,9 @@
 # Kiro CLI validation (2026-11-21, task §2 of the build brief)
 
-Binary: `/workspace/.tools/kiro/kirocli/bin/kiro-cli` **3.5.0** (Linux x86_64).
+Binary: `kiro-cli` **3.5.0** (Linux x86_64), installed from the Kiro distribution.
 Everything below was run from the repository root, and the credit cost was deliberately
-kept at one short smoke call: the account is on the **50-credits/month free plan** while the
-4,000-credit request is pending, so the goal was *proving the tooling loads*, not spending it.
+kept at one short smoke call: the account is on the free plan, so the goal was
+*proving the tooling loads*, not spending a credit.
 
 ## 1. Session identity
 
@@ -13,14 +13,13 @@ kiro-cli 3.5.0
 
 $ kiro-cli whoami
 Logged in with Builder ID
-Email: ya***@gmail.com        # redacted in this file; the exact address lives in the
-                             # workspace's non-public procedure-status.md
+Email: <account address>
 ```
 
-The email matches the account the credits were requested for. The address is redacted here because
-this repository is destined to be public and a personal mailbox does not need to be in it.
-Note for the write-up: the session is a **Builder ID** session, not an `app.kiro.dev` Google
-web session - both resolve to the same Kiro account email, and the CLI is the surface the
+The account behind that session is the one this submission was built with. The address itself is
+not printed in this repository: a personal mailbox is not part of the evidence, and the tool only
+ever needed the login to succeed. The session is a **Builder ID** session, not an `app.kiro.dev`
+Google web session - both resolve to the same Kiro account, and the CLI is the surface the
 submission needs (the web IDE requires Pro).
 
 ## 2. The custom agent is discovered and valid

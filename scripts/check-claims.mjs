@@ -17,12 +17,30 @@ try {
   // vitest exit code might be non-zero, but that's ok, we still have the file
 }
 
-// Read vitest results
-const vitestJson = JSON.parse(
-  readFileSync(".tmp/vitest-claims.json", "utf-8")
-);
+// Read vitest results. The run above is what produces the file, so a missing file means the
+// runner failed before it could report: say that, instead of failing with ENOENT halfway through
+// a stack trace (the defect a cold run of this script used to hit, 2026-11-22).
+const vitestPath = ".tmp/vitest-claims.json";
+if (!existsSync(vitestPath)) {
+  console.error(
+    `check:claims: vitest wrote no JSON report to ${vitestPath}. Run \`npx vitest run\` on its own to see why.`
+  );
+  process.exit(1);
+}
+let vitestJson;
+try {
+  vitestJson = JSON.parse(readFileSync(vitestPath, "utf-8"));
+} catch (error) {
+  console.error(`check:claims: ${vitestPath} is not valid JSON: ${error.message}`);
+  process.exit(1);
+}
 const numTotalTests = vitestJson.numTotalTests;
 const testFiles = vitestJson.testResults.length;
+if (typeof numTotalTests !== "number" || !Array.isArray(vitestJson.testResults)) {
+  console.error("check:claims: the vitest report has no test totals; nothing to compare against.");
+  process.exit(1);
+}
+console.log(`measured: ${numTotalTests} tests in ${testFiles} files, ${vitestJson.testResults.filter((f) => f.name.includes("/test/pbt/")).reduce((sum, f) => sum + (f.assertionResults ? f.assertionResults.length : 0), 0)} property tests`);
 
 // Count property tests: all tests in /test/pbt/ directories
 const numPropertyTests = vitestJson.testResults
@@ -273,13 +291,50 @@ if (existsSync("demo-video/820-demo-en.srt")) {
   }
 }
 
+// EVIDENCE.md: the one line that states the current counts. Historical rows keep their own
+// numbers on purpose (they record what was true then), so only the "Test counts are from" line is
+// read here.
+const evidenceContent = readFileSync("EVIDENCE.md", "utf-8");
+const evidenceCounts = /Test counts are from[^*]*\*\*(\d+) tests \/ (\d+) files\*\*/.exec(evidenceContent);
+if (evidenceCounts) {
+  claims.push({
+    file: "EVIDENCE.md",
+    type: "tests_and_files",
+    claimed: `${evidenceCounts[1]}/${evidenceCounts[2]}`,
+    measured: `${numTotalTests}/${testFiles}`,
+  });
+} else {
+  console.log("note EVIDENCE.md tests_and_files: no current-count line found");
+}
+const evidenceProps = /Test counts are from[^*]*\*\*\d+ tests \/ \d+ files\*\*[^(]*\((\d+) propert(?:y|ies)/.exec(evidenceContent);
+if (evidenceProps) {
+  claims.push({ file: "EVIDENCE.md", type: "property_tests", claimed: parseInt(evidenceProps[1]), measured: numPropertyTests });
+}
+
+// Artefacts that were published on a date, with a count frozen into them: the text submitted to
+// Devpost and the subtitle burned into the video. They are compared against the number that was
+// true when they were recorded, not against today's run, because editing a submitted entry or a
+// rendered video to chase a later count would be the dishonest move. Anything else must match the
+// run exactly.
+const RECORDED_COUNTS = new Map([
+  ["devpost-submission-draft.md", { tests: 311, files: 23, note: "submitted 2026-11-22" }],
+  ["demo-video/820-demo-en.srt", { tests: 311, files: 23, note: "burned into the video recorded 2026-11-22" }],
+]);
+
 // Step 5: Report results
 let failCount = 0;
 claims.forEach((claim) => {
-  const pass = String(claim.claimed) === String(claim.measured);
+  const recorded = RECORDED_COUNTS.get(claim.file);
+  const frozen = recorded && (claim.type === "total_tests" || claim.type === "tests_and_files");
+  const expected = frozen
+    ? claim.type === "tests_and_files"
+      ? `${recorded.tests}/${recorded.files}`
+      : recorded.tests
+    : claim.measured;
+  const pass = String(claim.claimed) === String(expected);
   const status = pass ? "ok" : "FAIL";
   console.log(
-    `${status} ${claim.file} ${claim.type}: claimed=${claim.claimed} measured=${claim.measured}`
+    `${status} ${claim.file} ${claim.type}: claimed=${claim.claimed} measured=${expected}${frozen ? ` (recorded, ${recorded.note})` : ""}`
   );
   if (!pass) failCount++;
 });

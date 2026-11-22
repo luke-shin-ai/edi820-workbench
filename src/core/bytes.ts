@@ -24,7 +24,7 @@ export function fromLatin1(text: string): Uint8Array {
   const bytes = new Uint8Array(text.length);
   for (let index = 0; index < text.length; index += 1) {
     const code = text.charCodeAt(index);
-    bytes[index] = code > 0xff ? 0x3f /* '?' — unreachable for latin1-decoded data */ : code;
+    bytes[index] = code > 0xff ? 0x3f /* '?'  -  unreachable for latin1-decoded data */ : code;
   }
   return bytes;
 }

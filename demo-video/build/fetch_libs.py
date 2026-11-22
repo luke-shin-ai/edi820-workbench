@@ -1,7 +1,7 @@
 """Fetch the shared libraries Chromium needs into a local sysroot (no root here).
 
 Reads the Debian trixie package index once, downloads the .deb for each requested
-binary package, and unpacks data.tar.* into /workspace/.sysroot.
+binary package, and unpacks data.tar.* into the local sysroot (see paths.py).
 """
 import gzip
 import io
@@ -13,8 +13,8 @@ import urllib.request
 MIRROR = "https://deb.debian.org/debian"
 SUITE = "trixie"
 ARCH = "amd64"
-SYSROOT = "/workspace/.sysroot"
-CACHE = "/workspace/.sysroot/.debs"
+from paths import SYSROOT  # noqa: E402  (local sysroot, see paths.py)
+CACHE = os.path.join(SYSROOT, ".debs")
 
 PKGS = sys.argv[1:]
 

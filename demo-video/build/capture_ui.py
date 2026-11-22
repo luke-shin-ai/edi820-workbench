@@ -5,7 +5,7 @@ Four states: PASS, FAIL with the second finding selected (so the evidence panel 
 real render of `src/web`, against the same samples the CLI reads, so the README cannot show
 a screen the product does not produce.
 
-    LD_LIBRARY_PATH=/workspace/.sysroot/usr/lib/x86_64-linux-gnu python3 capture_ui.py
+    LD_LIBRARY_PATH=$EDI820_SYSROOT/usr/lib/x86_64-linux-gnu python3 capture_ui.py
 """
 import os
 import subprocess
@@ -14,7 +14,7 @@ from urllib.parse import urlencode
 
 from playwright.sync_api import sync_playwright
 
-ROOT = "/workspace/hackathons/kiroween-2026"
+from paths import NODE_BIN, ROOT  # noqa: E402  (see paths.py)
 PORT = 8735
 OUT = os.path.join(ROOT, "docs/images")
 BASE = "http://127.0.0.1:%d" % PORT
@@ -33,7 +33,7 @@ FAIL = url(file="samples/data/820-bad.txt", copybook="samples/copybooks/820.cpy"
            bankFormat="fixed", window=WINDOW)
 
 env = dict(os.environ)
-env["PATH"] = "/workspace/.toolchain/node-v22.23.5-linux-x64/bin:" + env.get("PATH", "")
+env["PATH"] = NODE_BIN + os.pathsep + env.get("PATH", "")
 server = subprocess.Popen(["npx", "tsx", "src/web/main.ts", "--port", str(PORT)],
                           cwd=ROOT, env=env, stdout=subprocess.DEVNULL,
                           stderr=subprocess.DEVNULL, start_new_session=True)
@@ -59,7 +59,7 @@ try:
             rows[1].click()
             page.wait_for_timeout(400)
         page.screenshot(path=os.path.join(OUT, "ui-fail.png"), full_page=True)
-        print("fail:", page.inner_text("#status"), "· L3 line:", page.inner_text("#explain").split("\n")[0])
+        print("fail:", page.inner_text("#status"), "- L3 line:", page.inner_text("#explain").split("\n")[0])
 
         page.goto(BASE + "/", wait_until="load")
         page.wait_for_timeout(1200)

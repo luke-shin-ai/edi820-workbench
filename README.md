@@ -2,7 +2,7 @@
 
 > Kiroween 2026, **Resurrection** category, built with Kiro (spec-driven, steering, hooks, MCP, PBT)
 
-> **Build status (2026-11-22):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **311 tests / 23 files** (unit, property-based and regression, 31 of them properties). The repository is public at https://github.com/luke-shin-ai/edi820-workbench, the static build is live on GitHub Pages, and the demo video is public on YouTube (links below). The Devpost entry is submitted at https://devpost.com/software/820-a-reconciliation-workbench-for-dead-payment-files.
+> **Build status (2026-11-23):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **333 tests / 25 files** (unit, property-based and regression, 31 of them properties). The demo video, recorded on 2026-11-22, states the count in force then (311): the 22 cases added afterwards cover the MCP path allowlist, the ledger head, and the two published BAI2 files. The repository is public at https://github.com/luke-shin-ai/edi820-workbench, the static build is live on GitHub Pages, and the demo video is public on YouTube (links below). The Devpost entry is submitted at https://devpost.com/software/820-a-reconciliation-workbench-for-dead-payment-files.
 
 Corporate payment files never died. The people and tools that could read them did.
 
@@ -42,7 +42,7 @@ python3 scripts/check-static.py       # Chromium at 1920: every scenario's finge
 
 ```bash
 npm install
-npm test                       # 311 tests: npx vitest run
+npm test                       # 333 tests: npx vitest run
 npm run typecheck              # tsc --noEmit for node + for the browser build, 0 errors
 npm run demo:cli               # parse + reconcile eight scenarios (820/823/fixed/COMP-3/REDEFINES/BAI2)
 npm run evidence               # write out/evidence/report.json, the report the hook re-derives
@@ -122,9 +122,11 @@ node scripts/mcp-call.mjs    # a real client: initialize, tools/list, reconcile,
 | `reconcile` | PASS / INCOMPLETE / FAIL, findings with declared/computed/delta, summary, fingerprint |
 | `explain_findings` | one grounded explanation per finding (`INSUFFICIENT_EVIDENCE` when it cannot be grounded) |
 | `verify` | both fingerprints, first differing field path, proof the report was not modified |
-| `exceptions` | per-finding status (OPEN/WAIVED/EXPIRED/RELEASED), counts, and the ledger chain check |
+| `exceptions` | per-finding status (OPEN/WAIVED/EXPIRED/RELEASED), counts, and the ledger digest: entry count, head hash, and whether the chain and the head agree |
 
 Each returns the same JSON the CLI writes, because all three surfaces call `src/core/ops.ts`. The reviewer agent in `.kiro/agents/reviewer.json` calls these tools, and `.kiro/settings/mcp.json` registers the server for the workspace.
+
+**What an agent may reach.** An MCP client is a model, so a path in a tool argument is untrusted. `filePath`, `copybookPath` and `bankFilePath` are accepted only under `samples/`, `out/` or the server's working directory, and `outDir` only under `out/`; anything else is refused before a file is opened, including a `..` climb or a symlink that leaves those roots (`src/mcp/server.ts`, `resolveAllowedPath`). `explain_findings` caps `maxLiveCalls` at 3 and defaults to 0, so an agent cannot spend credits or reach a network adapter without a person asking for it. `.kiro/settings/mcp.json` auto-approves only the two read-only tools, `parse_file` and `verify`; `reconcile` (which can write a report) and `explain_findings` ask first.
 
 ## `REDEFINES` is read, not guessed
 
@@ -133,6 +135,23 @@ A bank copybook does not give the control trailer its own bytes. It gives the re
 ## BAI2 is read, not disguised
 
 BAI2 has no fixed width and no copybook. Rather than fake a layout for a comma-delimited format, `src/bai2` is a dedicated reader for records `01/02/03/16/49/88/98/99` that produces the same `ParseResult` the reconciler already understands: amounts as `bigint` minor units with the currency's exponent, direction from the type code (`100-399` credit, `400-699` debit), per-record field offsets for the evidence panel, and its own checks of the account, group and file trailers. A `03` code `100` declares *total credits*, while the detail records it is compared against net credits against debits, so the reader keeps gross credit and debit totals per currency and every delta names both parts. See [`docs/bai2.md`](docs/bai2.md).
+
+## Verified against BAI2 files banks publish
+
+The fixtures are ours, so they cannot prove the reader handles a file it did not help write. Two BAI2 files published by banks are committed verbatim in `samples/public/` and parsed by `src/bai2` on every test run:
+
+| file | published by | records | declared total credits | result |
+|---|---|---|---|---|
+| `bai2-westpac-npp.txt` | Westpac / Qvalent, BAI2 NPP sample file (CRLF, as published) | 27 (10 detail) | 4,000,000 AUD | 0 issues |
+| `bai2-southstate-guide.txt` | SouthState Bank, BAI-2 user guide, sample file p.12 (four accounts in one group) | 27 (12 detail) | 20,042,948 USD | 0 issues |
+
+```bash
+npm run verify:public        # parse both files, print the result, exit 1 on any issue
+```
+
+Both files agree with the reader on the `49` account control totals, the `98` group totals and the `99` file totals. Getting there fixed a real defect rather than the samples: the reader used to read only the first `[type code, amount]` pair of an `03` record and to compare the `49` total against *signed* details, which no published file satisfies. It now reads every summary group of an `03` and the `88` continuations that carry the rest of one, and adds the amounts as they appear on the wire. `samples/public/SOURCES.md` records the URLs, the download date and what was normalised.
+
+**EBCDIC is out of scope for this build.** Mainframe estates mostly store these files in EBCDIC, and this reader takes ASCII and latin1 bytes; an EBCDIC file is refused at the door (`UNSUPPORTED_STRUCTURE`) rather than decoded wrongly. Reading it is a roadmap item, listed as such in `docs/guarantees.md`; the claim here is about the format and the layout, not about the character set a particular host uses.
 
 ## How Kiro built it (evidence, not adjectives)
 
@@ -152,7 +171,7 @@ See [`docs/guarantees.md`](docs/guarantees.md), which is parsed and printed by `
 
 ## Data
 
-All sample data is **synthetic** (fictional company *Northwind Pay*). No customer, bank or employer data is used anywhere in this repository.
+The fixtures this project generates are **synthetic** (fictional company *Northwind Pay*), and every planted defect is asserted by `test/unit/fixtures.test.ts`. `samples/public/` holds two BAI2 files published by banks as format examples, copied verbatim with their sources in `samples/public/SOURCES.md`; their account numbers and names are the publishers' fictitious examples. No customer, bank or employer data is used anywhere in this repository.
 
 ## License
 

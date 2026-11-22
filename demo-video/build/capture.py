@@ -12,7 +12,7 @@ import time
 
 from playwright.sync_api import sync_playwright
 
-ROOT = "/workspace/hackathons/kiroween-2026"
+from paths import NODE_BIN, ROOT  # noqa: E402  (see paths.py)
 PORT = 8731
 OUT = os.path.join(ROOT, "demo-video/screenshots")
 os.makedirs(OUT, exist_ok=True)
@@ -41,7 +41,7 @@ BAI2 = u(file="samples/data/820-good.txt", copybook="samples/copybooks/820.cpy",
 report = {}
 
 env = dict(os.environ)
-env["PATH"] = "/workspace/.toolchain/node-v22.23.5-linux-x64/bin:" + env.get("PATH", "")
+env["PATH"] = NODE_BIN + os.pathsep + env.get("PATH", "")
 server = subprocess.Popen(
     ["npx", "tsx", "src/web/main.ts", "--port", str(PORT)],
     cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,

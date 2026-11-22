@@ -193,7 +193,7 @@ export interface ParseInput {
 export function parseFile(input: ParseInput): ParseResult {
   const { copybook } = input;
   if (!copybook.recordLength || copybook.recordLength < 1) {
-    throw new Error('copybook declares a record length of zero — refusing to parse');
+    throw new Error('copybook declares a record length of zero  -  refusing to parse');
   }
   const source: Bytes = isBytes(input.source) ? input.source : fromLatin1(input.source);
   const { records: rawRecords, eol, trailingNewline } = splitRecords(source, copybook.recordLength, copybook.framing);

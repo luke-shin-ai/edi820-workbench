@@ -12,10 +12,16 @@
 | `build/build.py` | `seg` / `assemble` / `check` stages (segment render, crossfade, audio mix, subtitle burn, ffprobe) |
 | `build/capture_hd.py`, `capture_states.py` | Playwright captures of the running screen at devicePixelRatio 2 |
 | `build/dump-copybook.mjs` | calls the real copybook compiler and prints field offsets, layouts included (used by the copybook plate) |
-| `build/outputs/*.txt` | captured stdout of the commands shown in the video (`verify`, `vitest`, `git ls-files .kiro`), the hook log (`hook-fire.txt`) and a live MCP client run (`mcp-call.txt`) |
+| `build/outputs/*.txt` | captured stdout of the commands shown in the video (`verify`, `vitest`, `git ls-files .kiro`), the hook log (`hook-fire.txt`) and a live MCP client run (`mcp-call.txt`). They are captures from the machine that rendered the video, so the occasional absolute path in them is what the terminal printed, not a setting of the repository; on 2026-11-23 their punctuation was normalised to ASCII (dashes, arrows, ellipses) so the public repository carries none of the typography this project avoids, with the words and numbers unchanged |
 | `shots-static/` | the l4 capture sidecar (`static-l4.json`) the register plate quotes |
 | `build/copybook-fields.json` | the compiler output the plate draws its byte ranges from |
 | `screenshots/` | the raw captures the plates are cropped from |
+
+## Running the build again
+
+Every script derives its paths from `build/paths.py` (repository root, node/bin directory, local
+library sysroot), so a clone needs no editing. Set `EDI820_ROOT`, `EDI820_NODE_BIN` or
+`EDI820_SYSROOT` to point somewhere else.
 
 ## What the video shows, and where each frame comes from
 
@@ -51,13 +57,13 @@ python3 build.py assemble         # xfade, narration on a sample-accurate timeli
 python3 build.py check            # duration, size, streams, cue count
 
 # the static captures the plates are cropped from (writes docs/images/demo-*.png)
-LD_LIBRARY_PATH=/workspace/.sysroot/usr/lib/x86_64-linux-gnu python3 ../scripts/check-static.py
+LD_LIBRARY_PATH=$EDI820_SYSROOT/usr/lib/x86_64-linux-gnu python3 ../scripts/check-static.py
 ```
 
 Screenshots come from the real server, and the server has to run inside one tool call:
 
 ```bash
-LD_LIBRARY_PATH=/workspace/.sysroot/usr/lib/x86_64-linux-gnu python3 capture_hd.py
+LD_LIBRARY_PATH=$EDI820_SYSROOT/usr/lib/x86_64-linux-gnu python3 capture_hd.py
 ```
 
 (`LD_LIBRARY_PATH` is only needed in this build sandbox, where Chromium's ATK libraries were fetched

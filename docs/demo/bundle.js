@@ -973,7 +973,7 @@
     var _a, _b;
     const { copybook } = input;
     if (!copybook.recordLength || copybook.recordLength < 1) {
-      throw new Error("copybook declares a record length of zero \u2014 refusing to parse");
+      throw new Error("copybook declares a record length of zero  -  refusing to parse");
     }
     const source = isBytes(input.source) ? input.source : fromLatin1(input.source);
     const { records: rawRecords, eol, trailingNewline } = splitRecords(source, copybook.recordLength, copybook.framing);
@@ -1222,7 +1222,7 @@
     ],
     "16": [
       { name: "REC-CODE", index: 1 },
-      { name: "TYPE-CODE", index: 2, note: "100\u2013399 credit, 400\u2013699 debit" },
+      { name: "TYPE-CODE", index: 2, note: "100-399 credit, 400-699 debit" },
       { name: "AMOUNT", index: 3, note: "unsigned; direction comes from TYPE-CODE" },
       { name: "FUNDS-TYPE", index: 4 },
       { name: "BANK-REF", index: 5 },
@@ -1298,6 +1298,22 @@
     }
     return { values, spans };
   }
+  function summaryTriples(fields, from) {
+    const triples = [];
+    let pendingTypeCode;
+    for (let i = from; i < fields.length; i += 1) {
+      const text = fields[i].text.trim();
+      if (!/^\d{3}$/.test(text)) continue;
+      const next = fields[i + 1] ? fields[i + 1].text.trim() : "";
+      if (/^[+-]?\d+$/.test(next)) {
+        triples.push({ typeCode: text, amount: next });
+        i += 1;
+        continue;
+      }
+      if (next === "") pendingTypeCode = text;
+    }
+    return pendingTypeCode ? { triples, pendingTypeCode } : { triples };
+  }
   function directionOfTypeCode(typeCode) {
     if (!/^\d{3}$/.test(typeCode)) return "unknown";
     const code = Number(typeCode);
@@ -1354,7 +1370,7 @@
         ...notes
       ],
       source: [
-        "# BAI2 (cash management balance reporting) \u2014 declared record layouts",
+        "# BAI2 (cash management balance reporting) - declared record layouts",
         ...Object.entries(BAI2_LAYOUTS).map(([code, fields]) => `${code}: ${fields.map((f) => f.name).join(", ")}`)
       ].join("\n")
     };
@@ -1381,6 +1397,30 @@
     let seenFileTrailer = false;
     let fileTrailerIssues = [];
     const declaredCredits = /* @__PURE__ */ new Map();
+    let lastAmountRecord = null;
+    const addSummary = (state2, triples, scale, recordIndex) => {
+      for (const triple of triples) {
+        let minorUnits;
+        try {
+          minorUnits = decodeBai2Amount(triple.amount, scale).minorUnits;
+        } catch (error) {
+          issues.push({
+            code: "FIELD_INVALID_NUMERIC",
+            recordIndex,
+            field: "AMOUNT",
+            detail: `${triple.typeCode} summary amount is not a BAI2 amount: ${error.message}`
+          });
+          continue;
+        }
+        const magnitude = minorUnits < 0n ? -minorUnits : minorUnits;
+        state2.summaryMinorUnits += magnitude;
+        if (triple.typeCode === "100") {
+          const bucket = declaredCredits.get(state2.currency);
+          if (bucket) bucket.minorUnits += magnitude;
+          else declaredCredits.set(state2.currency, { minorUnits: magnitude, scale, recordIndex });
+        }
+      }
+    };
     lines.forEach((line, index) => {
       const recordIssues = [];
       const pushIssue = (code2, detail, extra = {}) => {
@@ -1389,7 +1429,8 @@
         issues.push(issue);
       };
       const code = recordCodeOf(line);
-      const { values: rawFields, spans } = toFieldMap(code, splitRecordFields(line), line);
+      const splitFields = splitRecordFields(line);
+      const { values: rawFields, spans } = toFieldMap(code, splitFields, line);
       const values = {};
       const slices = {};
       for (const [name, fieldText] of Object.entries(rawFields)) {
@@ -1429,7 +1470,6 @@
           if (currency !== "" && exponents[currency] === void 0) {
             pushIssue("CURRENCY_SCALE_MISMATCH", `${currency} is not in the ISO-4217 table; a ${scale}-digit scale was assumed for the 03 amount`);
           }
-          const typeCode = (rawFields["TYPE-CODE"] ?? "").trim();
           let minorUnits;
           try {
             minorUnits = decodeBai2Amount(rawFields["AMOUNT"] ?? "", scale).minorUnits;
@@ -1437,22 +1477,22 @@
           } catch (error) {
             pushIssue("FIELD_INVALID_NUMERIC", `03 amount is not a BAI2 amount: ${error.message}`, { field: "AMOUNT" });
           }
+          const summaryScan = summaryTriples(splitFields, 3);
           account = {
             account: (rawFields["ACCOUNT"] ?? "").trim(),
             currency,
             startIndex: index,
-            summaryMinorUnits: minorUnits ?? 0n,
-            detailMinorUnits: 0n
+            summaryMinorUnits: 0n,
+            detailMinorUnits: 0n,
+            pendingTypeCode: summaryScan.pendingTypeCode ?? null
           };
-          if (typeCode === "100" && minorUnits !== void 0) {
-            const bucket = declaredCredits.get(currency);
-            if (bucket) bucket.minorUnits += minorUnits;
-            else declaredCredits.set(currency, { minorUnits, scale, recordIndex: index });
-          }
+          addSummary(account, summaryScan.triples, scale, index);
+          lastAmountRecord = "03";
           break;
         }
         case "16": {
           isTrailer = false;
+          lastAmountRecord = "16";
           if (!account) pushIssue("BAI2_STRUCTURE", "a detail record (16) appears outside an account block");
           const typeCode = (rawFields["TYPE-CODE"] ?? "").trim();
           const currency = account?.currency || currentCurrency;
@@ -1471,7 +1511,7 @@
             const amount = { minorUnits: signed, currency, scale };
             values["AMOUNT"] = amount;
             if (account) {
-              account.detailMinorUnits += signed;
+              account.detailMinorUnits += signed < 0n ? -signed : signed;
             }
             const bucket = totalsByCurrency[currency] ?? (totalsByCurrency[currency] = { minorUnits: 0n, scale, records: 0 });
             bucket.minorUnits += signed;
@@ -1514,7 +1554,7 @@
               if (minorUnits !== computed) {
                 pushIssue(
                   "BAI2_CONTROL_MISMATCH",
-                  `account ${account.account} control total declares ${minorUnits} minor units but the 03 summary plus 16 detail amounts sum to ${computed}`,
+                  `account ${account.account} control total declares ${minorUnits} minor units but the 03 summaries, 16 details and 88 continuations sum to ${computed}`,
                   { field: "ACCOUNT-CONTROL-TOTAL", declared: minorUnits.toString(), actual: computed.toString() }
                 );
               }
@@ -1523,10 +1563,24 @@
             }
           }
           account = null;
+          lastAmountRecord = null;
           break;
         }
         case "88": {
           if (!seenFileHeader) pushIssue("BAI2_STRUCTURE", "a continuation record (88) appears before the file header");
+          if (account && lastAmountRecord === "03") {
+            const scan = summaryTriples(splitFields, 1);
+            const triples = [...scan.triples];
+            if (account.pendingTypeCode) {
+              const first = (splitFields[1]?.text ?? "").trim();
+              if (/^[+-]?\d+$/.test(first)) {
+                triples.unshift({ typeCode: account.pendingTypeCode, amount: first });
+                account.pendingTypeCode = null;
+              }
+            }
+            addSummary(account, triples, exponents[account.currency] ?? 2, index);
+            account.pendingTypeCode = scan.pendingTypeCode ?? account.pendingTypeCode;
+          }
           break;
         }
         case "98": {
@@ -2481,33 +2535,60 @@ ${draft.suggestedFix}`, finding);
     return findingKey(finding);
   }
   function emptyLedger() {
-    return { version: 1, entries: [] };
+    return { version: 1, entries: [], head: { count: 0, hash: "GENESIS" } };
+  }
+  function ledgerDigest(ledger) {
+    const last = ledger.entries[ledger.entries.length - 1];
+    return { count: ledger.entries.length, hash: last ? last.hash : "GENESIS" };
   }
   function parseLedger(text) {
+    let parsed;
     try {
-      const parsed = JSON.parse(text);
+      parsed = JSON.parse(text);
+    } catch (error) {
+      throw new LedgerError("SHAPE", `Failed to parse ledger: ${error.message}`);
+    }
+    try {
       if (typeof parsed !== "object" || parsed === null) throw new Error("not an object");
-      const ledger = parsed;
-      if (ledger.version !== 1) throw new Error("version is not 1");
-      if (!Array.isArray(ledger.entries)) throw new Error("entries is not an array");
-      for (const entry of ledger.entries) {
+      const ledger2 = parsed;
+      if (ledger2.version !== 1) throw new Error("version is not 1");
+      if (!Array.isArray(ledger2.entries)) throw new Error("entries is not an array");
+      ledger2.entries.forEach((entry, index) => {
         if (typeof entry !== "object" || entry === null) throw new Error("entry is not an object");
         const e = entry;
         if (typeof e.seq !== "number" || typeof e.id !== "string" || typeof e.decision !== "string") {
           throw new Error("entry missing required fields");
         }
+        if (e.seq !== index + 1) throw new Error(`entry ${index + 1} carries seq ${String(e.seq)}: the sequence must be dense from 1`);
+      });
+      if (ledger2.head !== void 0) {
+        const head = ledger2.head;
+        if (typeof head.count !== "number" || typeof head.hash !== "string") throw new Error("head needs count and hash");
       }
-      return parsed;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       throw new LedgerError("SHAPE", `Failed to parse ledger: ${msg}`);
     }
+    const ledger = parsed;
+    if (ledger.head) {
+      const digest = ledgerDigest(ledger);
+      if (ledger.head.count !== digest.count) {
+        throw new LedgerError(
+          "TRUNCATED",
+          `ledger head declares ${ledger.head.count} entries but ${digest.count} were read: trailing entries were removed`
+        );
+      }
+      if (ledger.head.hash !== digest.hash) {
+        throw new LedgerError("TRUNCATED", "ledger head hash does not match the last entry: the tail was rewritten or cut");
+      }
+    }
+    return ledger;
   }
   function serialiseLedger(ledger) {
-    return JSON.stringify(ledger, null, 2) + "\n";
+    return JSON.stringify({ version: ledger.version, entries: ledger.entries, head: ledgerDigest(ledger) }, null, 2) + "\n";
   }
   function hashEntry(entry) {
-    const canonical = [
+    const canonical = JSON.stringify([
       entry.seq ?? "",
       entry.id ?? "",
       entry.decision ?? "",
@@ -2524,23 +2605,37 @@ ${draft.suggestedFix}`, finding);
       entry.releaseOf ?? "",
       entry.fingerprint ?? "",
       entry.prevHash ?? ""
-    ].join("|");
+    ]);
     return createHash("sha256").update(canonical).digest("hex");
   }
   function verifyLedger(ledger) {
-    if (ledger.entries.length === 0) return { ok: true, firstInvalidSeq: null };
+    const digest = ledgerDigest(ledger);
+    const result = (ok, detail, firstInvalidSeq = null) => ({
+      ok,
+      firstInvalidSeq,
+      ...detail ? { detail } : {},
+      entries: digest.count,
+      headHash: digest.hash
+    });
+    if (ledger.head && (ledger.head.count !== digest.count || ledger.head.hash !== digest.hash)) {
+      return result(
+        false,
+        `ledger head declares ${ledger.head.count} entries with head ${ledger.head.hash}, but the ledger holds ${digest.count} with head ${digest.hash}`,
+        ledger.entries.length + 1
+      );
+    }
     let prevHash = "GENESIS";
     for (const entry of ledger.entries) {
       if (entry.prevHash !== prevHash) {
-        return { ok: false, firstInvalidSeq: entry.seq, detail: `prevHash mismatch at seq ${entry.seq}` };
+        return result(false, `prevHash mismatch at seq ${entry.seq}`, entry.seq);
       }
       const computedHash = hashEntry(entry);
       if (entry.hash !== computedHash) {
-        return { ok: false, firstInvalidSeq: entry.seq, detail: `hash mismatch at seq ${entry.seq}` };
+        return result(false, `hash mismatch at seq ${entry.seq}`, entry.seq);
       }
       prevHash = entry.hash;
     }
-    return { ok: true, firstInvalidSeq: null };
+    return result(true);
   }
   function appendWaiver(ledger, input, finding, context) {
     if (!input.owner || input.owner.trim().length === 0) {
@@ -2553,6 +2648,9 @@ ${draft.suggestedFix}`, finding);
       throw new LedgerError("INVALID_WAIVER", "compensatingControl is required");
     }
     const decidedOn = input.decidedOn ?? context.decidedOn;
+    if (!isIsoDate(decidedOn)) {
+      throw new LedgerError("INVALID_WAIVER", `decidedOn (${decidedOn}) must be a real date in YYYY-MM-DD form`);
+    }
     if (!input.expiresOn || input.expiresOn.trim().length === 0) {
       throw new LedgerError("INVALID_WAIVER", "expiresOn is required: a waiver is a decision with an end date");
     }
@@ -2565,7 +2663,7 @@ ${draft.suggestedFix}`, finding);
     const key = findingKey2(finding);
     const seq = ledger.entries.length + 1;
     const prevHash = ledger.entries.length === 0 ? "GENESIS" : ledger.entries[ledger.entries.length - 1].hash;
-    const idSource = `${seq}|waived|${key}|${decidedOn}|${prevHash}`;
+    const idSource = JSON.stringify([seq, "waived", key, decidedOn, prevHash]);
     const idHash = createHash("sha256").update(idSource).digest("hex");
     const id = idHash.slice(0, 16);
     const entry = {
@@ -2588,7 +2686,8 @@ ${draft.suggestedFix}`, finding);
       // placeholder, will be computed
     };
     entry.hash = hashEntry(entry);
-    return { version: 1, entries: [...ledger.entries, entry] };
+    const next = { version: 1, entries: [...ledger.entries, entry] };
+    return { ...next, head: ledgerDigest(next) };
   }
   function appendRelease(ledger, input, waiverId) {
     if (!input.owner || input.owner.trim().length === 0) {
@@ -2609,9 +2708,12 @@ ${draft.suggestedFix}`, finding);
       throw new LedgerError("ALREADY_RELEASED", `waiver ${waiverId} is already released`);
     }
     const decidedOn = input.decidedOn ?? (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    if (!isIsoDate(decidedOn)) {
+      throw new LedgerError("INVALID_RELEASE", `decidedOn (${decidedOn}) must be a real date in YYYY-MM-DD form`);
+    }
     const seq = ledger.entries.length + 1;
     const prevHash = ledger.entries[ledger.entries.length - 1].hash;
-    const idSource = `${seq}|released|${waiverId}|${decidedOn}|${prevHash}`;
+    const idSource = JSON.stringify([seq, "released", waiverId, decidedOn, prevHash]);
     const idHash = createHash("sha256").update(idSource).digest("hex");
     const id = idHash.slice(0, 16);
     const entry = {
@@ -2634,9 +2736,13 @@ ${draft.suggestedFix}`, finding);
       // placeholder
     };
     entry.hash = hashEntry(entry);
-    return { version: 1, entries: [...ledger.entries, entry] };
+    const next = { version: 1, entries: [...ledger.entries, entry] };
+    return { ...next, head: ledgerDigest(next) };
   }
   function classify(findings, ledger, onDate) {
+    if (!isIsoDate(onDate)) {
+      throw new LedgerError("INVALID_DATE", `classification date (${onDate}) must be a real date in YYYY-MM-DD form`);
+    }
     const verify = verifyLedger(ledger);
     if (!verify.ok) {
       throw new LedgerError("LEDGER_CORRUPTED", `Ledger failed verification at seq ${verify.firstInvalidSeq}: ${verify.detail}`);
@@ -2772,17 +2878,17 @@ ${draft.suggestedFix}`, finding);
   ];
   var GUARANTEES = {
     "guaranteed": [
-      "Format interpretation - each field is sliced exactly at the copybook's byte position and length; no trimming, no re-synchronisation.",
+      "Format interpretation - each field is sliced exactly at the byte position and length the copybook declares, and every value is reported as the bytes hold it. Three comparisons read a value after trimming surrounding spaces, and they are the only ones: the REDEFINES discriminator (@view), the trailer's record-type check, and the currency code.",
       "One layout per record - a REDEFINES region (one byte range, several layouts) decodes exactly the layout its discriminator selects; an unmatched record is REDEFINES_VIEW_UNMATCHED and its bytes stay undecoded, never guessed.",
       "Arithmetic - amounts are bigint minor units with an ISO-4217 currency; totals and deltas are exact, and never computed in floating point.",
       "Reference reconciliation - every 820 reference either matches a bank record or appears in the report as REF_UNMATCHED; nothing is dropped silently.",
-      "Reproducibility - running verify on an output directory re-derives the verdict and compares a SHA-256 fingerprint. Same inputs, same verdict; otherwise the differing field path is printed.",
+      "Reproducibility - running verify on an output directory re-derives the verdict and compares a SHA-256 fingerprint. Same inputs, same verdict; otherwise the differing field path is printed. When an exception ledger sits beside the report, verify also prints its entry count and head hash and fails if the ledger no longer matches them.",
       "Explanation grounding - an explanation may cite only numbers present in the finding it explains, or it is replaced with INSUFFICIENT_EVIDENCE; the default explainer is a zero-credit template, not a model."
     ],
     "notGuaranteed": [
       "Legal or accounting adequacy of a payment or its remittance advice.",
       "Whether an exception is acceptable - a human must attach a reason, an expiry date, and a compensating control. The tool only refuses to let an exception exist without them.",
-      "Coverage of unmodelled clauses - OCCURS DEPENDING ON, binary COMP, SIGN LEADING OVERPUNCH and EBCDIC source are UNSUPPORTED_STRUCTURE; a REDEFINES with no activation rule is COPYBOOK_SEMANTICS; no copybook is SPEC_MISSING. None is guessed.",
+      "Coverage of unmodelled clauses - OCCURS DEPENDING ON, binary COMP, SIGN LEADING OVERPUNCH and EBCDIC source are UNSUPPORTED_STRUCTURE; a REDEFINES with no activation rule is COPYBOOK_SEMANTICS; no copybook is SPEC_MISSING. None is guessed. EBCDIC is the largest gap for mainframe estates, and reading it is a roadmap item rather than a claim: this build accepts ASCII and latin1 bytes and says so at the door.",
       "Source data authenticity - the tool verifies internal consistency, not whether the bank sent the right file."
     ],
     "sourcePath": "docs/guarantees.md"

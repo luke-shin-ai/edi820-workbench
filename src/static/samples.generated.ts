@@ -83,17 +83,17 @@ export const DATA: SampleFile[] = [
 
 export const GUARANTEES = {
   "guaranteed": [
-    "Format interpretation - each field is sliced exactly at the copybook's byte position and length; no trimming, no re-synchronisation.",
+    "Format interpretation - each field is sliced exactly at the byte position and length the copybook declares, and every value is reported as the bytes hold it. Three comparisons read a value after trimming surrounding spaces, and they are the only ones: the REDEFINES discriminator (@view), the trailer's record-type check, and the currency code.",
     "One layout per record - a REDEFINES region (one byte range, several layouts) decodes exactly the layout its discriminator selects; an unmatched record is REDEFINES_VIEW_UNMATCHED and its bytes stay undecoded, never guessed.",
     "Arithmetic - amounts are bigint minor units with an ISO-4217 currency; totals and deltas are exact, and never computed in floating point.",
     "Reference reconciliation - every 820 reference either matches a bank record or appears in the report as REF_UNMATCHED; nothing is dropped silently.",
-    "Reproducibility - running verify on an output directory re-derives the verdict and compares a SHA-256 fingerprint. Same inputs, same verdict; otherwise the differing field path is printed.",
+    "Reproducibility - running verify on an output directory re-derives the verdict and compares a SHA-256 fingerprint. Same inputs, same verdict; otherwise the differing field path is printed. When an exception ledger sits beside the report, verify also prints its entry count and head hash and fails if the ledger no longer matches them.",
     "Explanation grounding - an explanation may cite only numbers present in the finding it explains, or it is replaced with INSUFFICIENT_EVIDENCE; the default explainer is a zero-credit template, not a model."
   ],
   "notGuaranteed": [
     "Legal or accounting adequacy of a payment or its remittance advice.",
     "Whether an exception is acceptable - a human must attach a reason, an expiry date, and a compensating control. The tool only refuses to let an exception exist without them.",
-    "Coverage of unmodelled clauses - OCCURS DEPENDING ON, binary COMP, SIGN LEADING OVERPUNCH and EBCDIC source are UNSUPPORTED_STRUCTURE; a REDEFINES with no activation rule is COPYBOOK_SEMANTICS; no copybook is SPEC_MISSING. None is guessed.",
+    "Coverage of unmodelled clauses - OCCURS DEPENDING ON, binary COMP, SIGN LEADING OVERPUNCH and EBCDIC source are UNSUPPORTED_STRUCTURE; a REDEFINES with no activation rule is COPYBOOK_SEMANTICS; no copybook is SPEC_MISSING. None is guessed. EBCDIC is the largest gap for mainframe estates, and reading it is a roadmap item rather than a claim: this build accepts ASCII and latin1 bytes and says so at the door.",
     "Source data authenticity - the tool verifies internal consistency, not whether the bank sent the right file."
   ],
   "sourcePath": "docs/guarantees.md"

@@ -11,8 +11,9 @@ import imageio_ffmpeg
 sys.path.insert(0, os.path.dirname(__file__))
 from config import SHOTS
 
-ROOT = "/workspace"
-WORK = os.path.join(ROOT, "hackathons/kiroween-2026/demo-video/build")
+from paths import BUILD, WORKSPACE_ROOT
+ROOT = WORKSPACE_ROOT
+WORK = str(BUILD)
 TTS = os.path.join(WORK, "tts")
 FF = imageio_ffmpeg.get_ffmpeg_exe()
 VOICE = "en-US-AndrewNeural"

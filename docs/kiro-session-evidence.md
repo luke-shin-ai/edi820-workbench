@@ -311,7 +311,7 @@ punctuation of the task name normalised to ASCII (2026-11-22):
 {
   "session_id": "sess_515ee423-3152-4719-a65c-6ebcebaf1bd6",
   "hook_event_name": "PostTaskExec",
-  "cwd": "/workspace/hackathons/kiroween-2026",
+  "cwd": "<repository root>",
   "spec_name": ".kiro/specs/edi820-importer/tasks.md",
   "task_name": "T9.5 **Claim checker** - a script that fails when a published document states a test count, ...",
   "task_success": true
