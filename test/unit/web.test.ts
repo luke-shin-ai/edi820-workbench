@@ -197,6 +197,18 @@ describe('T5.3 - BAI2 and dropped files go through the same screen', () => {
     expect(payload.error).toContain('only files under samples/');
   });
 
+  it('refuses a toleranceDays that is not a whole number of days, as the CLI and MCP do', async () => {
+    for (const toleranceDays of [-1, 1.5, '3']) {
+      const response = await fetch(`${web.url()}/api/run`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ filePath: 'samples/data/820-good.txt', copybookPath: 'samples/copybooks/820.cpy', toleranceDays }),
+      });
+      expect(response.status).toBe(400);
+      expect(((await response.json()) as { error: string }).error).toContain('toleranceDays');
+    }
+  });
+
   it('reports a bad request as a message, not as a crash', async () => {
     const response = await fetch(`${web.url()}/api/run`, {
       method: 'POST',

@@ -1,11 +1,11 @@
-verify /workspace/hackathons/kiroween-2026/out/evidence/report.json
+verify <repo>/out/evidence/report.json
  recorded fingerprint c459b81b86ad3be3248f293de3f520a79483f8760157a1272e33150e944c178a
  recomputed fingerprint c459b81b86ad3be3248f293de3f520a79483f8760157a1272e33150e944c178a
  recorded verdict PASS recomputed verdict PASS
  read-only: report 4175 -> 4175 bytes, mtime 1795252276528 -> 1795252276528
  RESULT: identical - same inputs, same verdict
 
-guaranteed (/workspace/hackathons/kiroween-2026/docs/guarantees.md):
+guaranteed (<repo>/docs/guarantees.md):
  + Format interpretation - each field is sliced exactly at the copybook's byte position and length; no trimming, no re-synchronisation.
  + Arithmetic - amounts are `bigint` minor units with an ISO-4217 currency; totals and deltas are exact, and never computed in floating point.
  + Reference reconciliation - every 820 reference either matches a bank record or appears in the report as `REF_UNMATCHED`; nothing is dropped silently.

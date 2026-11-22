@@ -68,6 +68,20 @@ function asFormat(value: unknown): FileFormat | undefined {
   return undefined;
 }
 
+/**
+ * `toleranceDays` is a number of days, so it is a non-negative integer or nothing. The CLI and the
+ * MCP server both refuse anything else; the screen used to pass whatever the request body held
+ * straight into the reconciler (found 2026-11-22), which made the same contract true on two
+ * surfaces and false on the third.
+ */
+function toleranceFrom(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new AppError('USAGE', 'toleranceDays must be a non-negative integer');
+  }
+  return value;
+}
+
 function windowFrom(value: unknown): SettlementWindow | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const candidate = value as { start?: unknown; end?: unknown };
@@ -176,9 +190,10 @@ export function createWebServer(options: WebOptions = {}): WebServer {
     }
 
     const window = windowFrom(request.window);
+    const toleranceDays = toleranceFrom(request.toleranceDays);
     const run = reconcileSources(payment, bank, {
       ...(window ? { settlementWindow: window } : {}),
-      ...(request.toleranceDays !== undefined ? { toleranceDays: request.toleranceDays } : {}),
+      ...(toleranceDays !== undefined ? { toleranceDays } : {}),
     });
     const explanations = request.explain === false ? [] : (await explainFindings(run.result.findings)).explanations;
     const view = buildViewModel({

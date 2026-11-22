@@ -1,5 +1,5 @@
 
- RUN v2.1.9 /workspace/hackathons/kiroween-2026
+ RUN v2.1.9 <repo>
 
  ✓ test/unit/exception.test.ts (40 tests) 4244ms
  ✓ R8.6 - the CLI exit code follows the adjudication state > exits 0 once every finding is WAIVED, then 2 again after a release 1994ms

@@ -2,7 +2,7 @@
 
 > Kiroween 2026, **Resurrection** category, built with Kiro (spec-driven, steering, hooks, MCP, PBT)
 
-> **Build status (2026-11-23):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **333 tests / 25 files** (unit, property-based and regression, 31 of them properties). The demo video, recorded on 2026-11-22, states the count in force then (311): the 22 cases added afterwards cover the MCP path allowlist, the ledger head, and the two published BAI2 files. The repository is public at https://github.com/luke-shin-ai/edi820-workbench, the static build is live on GitHub Pages, and the demo video is public on YouTube (links below). The Devpost entry is submitted at https://devpost.com/software/820-a-reconciliation-workbench-for-dead-payment-files.
+> **Build status (2026-11-23):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **334 tests / 25 files** (unit, property-based and regression, 31 of them properties). The demo video, recorded on 2026-11-22, states the count in force then (311): the 23 cases added afterwards cover the MCP path allowlist, the ledger head, and the two published BAI2 files. The repository is public at https://github.com/luke-shin-ai/edi820-workbench, the static build is live on GitHub Pages, and the demo video is public on YouTube (links below). The Devpost entry is submitted at https://devpost.com/software/820-a-reconciliation-workbench-for-dead-payment-files.
 
 Corporate payment files never died. The people and tools that could read them did.
 
@@ -42,7 +42,7 @@ python3 scripts/check-static.py       # Chromium at 1920: every scenario's finge
 
 ```bash
 npm install
-npm test                       # 333 tests: npx vitest run
+npm test                       # 334 tests: npx vitest run
 npm run typecheck              # tsc --noEmit for node + for the browser build, 0 errors
 npm run demo:cli               # parse + reconcile eight scenarios (820/823/fixed/COMP-3/REDEFINES/BAI2)
 npm run evidence               # write out/evidence/report.json, the report the hook re-derives
