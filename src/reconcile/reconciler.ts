@@ -21,6 +21,7 @@ import {
 export type FindingCode =
   | 'CONTROL_TOTAL_MISMATCH'
   | 'CONTROL_COUNT_MISMATCH'
+  | 'MISSING_CURRENCY'
   | 'REF_UNMATCHED'
   | 'DATE_OUT_OF_WINDOW'
   | 'FIELD_DECLARED_LENGTH_EXCEEDED';
@@ -141,6 +142,52 @@ function withinWindow(date: string, window: SettlementWindow, toleranceDays: num
   return dayDiff(date, window.start) >= -toleranceDays && dayDiff(window.end, date) >= -toleranceDays;
 }
 
+interface BucketResolution {
+  /** The currency bucket the declared total is compared against, when one exists. */
+  currency?: string;
+  /** Why there is none. `declared-absent` is the dangerous one: the declaration names a currency the file has no detail in. */
+  missing?: 'declared-absent' | 'undeclared-multi' | 'no-amounts';
+}
+
+/**
+ * Decide which currency bucket a declared control total controls.
+ *
+ * This used to be `buckets[declared.currency] ?? Object.keys(buckets)[0]`, which compared a USD
+ * declaration against whichever bucket the file happened to list first: a silent substitution,
+ * the one failure mode a reconciliation tool must not have (red-team finding 8, 2026-11-22).
+ * Now a missing bucket is a finding, never a guess. A single-currency file with no declared
+ * currency is still comparable, because there is exactly one bucket it can mean.
+ */
+export function resolveDeclaredBucket(
+  declared: Amount,
+  buckets: Record<string, { minorUnits: bigint; scale: number; records: number }>,
+): BucketResolution {
+  const keys = Object.keys(buckets);
+  if (declared.currency) {
+    return buckets[declared.currency] ? { currency: declared.currency } : { missing: 'declared-absent' };
+  }
+  if (keys.length === 0) return { missing: 'no-amounts' };
+  if (keys.length === 1) return { currency: keys[0]! };
+  return { missing: 'undeclared-multi' };
+}
+
+function missingCurrencyDetail(
+  label: string,
+  declared: Amount,
+  buckets: Record<string, { minorUnits: bigint; scale: number; records: number }>,
+  reason: NonNullable<BucketResolution['missing']>,
+): string {
+  const keys = Object.keys(buckets).sort();
+  const declaredText = declared.currency ? formatAmount(declared) : `${formatAmount({ ...declared, currency: '' })} with no currency`;
+  if (reason === 'declared-absent') {
+    return `${label} control total declares ${declaredText} but no detail record is denominated in ${declared.currency} (detail currencies: ${keys.join(', ')}); the total is not compared against another currency`;
+  }
+  if (reason === 'undeclared-multi') {
+    return `${label} control total declares ${declaredText} and the detail records carry more than one currency (${keys.join(', ')}); which bucket it controls cannot be read from the file, so it is not compared`;
+  }
+  return `${label} control total declares ${declaredText} but no detail record carries an amount, so there is nothing to compare`;
+}
+
 function controlFindings(result: ParseResult, label: string): Finding[] {
   const findings: Finding[] = [];
   const { copybook, declaredControl, computedControl } = result;
@@ -165,30 +212,41 @@ function controlFindings(result: ParseResult, label: string): Finding[] {
   if (declaredControl?.total) {
     const declared = declaredControl.total;
     const buckets = computedControl.totalsByCurrency;
-    const bucketKey = declared.currency && buckets[declared.currency] ? declared.currency : Object.keys(buckets)[0];
-    const bucket = bucketKey ? buckets[bucketKey] : undefined;
-    const computedMinor = bucket?.minorUnits ?? 0n;
-    const delta = computedMinor - declared.minorUnits;
-    if (delta !== 0n) {
-      // Name the composition. A BAI2 `03` code `100` declares *total credits*, while the
-      // detail records it is compared against net credits against debits: without this
-      // line a bank fee and a missing credit arrive as one anonymous number.
-      const credits = bucketKey ? computedControl.creditTotalsByCurrency?.[bucketKey] : undefined;
-      const debits = bucketKey ? computedControl.debitTotalsByCurrency?.[bucketKey] : undefined;
-      const composition =
-        credits || debits
-          ? ` (credits ${formatAmount({ minorUnits: credits?.minorUnits ?? 0n, currency: declared.currency || (bucketKey ?? ''), scale: declared.scale })}` +
-            ` minus debits ${formatAmount({ minorUnits: debits?.minorUnits ?? 0n, currency: declared.currency || (bucketKey ?? ''), scale: declared.scale })})`
-          : '';
+    const resolution = resolveDeclaredBucket(declared, buckets);
+    if (!resolution.currency) {
       findings.push({
-        code: 'CONTROL_TOTAL_MISMATCH',
+        code: 'MISSING_CURRENCY',
         recordIndex: declaredControl.recordIndex,
         field: copybook.control?.totalField,
         declared,
-        computed: { minorUnits: computedMinor, currency: declared.currency || (bucketKey ?? ''), scale: declared.scale },
-        delta: { minorUnits: delta, currency: declared.currency || (bucketKey ?? ''), scale: declared.scale },
-        detail: `${label} control total declares ${formatAmount(declared)} but the detail records net to ${formatAmount({ ...declared, minorUnits: computedMinor })}${composition} (delta ${formatAmount({ ...declared, minorUnits: delta })})`,
+        detail: missingCurrencyDetail(label, declared, buckets, resolution.missing!),
       });
+    } else {
+      const bucketKey = resolution.currency;
+      const bucket = buckets[bucketKey];
+      const computedMinor = bucket?.minorUnits ?? 0n;
+      const delta = computedMinor - declared.minorUnits;
+      if (delta !== 0n) {
+        // Name the composition. A BAI2 `03` code `100` declares *total credits*, while the
+        // detail records it is compared against net credits against debits: without this
+        // line a bank fee and a missing credit arrive as one anonymous number.
+        const credits = computedControl.creditTotalsByCurrency?.[bucketKey];
+        const debits = computedControl.debitTotalsByCurrency?.[bucketKey];
+        const composition =
+          credits || debits
+            ? ` (credits ${formatAmount({ minorUnits: credits?.minorUnits ?? 0n, currency: declared.currency || bucketKey, scale: declared.scale })}` +
+              ` minus debits ${formatAmount({ minorUnits: debits?.minorUnits ?? 0n, currency: declared.currency || bucketKey, scale: declared.scale })})`
+            : '';
+        findings.push({
+          code: 'CONTROL_TOTAL_MISMATCH',
+          recordIndex: declaredControl.recordIndex,
+          field: copybook.control?.totalField,
+          declared,
+          computed: { minorUnits: computedMinor, currency: declared.currency || bucketKey, scale: declared.scale },
+          delta: { minorUnits: delta, currency: declared.currency || bucketKey, scale: declared.scale },
+          detail: `${label} control total declares ${formatAmount(declared)} but the detail records net to ${formatAmount({ ...declared, minorUnits: computedMinor })}${composition} (delta ${formatAmount({ ...declared, minorUnits: delta })})`,
+        });
+      }
     }
   }
   return findings;
@@ -388,36 +446,62 @@ export function reconcile(input: ReconcileInput): ReconcileResult {
   const totals: ReconcileSummary['totals'] = {};
   const declaredTotal = input.payment.declaredControl?.total;
   if (declaredTotal) {
-    const currency = declaredTotal.currency || Object.keys(paymentTotals)[0] || '';
-    const computed = paymentTotals[currency]?.minorUnits ?? 0n;
-    const credits = input.payment.computedControl.creditTotalsByCurrency?.[currency];
-    const debits = input.payment.computedControl.debitTotalsByCurrency?.[currency];
-    totals[currency] = {
-      declared: declaredTotal.minorUnits.toString(),
-      computed: computed.toString(),
-      delta: (computed - declaredTotal.minorUnits).toString(),
-      basis: 'signed detail total',
-      ...(credits ? { credits: credits.minorUnits.toString() } : {}),
-      ...(debits ? { debits: debits.minorUnits.toString() } : {}),
-    };
+    const resolution = resolveDeclaredBucket(declaredTotal, paymentTotals);
+    if (resolution.currency) {
+      const currency = resolution.currency;
+      const computed = paymentTotals[currency]?.minorUnits ?? 0n;
+      const credits = input.payment.computedControl.creditTotalsByCurrency?.[currency];
+      const debits = input.payment.computedControl.debitTotalsByCurrency?.[currency];
+      totals[currency] = {
+        declared: declaredTotal.minorUnits.toString(),
+        computed: computed.toString(),
+        delta: (computed - declaredTotal.minorUnits).toString(),
+        basis: 'signed detail total',
+        ...(credits ? { credits: credits.minorUnits.toString() } : {}),
+        ...(debits ? { debits: debits.minorUnits.toString() } : {}),
+      };
+    } else {
+      // No bucket to compare against: say so in the row instead of borrowing another currency's
+      // numbers. The MISSING_CURRENCY finding above carries the reason.
+      const label = declaredTotal.currency || '(no currency declared)';
+      totals[label] = {
+        declared: declaredTotal.minorUnits.toString(),
+        computed: '-',
+        delta: '-',
+        basis: 'not compared: the file holds no detail amount in this currency',
+      };
+    }
   }
   // The bank side is shown in its own row when it declares a comparable total, so a
   // reviewer can see that a *credits* declaration was compared against a net figure
   // carrying debits. This is the S6 case: a missing 79,000.00 credit plus a 25.00 fee.
   const bankDeclared = input.bank?.declaredControl?.total;
   if (input.bank && bankDeclared) {
-    const currency = bankDeclared.currency || Object.keys(input.bank.computedControl.totalsByCurrency)[0] || '';
-    const bankTotals = input.bank.computedControl.totalsByCurrency[currency];
-    const bankCredits = input.bank.computedControl.creditTotalsByCurrency?.[currency];
-    const bankDebits = input.bank.computedControl.debitTotalsByCurrency?.[currency];
-    totals[`${currency} (bank ${input.bank.copybook.format === 'bai2' ? '03/100 credits' : 'trailer'})`] = {
-      declared: bankDeclared.minorUnits.toString(),
-      computed: (bankTotals?.minorUnits ?? 0n).toString(),
-      delta: ((bankTotals?.minorUnits ?? 0n) - bankDeclared.minorUnits).toString(),
-      basis: 'credits minus debits (net)',
-      ...(bankCredits ? { credits: bankCredits.minorUnits.toString() } : {}),
-      ...(bankDebits ? { debits: bankDebits.minorUnits.toString() } : {}),
-    };
+    const bankTotalsByCurrency = input.bank.computedControl.totalsByCurrency;
+    const resolution = resolveDeclaredBucket(bankDeclared, bankTotalsByCurrency);
+    const source = input.bank.copybook.format === 'bai2' ? '03/100 credits' : 'trailer';
+    if (resolution.currency) {
+      const currency = resolution.currency;
+      const bankTotals = bankTotalsByCurrency[currency];
+      const bankCredits = input.bank.computedControl.creditTotalsByCurrency?.[currency];
+      const bankDebits = input.bank.computedControl.debitTotalsByCurrency?.[currency];
+      totals[`${currency} (bank ${source})`] = {
+        declared: bankDeclared.minorUnits.toString(),
+        computed: (bankTotals?.minorUnits ?? 0n).toString(),
+        delta: ((bankTotals?.minorUnits ?? 0n) - bankDeclared.minorUnits).toString(),
+        basis: 'credits minus debits (net)',
+        ...(bankCredits ? { credits: bankCredits.minorUnits.toString() } : {}),
+        ...(bankDebits ? { debits: bankDebits.minorUnits.toString() } : {}),
+      };
+    } else {
+      const label = bankDeclared.currency || '(no currency declared)';
+      totals[`${label} (bank ${source})`] = {
+        declared: bankDeclared.minorUnits.toString(),
+        computed: '-',
+        delta: '-',
+        basis: 'not compared: the file holds no bank detail amount in this currency',
+      };
+    }
   }
 
   const paymentBlocking = blockingIssuesOf(input.payment);

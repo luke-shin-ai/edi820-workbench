@@ -22,7 +22,8 @@
     "evidence": "tsx src/cli/main.ts reconcile --copybook samples/copybooks/820.cpy --file samples/data/820-good.txt --bank samples/data/823-bank.txt --bank-copybook samples/copybooks/823.cpy --window 2026-11-18..2026-11-20 --out out/evidence",
     "verify:latest": "node scripts/verify-latest.mjs",
     "build:static": "tsx scripts/build-static.ts",
-    "check:static": "python3 scripts/check-static.py"
+    "check:static": "python3 scripts/check-static.py",
+    "check:claims": "node scripts/check-claims.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

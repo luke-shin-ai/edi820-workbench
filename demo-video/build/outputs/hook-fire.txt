@@ -1,14 +1,10 @@
-$ cat out/hook-log.txt
-2026-11-21T09:28:20.092Z  trigger=Stop  run=evidence
-2026-11-21T09:30:16.746Z  trigger=Stop  run=l4-review
-2026-11-21T09:32:22.134Z  trigger=PostFileSave  unit+pbt tests ran
-2026-11-21T09:32:33.573Z  trigger=Stop  run=l4-review
-2026-11-21T09:39:31.823Z  trigger=Stop  run=2026-11-21T09-38-33-493Z
-
-$ node scripts/verify-latest.mjs out/l4-review
-verify out/l4-review/report.json
+$ grep -E "PostFileSave|PostTaskExec" out/hook-log.txt | tail -6
+2026-11-22T01:25:40.578Z  trigger=PostFileSave  unit+pbt tests ran
+2026-11-22T01:26:41.676Z  trigger=PostFileSave  unit+pbt tests ran
+2026-11-22T01:32:04.923Z  trigger=PostTaskExecution  evidence row appended
+2026-11-22T01:32:43.144Z  trigger=PostTaskExecution  evidence row appended
+2026-11-22T01:33:19.298Z  trigger=PostTaskExecution  evidence row appended
+2026-11-22T01:45:25.455Z  trigger=PostTaskExec  evidence row appended
+$ node scripts/verify-latest.mjs
   recorded fingerprint   7af64454555de8d89b5c4f763009547caaa6f53b1c040db8d8c462c04335c118
-  recomputed fingerprint 7af64454555de8d89b5c4f763009547caaa6f53b1c040db8d8c462c04335c118
-  recorded verdict FAIL   recomputed verdict FAIL
-  read-only: report 6107 → 6107 bytes, mtime 1795253394076 → 1795253394076
-  RESULT: identical — same inputs, same verdict
+  RESULT: identical

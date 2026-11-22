@@ -56,7 +56,7 @@ export interface ExplainOptions {
   /**
    * Maximum number of *live* adapter calls for this run. Defaults to 0: the
    * free-tier build never spends a credit unless a caller asks for it
-   * (`handoffs/…-2단계…/plan.md` §2 — 0.05x model at most once).
+   * (the build plan allowed one 0.05x-model call for validation, no more).
    */
   maxLiveCalls?: number;
   /** Adapter used when a live call is not allowed or the live call fails. */

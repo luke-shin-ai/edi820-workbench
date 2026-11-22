@@ -207,6 +207,19 @@ def main():
         page.fill("#l4owner", "S. Shin (TPM)")
         page.fill("#l4reason", "Annex A total approved against the corrected bank statement; the shortfall is booked as a manual adjustment.")
         page.fill("#l4control", "Daily suspense-account check by the settlement team")
+        # The rule the submission text states: no waiver without an expiry. The panel refuses it
+        # before the module is called, and no entry is appended (2026-11-22).
+        page.fill("#l4expires", "")
+        page.click("#btnWaive")
+        page.wait_for_timeout(150)
+        refused = page.evaluate(
+            "() => ({ entries: window.demo.state.ledger.entries.length, toast: document.getElementById('toast').textContent })"
+        )
+        check(
+            "a waiver without an expiry is refused in the register",
+            refused["entries"] == 0 and "expiry" in refused["toast"],
+            json.dumps(refused),
+        )
         page.fill("#l4expires", "2026-12-05")
         page.click("#btnWaive")
         page.wait_for_timeout(250)

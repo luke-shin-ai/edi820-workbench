@@ -40,6 +40,7 @@ import {
   appendWaiver,
   classify,
   emptyLedger,
+  isIsoDate,
   parseLedger,
   serialiseLedger,
   verifyLedger,
@@ -70,7 +71,7 @@ Usage:
   820 verify    <report.json|dir> [--json]
   820 exceptions <report.json|dir> [--ledger <path>] [--today YYYY-MM-DD] [--json]
   820 waive     --report <dir> --index <n> --owner <who> --reason <why>
-                --control <compensating control> [--expires YYYY-MM-DD]
+                --control <compensating control> --expires YYYY-MM-DD
                 [--ledger <path>] [--today YYYY-MM-DD]
   820 release   --report <dir> --id <waiver id> --owner <who> --reason <why>
                 --control <what changed> [--ledger <path>] [--today YYYY-MM-DD]
@@ -251,7 +252,7 @@ namespace exceptionCommands {
 
   /**
    * `waive` — append a waiver for a finding to the ledger.
-   * Requires --report, --index (0-based finding index), --owner, --reason, --control, optional --expires, --today.
+   * Requires --report, --index (0-based finding index), --owner, --reason, --control, --expires, --today.
    */
   export function waive(args: ParsedArgs): { newLedger: ReturnType<typeof appendWaiver>; legacyPath: string } {
     const reportDir = flagString(args, 'report');
@@ -275,7 +276,12 @@ namespace exceptionCommands {
     if (!reason) throw new AppError('USAGE', '--reason is required');
     const control = flagString(args, 'control');
     if (!control) throw new AppError('USAGE', '--control is required');
+    // R8.1 as the submission text states it: reason, expiry and compensating control are all
+    // required. Expiry was optional until 2026-11-22; the module and this command now refuse a
+    // waiver without one instead of printing "(no expiry)".
     const expiresOn = flagString(args, 'expires');
+    if (!expiresOn) throw new AppError('USAGE', '--expires <YYYY-MM-DD> is required: a waiver is a decision with an end date');
+    if (!isIsoDate(expiresOn)) throw new AppError('USAGE', `--expires must be a real date in YYYY-MM-DD form (got "${expiresOn}")`);
     const decidedOn = flagString(args, 'today') ?? new Date().toISOString().split('T')[0]!;
 
     const ledgerPath = flagString(args, 'ledger') ?? join(dirname(reportDir.endsWith('.json') ? reportDir : join(reportDir, 'report.json')), 'ledger.json');
@@ -549,7 +555,7 @@ export async function runCli(argv: string[], streams: Streams = defaultStreams):
         } else {
           const entry = newLedger.entries[newLedger.entries.length - 1]!;
           out(`waived: ${entry.id}  finding=${entry.findingKey}`);
-          out(`  owner ${entry.owner} · decided ${entry.decidedOn}${entry.expiresOn ? ` · expires ${entry.expiresOn}` : ' (no expiry)'}`);
+          out(`  owner ${entry.owner} · decided ${entry.decidedOn} · expires ${entry.expiresOn}`);
           out(`  ledger: ${legacyPath} (${newLedger.entries.length} entries)`);
         }
         return EXIT.PASS;

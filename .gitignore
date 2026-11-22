@@ -2,6 +2,9 @@ node_modules/
 dist/
 out/*
 !out/.gitkeep
+# The hook log is the evidence that the hooks fire; it holds no personal data, so it is
+# committed rather than quoted. Everything else under out/ is a run artefact.
+!out/hook-log.txt
 # The one committed report: the AgentStop hook re-derives it on any clone, so the
 # "same inputs, same verdict" claim has something to check out of the box.
 !out/evidence/
@@ -31,6 +34,9 @@ reviews-820/
 gcp-hermes-grand-prize-review.md
 gcp-hermes-grand-prize-review-v2.md
 제출검토-한글요약.md
+
+# Kiro's task-graph state: session ids and timestamps for the task tool, not part of the spec.
+.kiro/specs/**/tasks.meta.json
 
 # local scratch (tool runs, temporary reports)
 .tmp/

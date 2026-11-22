@@ -7,6 +7,7 @@ export {
   verifyLedger,
   classify,
   findingKey,
+  isIsoDate,
   type ExceptionStatus,
   type Ledger,
   type LedgerEntry,

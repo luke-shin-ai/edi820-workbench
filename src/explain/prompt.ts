@@ -16,6 +16,8 @@ export const STEERING_HINT: Record<Finding['code'], string> = {
     'Control totals in 820/823/BAI2 declare counts and sums. Compare count and sum separately; a matching sum with a wrong count is still a failure. Amounts are minor-unit-scaled by the copybook.',
   CONTROL_COUNT_MISMATCH:
     'A trailer declares how many detail records it controls. A missing or extra detail record is a count mismatch even when the money still sums correctly.',
+  MISSING_CURRENCY:
+    'A control total belongs to one currency bucket. If the declared currency has no detail amount, or a single total is declared against several currencies, which bucket it controls cannot be read from the file: report it and withhold the verdict instead of comparing against another bucket.',
   REF_UNMATCHED:
     '820 references (TRN/RMR) must be echoed by the bank side (823 RMR/REF, BAI2 customer reference). Matching is exact reference first, then amount+currency+value-date window; anything else is reported, never dropped.',
   DATE_OUT_OF_WINDOW:

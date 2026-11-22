@@ -39,7 +39,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     it('appends a waiver with all required fields', () => {
       const ledger = emptyLedger();
       const finding = mockFinding('CONTROL_TOTAL_MISMATCH', 5, 'AMOUNT');
-      const input = { owner: 'Alice', reason: 'Known issue', compensatingControl: 'Manual review' };
+      const input = { owner: 'Alice', reason: 'Known issue', compensatingControl: 'Manual review', expiresOn: '2026-12-20' };
       const context = mockContext();
 
       const newLedger = appendWaiver(ledger, input, finding, context);
@@ -51,7 +51,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
       expect(entry.reason).toBe('Known issue');
       expect(entry.compensatingControl).toBe('Manual review');
       expect(entry.decidedOn).toBe('2026-11-20');
-      expect(entry.expiresOn).toBeUndefined();
+      expect(entry.expiresOn).toBe('2026-12-20');
       expect(entry.prevHash).toBe('GENESIS');
       expect(entry.hash).toMatch(/^[0-9a-f]{64}$/);
     });
@@ -69,7 +69,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     it('stores the finding key in the waiver', () => {
       const ledger = emptyLedger();
       const finding = mockFinding('DATE_OUT_OF_WINDOW', 7, 'VALUE_DATE');
-      const input = { owner: 'Charlie', reason: 'Test', compensatingControl: 'Note' };
+      const input = { owner: 'Charlie', reason: 'Test', compensatingControl: 'Note', expiresOn: '2026-12-20' };
       const context = mockContext();
 
       const newLedger = appendWaiver(ledger, input, finding, context);
@@ -84,19 +84,19 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
 
     it('rejects empty owner', () => {
       const ledger = emptyLedger();
-      const input = { owner: '', reason: 'Test', compensatingControl: 'Control' };
+      const input = { owner: '', reason: 'Test', compensatingControl: 'Control', expiresOn: '2026-12-20' };
       expect(() => appendWaiver(ledger, input, finding, context)).toThrow(LedgerError);
     });
 
     it('rejects empty reason', () => {
       const ledger = emptyLedger();
-      const input = { owner: 'Owner', reason: '', compensatingControl: 'Control' };
+      const input = { owner: 'Owner', reason: '', compensatingControl: 'Control', expiresOn: '2026-12-20' };
       expect(() => appendWaiver(ledger, input, finding, context)).toThrow(LedgerError);
     });
 
     it('rejects empty compensatingControl', () => {
       const ledger = emptyLedger();
-      const input = { owner: 'Owner', reason: 'Reason', compensatingControl: '' };
+      const input = { owner: 'Owner', reason: 'Reason', compensatingControl: '', expiresOn: '2026-12-20' };
       expect(() => appendWaiver(ledger, input, finding, context)).toThrow(LedgerError);
     });
 
@@ -106,9 +106,20 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
       expect(() => appendWaiver(ledger, input, finding, context)).toThrow(LedgerError);
     });
 
+    it('rejects a waiver with no expiry date (the "(no expiry)" path is gone)', () => {
+      const ledger = emptyLedger();
+      // R8.1 as the submission text reads it: reason, expiry and compensating control are required.
+      const input = { owner: 'Owner', reason: 'Reason', compensatingControl: 'Control' } as unknown as Parameters<typeof appendWaiver>[1];
+      expect(() => appendWaiver(ledger, input, finding, context)).toThrow(/expiresOn is required/);
+      const blank = { owner: 'Owner', reason: 'Reason', compensatingControl: 'Control', expiresOn: '   ' };
+      expect(() => appendWaiver(ledger, blank, finding, context)).toThrow(LedgerError);
+      const notADate = { owner: 'Owner', reason: 'Reason', compensatingControl: 'Control', expiresOn: 'next month' };
+      expect(() => appendWaiver(ledger, notADate, finding, context)).toThrow(LedgerError);
+    });
+
     it('does not mutate the original ledger on error', () => {
       const ledger = emptyLedger();
-      const input = { owner: '', reason: 'Test', compensatingControl: 'Control' };
+      const input = { owner: '', reason: 'Test', compensatingControl: 'Control', expiresOn: '2026-12-20' };
       try {
         appendWaiver(ledger, input, finding, context);
       } catch (error) {
@@ -129,7 +140,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     it('verifies a single waiver entry', () => {
       let ledger = emptyLedger();
       const finding = mockFinding('TEST', 1);
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, finding, mockContext());
 
       const result = verifyLedger(ledger);
@@ -139,7 +150,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     it('detects a tampered reason in an entry', () => {
       let ledger = emptyLedger();
       const finding = mockFinding('TEST', 1);
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, finding, mockContext());
 
       // Tamper with the reason
@@ -152,7 +163,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     it('detects a broken prevHash link', () => {
       let ledger = emptyLedger();
       const finding = mockFinding('TEST', 1);
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, finding, mockContext());
 
       // Add a second entry
@@ -168,7 +179,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     it('refuses to classify findings from a corrupted ledger', () => {
       let ledger = emptyLedger();
       const finding = mockFinding('TEST', 1);
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, finding, mockContext());
 
       // Tamper
@@ -212,12 +223,12 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
       expect(result.unadjudicated).toBe(1);
     });
 
-    it('classifies a waived finding as WAIVED when there is no expiry', () => {
+    it('classifies a waived finding as WAIVED while its expiry still covers the reporting date', () => {
       let ledger = emptyLedger();
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, finding, mockContext());
 
-      const result = classify([finding], ledger, '2099-12-31');
+      const result = classify([finding], ledger, '2026-12-01');
       expect(result.entries[0]!.status).toBe('WAIVED');
       expect(result.unadjudicated).toBe(0);
     });
@@ -226,7 +237,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
       let ledger = emptyLedger();
       const f1 = mockFinding('CONTROL_TOTAL_MISMATCH', 5, 'AMOUNT');
       const f2 = mockFinding('CONTROL_COUNT_MISMATCH', 6, 'COUNT');
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, f1, mockContext());
 
       const result = classify([f1, f2], ledger, '2026-11-20');
@@ -240,7 +251,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
 
     it('appends a release entry to a ledger', () => {
       let ledger = emptyLedger();
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, finding, mockContext());
       const waiverId = ledger.entries[0]!.id;
 
@@ -258,7 +269,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
 
     it('keeps the waived entry when releasing', () => {
       let ledger = emptyLedger();
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, finding, mockContext());
       const waiverId = ledger.entries[0]!.id;
 
@@ -271,7 +282,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
 
     it('classifies a released waiver as RELEASED', () => {
       let ledger = emptyLedger();
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, finding, mockContext());
       const waiverId = ledger.entries[0]!.id;
 
@@ -294,7 +305,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
 
     it('rejects empty owner on release', () => {
       let ledger = emptyLedger();
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, finding, mockContext());
       const waiverId = ledger.entries[0]!.id;
 
@@ -314,7 +325,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     it('serialises a ledger with entries', () => {
       let ledger = emptyLedger();
       const finding = mockFinding('TEST', 1);
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, finding, mockContext());
 
       const serialised = serialiseLedger(ledger);
@@ -335,7 +346,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     it('round-trips a ledger with waiver and release: text identity and verification', () => {
       let ledger = emptyLedger();
       const finding = mockFinding('CONTROL_TOTAL_MISMATCH', 5, 'AMOUNT');
-      const waiverInput = { owner: 'Alice', reason: 'Known issue', compensatingControl: 'Manual review' };
+      const waiverInput = { owner: 'Alice', reason: 'Known issue', compensatingControl: 'Manual review', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, waiverInput, finding, mockContext());
       const waiverId = ledger.entries[0]!.id;
 
@@ -381,7 +392,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     it('does not mutate the original ledger on appendWaiver', () => {
       const original = emptyLedger();
       const finding = mockFinding('TEST', 1);
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       const newLedger = appendWaiver(original, input, finding, mockContext());
 
       expect(original.entries).toHaveLength(0);
@@ -391,7 +402,7 @@ describe('Exception register (T7.1, R8.1-R8.8)', () => {
     it('does not mutate the original ledger on appendRelease', () => {
       let ledger = emptyLedger();
       const finding = mockFinding('TEST', 1);
-      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test' };
+      const input = { owner: 'Test', reason: 'Test', compensatingControl: 'Test', expiresOn: '2026-12-20' };
       ledger = appendWaiver(ledger, input, finding, mockContext());
       const waiverId = ledger.entries[0]!.id;
 
@@ -500,6 +511,27 @@ describe('R8.6 — the CLI exit code follows the adjudication state', () => {
     const result = cli('exceptions', out, '--today', '2026-11-22');
     expect(result.status).toBe(3);
     expect(result.stderr).toContain('hash mismatch at seq 1');
+  });
+
+  it('exits 3 when a waiver is attempted without an expiry date', () => {
+    rmSync(join(out, 'ledger.json'), { force: true });
+    const result = cli(
+      'waive',
+      '--report', out,
+      '--index', '0',
+      '--owner', 'S. Shin (TPM)',
+      '--reason', 'Accepted for now.',
+      '--control', 'Daily suspense-account check',
+      '--today', '2026-11-21',
+    );
+    // Exit 3, not 2: nothing was decided, which is what ERROR means in this CLI.
+    expect(result.status).toBe(3);
+    expect(result.stderr).toContain('--expires');
+    expect(result.stderr).toContain('required');
+
+    const notADate = cli('waive', '--report', out, '--index', '0', '--owner', 'S. Shin (TPM)', '--reason', 'Accepted for now.', '--control', 'Daily suspense-account check', '--expires', '2026-13-01', '--today', '2026-11-21');
+    expect(notADate.status).toBe(3);
+    expect(notADate.stderr).toContain('YYYY-MM-DD');
   });
 
   it('an expiry before the reporting date reads EXPIRED and does not count as waived', () => {

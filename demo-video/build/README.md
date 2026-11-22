@@ -4,7 +4,7 @@
 
 | file | what it is |
 |---|---|
-| `820-demo-en.mp4` | the cut: **2:57.67** (177.66 s), 1920×1080, 30 fps, H.264 (~759 kb/s) + AAC 87 kb/s, **19.01 MB**, English narration, burned-in subtitles, no music |
+| `820-demo-en.mp4` | the cut: **2:55.30** (175.30 s), 1920×1080, 30 fps, H.264 (~776 kb/s) + AAC 90 kb/s, **19.2 MB**, English narration, burned-in subtitles, no music |
 | `820-demo-en.srt` | 40 subtitle cues, same words and timings as the burn |
 | `build/README.md` | this file: what is real, how it was made, how to rebuild |
 | `build/config.py` | the shot list: plate, narration, subtitle cues, accent colour, camera move |
@@ -21,7 +21,7 @@
 
 | # | shot | source |
 |---|---|---|
-| 1 | Kiro hook log + the stop hook's own run | `out/hook-log.txt` and `820 verify out/l4-review` from the T7.1 session, captured in `build/outputs/hook-fire.txt` |
+| 1 | Kiro hook log + the stop hook's own run | `grep -E "PostFileSave|PostTaskExec" out/hook-log.txt | tail -6` and the stop hook's verify run, captured in `build/outputs/hook-fire.txt` |
 | 2 | the reviewer agent's MCP calls | `node scripts/mcp-call.mjs`, captured in `build/outputs/mcp-call.txt`: verdict FAIL, 4 findings, fingerprint `7af64454…` |
 | 3 | the bank copybook, with byte ranges and its two layouts | `samples/copybooks/820-redefines.cpy`; ranges and layouts printed by `dump-copybook.mjs` |
 | 4 | the trailer read through its own `REDEFINES` layout | `docs/images/demo-s7-trailer.png`: `TOTAL-AMOUNT` at bytes 22-34, the detail fields absent from that record |
@@ -31,7 +31,7 @@
 | 8 | the BAI2 delta with its parts | `docs/images/demo-s6.png`: credits 1,205,550.00 minus debits 25.00 |
 | 9 | the exception register after a waiver | `docs/images/demo-l4-waived.png`, with the verdict and counts quoted from `shots-static/static-l4.json` |
 | 10 | `820 verify` | real stdout, `build/outputs/verify.txt` |
-| 11 | `npx vitest run` | real stdout, `build/outputs/tests.txt` (300 tests) |
+| 11 | `npx vitest run` | real stdout, `build/outputs/tests.txt` (311 tests; the plate highlights the summary line it reads) |
 | 12 | what the session did | `docs/kiro-session-evidence.md` facts, drawn as text |
 | 13 | end card | drawn |
 
@@ -70,15 +70,15 @@ because `make_tts.py` keeps existing audio; a shot whose plate changed must have
 
 ## Verified
 
-- duration 177.66 s (2:57.67), under the 180 s rule
+- duration 175.30 s (2:55.30), under the 180 s rule
 - 1920×1080, 30 fps, yuv420p, H.264 + AAC, `+faststart`
-- 19.01 MB, under Devpost's 25 MB upload limit
+- 19.2 MB, under Devpost's 25 MB upload limit
 - 40 subtitle cues; every cue is inside its shot's narration window (built from the same timeline)
 - no em dash, en dash, minus sign, emoji or stock phrase in the narration or the cues (checked against
   `config.py`)
 - 0 page errors across every browser capture
 - the numbers in the narration match the files and the captured stdout (1,284,550.00 declared,
-  1,284,450.00 summed, -100.00 delta, 4 findings, 300 tests, fingerprints `7af64454…` for the FAIL
+  1,284,450.00 summed, -100.00 delta, 4 findings, 311 tests, fingerprints `7af64454…` for the FAIL
   case and the S6 delta -79,025.00 with credits 1,205,550.00 minus debits 25.00; `TOTAL-AMOUNT`
   at bytes 22-34 on the REDEFINES trailer)
 

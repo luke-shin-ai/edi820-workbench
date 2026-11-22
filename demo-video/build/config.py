@@ -18,13 +18,13 @@ SHOTS = [
         focus=(0.35, 0.40),
         narration=(
             "This is the hook log from a real Kiro session. A file save ran the tests. When the "
-            "agent stopped, the hook re-derived the verdict of the newest report and compared the "
-            "fingerprint. Both lines are in the repository, and the transcript is beside them."
+            "agent stopped, the stop hook re-derived the newest verdict and compared the "
+            "fingerprint. Both lines are committed, and the transcript is in docs as an excerpt."
         ),
         cues=[
             "This is the hook log from a real Kiro session.",
             "A file save ran the tests. The stop hook re-derived the newest verdict.",
-            "Both lines are in the repository, with the transcript beside them.",
+            "Both lines are committed, and the transcript is in docs as an excerpt.",
         ],
     ),
     dict(
@@ -34,12 +34,12 @@ SHOTS = [
         zoom=(1.02, 1.07),
         focus=(0.35, 0.35),
         narration=(
-            "The reviewer agent did not describe the code from memory. It called the project's own "
-            "MCP server: reconcile, verify, exceptions. The verdict, the finding count and the "
-            "fingerprint came back from the same engine the command line runs."
+            "The reviewer agent did not describe the code from memory: it called the project's own "
+            "MCP server. This is that call replayed, and the verdict, the finding count and the "
+            "fingerprint are the engine's own."
         ),
         cues=[
-            "The reviewer agent called the project's own MCP server.",
+            "This is a replay of the reviewer agent's MCP calls.",
             "Reconcile, verify, exceptions. Same engine as the command line.",
             "A fingerprint is a check, not a claim.",
         ],
@@ -190,12 +190,12 @@ SHOTS = [
         zoom=(1.02, 1.07),
         focus=(0.35, 0.45),
         narration=(
-            "Three hundred tests, property based where it matters. A truncated record used to "
+            "Three hundred eleven tests, property based where it matters. A truncated record used to "
             "pass with zero findings; it now reports incomplete and exits non zero. A report "
             "verifies from any working directory."
         ),
         cues=[
-            "300 tests, property based where it matters.",
+            "311 tests, property based where it matters.",
             "A truncated record used to pass with zero findings; it now reports incomplete.",
             "A report verifies from any working directory.",
         ],
@@ -207,16 +207,16 @@ SHOTS = [
         zoom=(1.00, 1.05),
         focus=(0.5, 0.35),
         narration=(
-            "The exception register was implemented by Kiro from spec task seven point one. The "
-            "session transcript, the hook firings and the MCP calls are in the repository, with the "
-            "repairs made afterwards listed beside them. Steering files set the rules, and the spec "
-            "was the contract."
+            "The exception register came from Kiro, spec task seven point one. Task nine point "
+            "five ran through Kiro's task runner, and the task hook wrote its evidence row. "
+            "Excerpts of the transcript, the hook firings and the MCP calls are in docs. "
+            "Steering set the rules; the spec was the contract."
         ),
         cues=[
-            "The exception register was implemented by Kiro from spec task 7.1.",
-            "Transcript, hook firings and MCP calls are in the repository.",
-            "The repairs made afterwards are listed beside them, not hidden.",
-            "Steering files set the rules, and the spec was the contract.",
+            "The exception register came from Kiro, spec task 7.1.",
+            "Task 9.5 ran through Kiro's task runner: the task hook wrote its evidence row.",
+            "Excerpts of the transcript, the hook firings and the MCP calls are in docs.",
+            "Steering set the rules, and the spec was the contract.",
         ],
     ),
     dict(
@@ -226,8 +226,8 @@ SHOTS = [
         zoom=(1.00, 1.04),
         focus=(0.5, 0.45),
         narration=(
-            "For a finance team this replaces retyping a payment file into a spreadsheet with a "
-            "verdict anyone can re-derive. 820. Resurrection. Apache two point zero."
+            "For a finance team this replaces retyping a payment file into a spreadsheet. "
+            "820. Resurrection. Apache two point zero."
         ),
         cues=[
             "For a finance team this replaces retyping a payment file into a spreadsheet.",

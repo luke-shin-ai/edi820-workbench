@@ -86,12 +86,14 @@ the compiler says so in `notes` rather than guessing a mapping.
 
 ## Step 3: the spec chain as it was built
 
-- `requirements.md` — 24 requirements in EARS form across six groups (copybook model, parsing,
-  round trip, reconciliation, explanation, verification), plus an explicit out-of-scope section.
+- `requirements.md` — 33 requirements in EARS form across seven groups (copybook model, parsing,
+  round trip, reconciliation, explanation, verification, and R8 for the exception register), plus an
+  explicit out-of-scope section. It was 24 in six groups when this page was first written, before
+  the register existed.
 - `design.md` — the layer split (L1 parser → L2 reconciler → L3 explainer → L4 human), the data
-  model, the algorithms, and **nine implementation deltas** written while building, each naming
-  what the design said first and why it changed.
-- `tasks.md` — T0.1 through T6.6, each with the command whose output goes into `EVIDENCE.md`.
+  model, the algorithms, and a **delta log** written while building (§10, §12, §14, §15), each
+  naming what the design said first and why it changed.
+- `tasks.md` — T0.1 through T9.5, each with the command whose output goes into `EVIDENCE.md`.
 
 The chain was used backwards as well as forwards: when the PBT suite found that an overpunch table
 mapped `A → 0` instead of `A → +1`, the fix landed in code and the regression was recorded in
@@ -160,7 +162,7 @@ Recorded here rather than in a commit message nobody reads.
 
 ## Step 6: what this is worth in the write-up
 
-The conversion produced 24 requirements, 10 recorded design deltas, and 300 tests from four
+The conversion produced 33 requirements, 14 recorded design deltas, and 311 tests from four
 copybooks that contain no requirements at all. Six of the deltas exist because a rule had to be
 *decided*, one exists because a steering file overruled the design draft, and the tenth (`REDEFINES`
 as a region with declared layouts) exists because the copybook said which bytes are shared and

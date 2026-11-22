@@ -28,6 +28,7 @@
 **R4.3** WHEN a payment reference in an 820 has no counterpart in the matching 823/BAI2 record set, THE SYSTEM SHALL emit `REF_UNMATCHED` with the reference and its record index.
 **R4.4** WHEN a value date falls outside the settlement window, THE SYSTEM SHALL emit `DATE_OUT_OF_WINDOW` with both dates.
 **R4.5** WHEN all checks pass, THE SYSTEM SHALL emit a verdict object with `status=PASS` and a fingerprint over the normalized result.
+**R4.6** WHEN a declared control total names a currency no detail record uses, or names none while the details carry more than one currency, THE SYSTEM SHALL emit `MISSING_CURRENCY` and SHALL NOT compare the total against another currency's bucket.
 
 ## 5. Explanation (agent layer)
 **R5.1** WHEN findings exist, THE SYSTEM SHALL present each finding to the agent as structured data only (code, record index, field, declared, computed, delta).
@@ -48,10 +49,10 @@
 > one exist without a reason, an expiry and a compensating control. These requirements are
 > that sentence made executable.
 
-**R8.1** WHEN an exception is waived, THE SYSTEM SHALL append one immutable entry to a ledger holding the finding key, code, record index, owner, reason, compensating control, decision date, optional expiry, the reconciliation fingerprint it was decided against, and the hash chain (`prevHash`, `hash`).
-**R8.2** WHEN a decision entry is appended, THE SYSTEM SHALL reject an empty owner, an empty reason, an empty compensating control, or an expiry date before the decision date, and SHALL leave the ledger unchanged when it rejects.
+**R8.1** WHEN an exception is waived, THE SYSTEM SHALL append one immutable entry to a ledger holding the finding key, code, record index, owner, reason, compensating control, decision date, an expiry date, the reconciliation fingerprint it was decided against, and the hash chain (`prevHash`, `hash`). The expiry is required: an exception without an end date is not a decision.
+**R8.2** WHEN a decision entry is appended, THE SYSTEM SHALL reject an empty owner, an empty reason, an empty compensating control, a missing or malformed expiry date, or an expiry date before the decision date, and SHALL leave the ledger unchanged when it rejects.
 **R8.3** WHEN a ledger is read, THE SYSTEM SHALL re-derive every hash and every `prevHash` link, and SHALL refuse to classify findings from a ledger that fails, naming the first invalid sequence number.
-**R8.4** WHEN a finding is classified against a ledger, THE SYSTEM SHALL return `OPEN` (no waiver), `WAIVED` (a waiver whose expiry covers the reporting date, or no expiry), `EXPIRED` (expiry before the reporting date) or `RELEASED` (a release recorded for that waiver), and a waiver whose finding key differs SHALL NOT cover the finding.
+**R8.4** WHEN a finding is classified against a ledger, THE SYSTEM SHALL return `OPEN` (no waiver), `WAIVED` (a waiver whose expiry still covers the reporting date), `EXPIRED` (expiry before the reporting date) or `RELEASED` (a release recorded for that waiver); a waiver whose finding key differs SHALL NOT cover the finding.
 **R8.5** WHEN a waiver is released, THE SYSTEM SHALL require the id of an existing unreleased waiver and SHALL keep the earlier decision in the ledger; the finding returns to `OPEN` adjudication rather than disappearing.
 **R8.6** WHEN the CLI reports exceptions, THE SYSTEM SHALL exit 0 when no finding is `OPEN` or `EXPIRED`, 2 when at least one is, and 3 on a ledger integrity failure or a waiver naming a finding the report does not hold.
 **R8.7** WHEN the register is consulted, THE SYSTEM SHALL NOT change the deterministic verdict: a waived finding keeps the L2 verdict and is reported beside it, never instead of it.

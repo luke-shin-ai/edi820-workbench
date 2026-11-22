@@ -13,7 +13,9 @@
  * - entries are 1-based dense sequences; seq is never reused
  * - each entry has a SHA-256 hash over its canonical fields + prevHash
  * - prevHash links entries; GENESIS for seq 1
- * - a waiver carries owner, reason, compensatingControl, decidedOn, optional expiresOn
+ * - a waiver carries owner, reason, compensatingControl, decidedOn, and a required expiresOn
+ *   (required since the red-team pass of 2026-11-22: the submission text and `docs/guarantees.md`
+ *   both promise that an exception cannot exist without an expiry, so the module refuses one)
  * - a release carries the id of the waived entry it releases; the waived entry remains in the ledger
  *
  * Status machine:
@@ -41,7 +43,8 @@ export interface LedgerEntry {
   reason: string;
   compensatingControl: string;
   decidedOn: string; // YYYY-MM-DD
-  expiresOn?: string; // YYYY-MM-DD, inclusive; waived only
+  /** YYYY-MM-DD, inclusive; waived only. Required for a new waiver, optional on a read ledger. */
+  expiresOn?: string;
   releaseOf?: string; // waived entry id; released only
   fingerprint: string; // the reconciliation fingerprint at decision time
   prevHash: string; // 'GENESIS' for seq 1
@@ -57,7 +60,8 @@ export interface WaiverInput {
   owner: string;
   reason: string;
   compensatingControl: string;
-  expiresOn?: string;
+  /** Required: a waiver without an end date is not a decision, it is an open question. */
+  expiresOn: string;
   decidedOn?: string;
 }
 
@@ -88,6 +92,18 @@ export interface Classification {
   entries: ClassificationEntry[];
   counts: Record<ExceptionStatus, number>;
   unadjudicated: number;
+}
+
+/** The only date shape this module accepts. */
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A real calendar date in YYYY-MM-DD form: `2026-13-01` is a shape, not a date. */
+export function isIsoDate(value: string): boolean {
+  if (!ISO_DATE.test(value)) return false;
+  const [year, month, day] = value.split('-').map((part) => Number(part));
+  if (year === undefined || month === undefined || day === undefined) return false;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
 export class LedgerError extends Error {
@@ -206,7 +222,13 @@ export function appendWaiver(
     throw new LedgerError('INVALID_WAIVER', 'compensatingControl is required');
   }
   const decidedOn = input.decidedOn ?? context.decidedOn;
-  if (input.expiresOn && input.expiresOn < decidedOn) {
+  if (!input.expiresOn || input.expiresOn.trim().length === 0) {
+    throw new LedgerError('INVALID_WAIVER', 'expiresOn is required: a waiver is a decision with an end date');
+  }
+  if (!isIsoDate(input.expiresOn)) {
+    throw new LedgerError('INVALID_WAIVER', `expiresOn (${input.expiresOn}) must be a real date in YYYY-MM-DD form`);
+  }
+  if (input.expiresOn < decidedOn) {
     throw new LedgerError('INVALID_WAIVER', `expiresOn (${input.expiresOn}) cannot be before decidedOn (${decidedOn})`);
   }
 

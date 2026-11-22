@@ -66,7 +66,7 @@ All sample data is synthetic, from a fictional company. No customer, bank or emp
 ## [form] Links
 
 - Repository: to be published (public GitHub, Apache-2.0, `.kiro/` at the root)
-- Video: `demo-video/820-demo-en.mp4`, 2 minutes 58 seconds, English narration and subtitles
+- Video: `demo-video/820-demo-en.mp4`, 2 minutes 55 seconds (2:55.30, 175.3 s), English narration and subtitles
 - Working application: the static build in `docs/demo/index.html` ("Runs in this tab"). It is the
   same engine compiled for the browser, so nothing is uploaded and the verdict still comes from
   code. Publishing that folder on GitHub Pages or Cloudflare Pages is one deploy and is the
@@ -134,29 +134,40 @@ deterministic layers produced: a reviewer's confidence is not evidence.
 - the stop hook (trigger `Stop` on CLI V3; `AgentStop` is only the display name and never fired),
   which resolves the newest report that holds a verdict and re-derives it with the real CLI entry,
   so fingerprint drift and a missing run both surface in the session;
-- `PostTaskExecution`, which appends one row to `EVIDENCE.md`.
+- the task hook (trigger `PostTaskExec` on CLI V3, which is the name that fires; the documented
+  display name `Post Task Execution` is not one), which appends one row to `EVIDENCE.md` and logs
+  its own firing.
 
-**What changed since the first draft:** these hooks now fire in live sessions. `out/hook-log.txt`
-records the firings from the session that implemented the exception register: `2026-11-21T09:32:22Z
-trigger=PostFileSave unit+pbt tests ran` and `2026-11-21T09:32:33Z trigger=Stop run=l4-review
-exit=0`. Two of them were broken before that session and are fixed: the stop hook's command pointed
-at a module with no entry point and at `out/` instead of `out/<timestamp>/`, which printed nothing
-and exited 0, and its trigger name was wrong. `docs/kiro-session-evidence.md` records the probe
-that found both.
+**What changed since the first draft:** all three now fire in live sessions, and `out/hook-log.txt`
+is committed, so a reader can check the firings rather than take them on trust:
 
-**Honest boundary:** `PostTaskExecution` is still unobserved. The task runner was not used; the spec
-task was passed as a prompt, so the `EVIDENCE.md` rows for T7 are written by the same script the
-hook calls, marked with the session they came from.
+```
+2026-11-21T09:32:22.134Z  trigger=PostFileSave  unit+pbt tests ran
+2026-11-22T01:45:25.455Z  trigger=PostTaskExec  evidence row appended
+2026-11-22T01:45:27.543Z  trigger=Stop  run=final-check  ...  exit=0
+```
+
+Each of them was broken before and was fixed by probing, not by reading: the stop hook's command
+pointed at a module with no entry point and at `out/` instead of `out/<timestamp>/`, which printed
+nothing and exited 0; its trigger name was `AgentStop`, which never fires; the task hook's trigger
+name was `PostTaskExecution` instead of `PostTaskExec`, and no session had the spec tools at all
+without `--mode spec`, so the hook could not have fired whatever it was called. The probe that
+found each one is in `docs/kiro-session-evidence.md` (§2.1 and §8).
+
+**What is still a boundary:** the `EVIDENCE.md` rows for T7.1 were written by the same script the
+hook calls, invoked from the CLI, and they are marked that way. Only the T9.5 row is the hook's own
+output.
 
 ### 4. Spec-driven development
 
 `/README.md` is not the spec. The spec is `.kiro/specs/edi820-importer/`:
 
-- `requirements.md`, 24 requirements in EARS form, in six groups, plus an explicit out-of-scope
-  section;
-- `design.md`, the layer split, the data model, the algorithms, and nine implementation deltas
-  written while building, each recording what the design said first and why it changed;
-- `tasks.md`, T0.1 to T6.6, each ending in a command whose output goes into the evidence log.
+- `requirements.md`, 33 requirements in EARS form, in seven groups (25 core R1-R6, plus R8.1-R8.8
+  for the register), and an explicit out-of-scope section;
+- `design.md`, the layer split, the data model, the algorithms, and a delta log for every decision
+  that changed while building (§10, §12, §14, §15), each recording what the design said first and
+  why it changed;
+- `tasks.md`, T0.1 to T9.5, each ending in a command whose output goes into the evidence log.
 
 The conversion is documented in `docs/copybook-to-spec.md`: what the copybook decides by itself
 (offsets, widths, sign, scale), what it cannot decide (is a short record re-synchronised or
@@ -212,7 +223,7 @@ prints the same values, which is the point: the agent and the CLI are not two im
 
 ### 7. Property-based testing
 
-Seven property suites, 30 property tests, 300 tests in total.
+Seven property suites, 31 property tests, 311 tests in total.
 
 - **Round trip:** parse a generated fixed-width file, serialize it, and the bytes are identical,
   including CRLF, a missing final newline, and a binary COMP-3 stream with no newlines at all.
@@ -244,21 +255,22 @@ copybook dialect page, which is the document a finance team would actually read 
 
 ### 9. What the video shows
 
-Two minutes fifty eight, English narration and burned-in subtitles, no music. It opens on Kiro, not
-on a logo:
+Two minutes fifty five (2:55.30, 175.3 s), English narration and burned-in subtitles, no music. It
+opens on Kiro, not on a logo:
 
-- **0:00 to 0:25** the hook log from the session that implemented the exception register (a file
-  save ran the tests, the stop hook re-derived the newest verdict) and the reviewer agent calling
-  the project's own MCP server from that same session.
-- **0:25** the product arrives on a copybook: this bank copybook gives one 100-byte area two
+- **0:00 to 0:26** the hook log from a real session (a file save ran the tests, the stop hook
+  re-derived the newest verdict, and the task hook appended its own evidence row), then a replay of
+  the reviewer agent's MCP calls with the verdict and fingerprint the server returned.
+- **0:26** the product arrives on a copybook: this bank copybook gives one 100-byte area two
   meanings, the payment and the trailer declared with `REDEFINES`, drawn with the compiler's own
   byte ranges (2 to 101, twice) and the rule that picks one (`REC-TYPE` = P or T).
-- **0:40** a trailer record read through its own layout: `TOTAL-AMOUNT` at bytes 22 to 34, the
+- **0:41.9** a trailer record read through its own layout: `TOTAL-AMOUNT` at bytes 22 to 34, the
   detail fields that share those bytes absent from the record.
-- **0:52** a PASS on ten payments totalling 1,284,550.00 USD, then a file with four defects and the
-  byte range behind each finding, then the BAI2 delta with its credits and debits named.
-- **1:50** a waiver in the exception register that leaves the verdict at FAIL, `verify` re-deriving
-  the same fingerprint, 300 tests (30 of them properties), the session evidence, and an end card.
+- **1:03.6** a PASS on ten payments totalling 1,284,550.00 USD, then a file with four defects and
+  the byte range behind each finding, then the BAI2 delta with its credits and debits named.
+- **1:50.9** a waiver in the exception register that leaves the verdict at FAIL, `verify`
+  re-deriving the same fingerprint, 311 tests (31 of them properties), and the session evidence:
+  including task 9.5 run through Kiro's task runner, where the task hook wrote the evidence row.
 
 ---
 
@@ -271,7 +283,7 @@ counted in three different branches. Four of the six defects listed in `EVIDENCE
 kind.
 
 **The copybook is not a spec.** It gives byte offsets and nothing about what must be true. Writing
-24 requirements that a copybook cannot express is where most of the design work went.
+25 core requirements that a copybook cannot express is where most of the design work went.
 
 **A confident reviewer is not a reviewer.** The custom agent's failure without read tools was more
 instructive than its success, because the product makes the same distinction between a model that
@@ -279,7 +291,7 @@ narrates and a layer that proves.
 
 ## [form] Accomplishments
 
-- 300 tests, 30 of them properties over generated inputs, with a regression file for every failure
+- 311 tests, 31 of them properties over generated inputs, with a regression file for every failure
   the build found in itself, including a truncated record that used to reach `PASS` with zero
   findings (now `INCOMPLETE`, exit 2) and a `REDEFINES` record whose type byte was damaged in
   transit (now reported, its bytes left undecoded).
@@ -300,8 +312,6 @@ narrates and a layer that proves.
 ## [form] What's next
 
 - Publish the static build so the URL is live, then upload the video and submit.
-- Run the spec through Kiro's task runner rather than as a prompt, so `PostTaskExecution` writes the
-  evidence rows itself.
 - A host-side witness: two independent runs of the same file on different machines, compared by
   fingerprint.
 - Streaming parse for files larger than memory, and `OCCURS DEPENDING ON`, which changes every
@@ -311,9 +321,10 @@ narrates and a layer that proves.
 
 ## How the Kiro pieces fit, and the five lines this submission does not cross
 
-Six Kiro surfaces were used as one loop, not as six features in a list:
+One Kiro CLI workspace, with five mechanisms inside it, used as one loop rather than as six features
+in a list:
 
-- **Spec** (`.kiro/specs/edi820-importer/`): the copybooks became 24 EARS requirements, a design
+- **Spec** (`.kiro/specs/edi820-importer/`): the copybooks became 33 EARS requirements, a design
   that records a delta for every decision that changed while building, and tasks whose last line is
   a command. Layer 4, the exception register, was then implemented from task T7.1 inside a Kiro
   session.
@@ -327,8 +338,8 @@ Six Kiro surfaces were used as one loop, not as six features in a list:
   same lesson: confidence is not evidence.
 - **Hooks** (`.kiro/hooks/parser-guardrails.json`): `PostFileSave` runs the unit and property suites
   while an agent edits, the stop hook re-derives the newest verdict and reports fingerprint drift,
-  and `PostTaskExecution` appends the evidence row. The firings from that session are in
-  `out/hook-log.txt` and quoted in `docs/kiro-session-evidence.md`.
+  and the task hook appends the evidence row. `out/hook-log.txt` is committed and holds every
+  firing, including the one the task hook wrote for itself.
 - **MCP** (`src/mcp/`, `.kiro/settings/mcp.json`): the deterministic engine as five tools, attached
   to the reviewer agent, so the review session called `@820/reconcile`, `@820/verify` and
   `@820/exceptions` and received the engine's own answer instead of a description of the code.
@@ -345,10 +356,12 @@ Five boundaries are stated here so a judge does not have to find them:
    MCP tool, 38 tests) from spec task T7.1 in one session. The earlier layers were built in this
    workspace with the spec as the contract, alongside the CLI sessions and the steering files.
    `EVIDENCE.md` marks which rows came from which session.
-2. **`PostTaskExecution`.** It was not observed firing: the spec task was passed as a prompt rather
-   than through the task runner. The other two hooks were observed, and their log is committed.
+2. **The task hook.** It was unobserved until 2026-11-22: the T7.1 task was passed as a prompt
+   rather than through the task runner, and the hook's trigger name was wrong. Now task T9.5 is set
+   to `in_progress` and `completed` by Kiro's own `task_update` tool inside a `--mode spec` session,
+   and the `PostTaskExec` hook appends its row; the firings are in the committed `out/hook-log.txt`.
 3. **Kiro powers.** Not used. Nothing here depends on a bundled power.
 4. **Hosting.** The static build is verified in a browser and is not deployed yet. Publishing it is
    the account holder's act, and the URL is not claimed until it is live.
-5. **The video.** It is 2:57 with a synthesised voice, so nobody has watched it end to end with a
+5. **The video.** It is 2:55 with a synthesised voice, so nobody has watched it end to end with a
    human ear, and the IDE surface (as opposed to the CLI) was not part of the build.

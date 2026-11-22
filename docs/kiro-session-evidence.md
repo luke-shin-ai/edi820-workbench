@@ -61,10 +61,11 @@ verify .../out/l4-review/report.json
   own code and logging the firing.
 - File and task triggers need the V3 engine; with the default engine under `--no-interactive`
   nothing fires. Every session above therefore ran `--v3`.
-- `PostTaskExecution` is declared but was **not observed firing** in these sessions: the agent
-  never ran a spec task through Kiro's task runner (the task text was passed as a prompt). The
-  `EVIDENCE.md` rows that a task hook would have appended are written by hand below and marked
-  with the session they came from.
+- The task hook was declared but **not observed firing** in the 2026-11-21 sessions: the agent never
+  ran a spec task through Kiro's task runner (the task text was passed as a prompt). Its rows in
+  `EVIDENCE.md` were therefore written by the same script the hook calls. **Fixed on 2026-11-22:**
+  the trigger name was wrong (the CLI fires `PostTaskExec`, not `PostTaskExecution`), and once the
+  session ran with `--mode spec` the task tools existed and the hook fired. §8 records it.
 
 ## 3. MCP: the project's own server, called by the project's own agent
 
@@ -236,5 +237,95 @@ MCP server exists.
 - The reviewer had read-only tools plus `@820`; it could not have changed code, and did not.
 - Two of S1's turns were cut by the 300-second budget of the tool that launched them and resumed
   with `kiro-cli chat -r`; that is why S1 has three turns rather than one.
-- `PostTaskExecution` remains declared-but-unobserved (§2.1). No row in `EVIDENCE.md` claims it.
+- On 2026-11-21 `PostTaskExecution` was declared-but-unobserved (§2.1). It fired on 2026-11-22 (§8),
+  after the trigger name was corrected; that section carries the payload and the rows it wrote.
 - The credit balance is not visible to the CLI, so no credit count is claimed here.
+
+## 8. The task runner (2026-11-22) — `PostTaskExec` fires
+
+The second review's attack #15 was that `PostTaskExecution` was declared and never fired, because no
+session had ever run a spec task **through Kiro's task tools**. This section is that run.
+
+### 8.1 What was wrong
+
+Two things, both found by probing rather than reading:
+
+1. **The trigger name.** `.kiro/hooks/parser-guardrails.json` said `"trigger": "PostTaskExecution"`.
+   The CLI 3.5.0 hook list names the events `PreTaskExec` and `PostTaskExec`; anything else is
+   accepted into the file and never matched, which is the same silent-no-op failure the `AgentStop`
+   trigger had on 2026-11-21 (§2.1). Corrected to `PostTaskExec`, then observed.
+2. **The tool set.** A `kiro-cli chat --v3 --no-interactive` session has no spec tools at all: with
+   `task_update` unavailable, no task can be marked complete and the hook cannot fire. `--mode spec`
+   adds them (`task_list`, `task_get`, `task_update`), which is why the earlier sessions could not
+   have produced this evidence whatever the trigger was called.
+
+### 8.2 The run
+
+```
+$ kiro-cli chat --v3 --mode spec --no-interactive --trust-all-tools --trust-workspace \
+    --model claude-haiku-4.5 "<set T9.5 in_progress, run the claim checker, set T9.5 completed>"
+```
+
+Task T9.5 (the claim checker, `scripts/check-claims.mjs`) was set to `in_progress` and then to
+`completed` through `task_update`, and both transitions were made by the tool, not by editing the
+checkbox. `npm run check:claims` ran between them and exited 0.
+
+### 8.3 What fired
+
+`out/hook-log.txt` (committed) gained, verbatim:
+
+```
+2026-11-22T01:32:04.923Z  trigger=PostTaskExecution  evidence row appended
+2026-11-22T01:32:43.144Z  trigger=PostTaskExecution  evidence row appended
+2026-11-22T01:33:19.298Z  trigger=PostTaskExecution  evidence row appended
+2026-11-22T01:45:25.455Z  trigger=PostTaskExec  evidence row appended
+2026-11-22T01:45:27.543Z  trigger=Stop  run=final-check  command=.../src/cli/main.ts verify out/final-check  exit=0
+```
+
+(The three `PostTaskExecution` lines are the hook command's own argument, which carried the old
+trigger name it was copied from; the log line is written by `scripts/log-hook.mjs` with whatever
+label the hook passes it. It was corrected to `PostTaskExec` for the fourth firing, and the earlier
+lines are left as they were written: the file is append-only, and a corrected config does not
+rewrite what already happened.)
+
+`EVIDENCE.md` rows written by the hook, not by hand:
+
+```
+| 2026-11-22 10:32 | n/a | — | — | — |
+| 2026-11-22 10:32 | T9.5 **Claim checker** — a script that fails when a published document states a  (.kiro/specs/edi820-importer/tasks.md) | — | — | — |
+| 2026-11-22 10:33 | T9.5 (.kiro/specs/edi820-importer/tasks.md) | — | task_success=true | — |
+```
+
+The first two rows are kept as they were written. They are the payload-picker defect, not a claim:
+`scripts/append-evidence.mjs` looked for `task_id`/`taskId`, and the event names the field
+`task_name`. Its third row is after the fix.
+
+### 8.4 The payload, as the hook received it
+
+Kiro passes the event as JSON on the hook's stdin. `scripts/append-evidence.mjs` now keeps it under
+`out/hook-payload/<timestamp>.json` — a runtime path outside the committed tree, like `out/*` — so the
+shape is recorded rather than guessed. The excerpt below is that file, from this session:
+
+```json
+{
+  "session_id": "sess_515ee423-3152-4719-a65c-6ebcebaf1bd6",
+  "hook_event_name": "PostTaskExec",
+  "cwd": "/workspace/hackathons/kiroween-2026",
+  "spec_name": ".kiro/specs/edi820-importer/tasks.md",
+  "task_name": "T9.5 **Claim checker** — a script that fails when a published document states a test count, ...",
+  "task_success": true
+}
+```
+
+### 8.5 What this closes, and what it does not
+
+- Closes review item 15: a spec task now runs through Kiro's own task tools, and the task hook appends
+  the evidence row itself. The five hook triggers this repository declares (`PostFileSave`, `Stop`,
+  `PostTaskExec`) have all been observed firing in a live session; `PreTaskExec` is declared nowhere
+  and is not claimed.
+- Does not make the earlier T7.1 work retroactive: those rows were written by the same script invoked
+  from the CLI, and they are still marked that way.
+- The credit balance is still not printed by the CLI, so no number is claimed. These were four
+  short `claude-haiku-4.5` turns on the free allowance.
+- Raw CLI transcripts of the four task-runner turns are in `logs/kiro-t95-pass{1..5}.log`, outside the
+  public repository; the excerpts above are what a reviewer can read.

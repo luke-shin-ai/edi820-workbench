@@ -1,160 +1,160 @@
 1
-00:00:00,600 --> 00:00:03,993
+00:00:00,450 --> 00:00:04,217
 This is the hook log from a real Kiro session.
 
 2
-00:00:04,073 --> 00:00:08,508
+00:00:04,297 --> 00:00:09,217
 A file save ran the tests. The stop hook re-derived the newest verdict.
 
 3
-00:00:08,588 --> 00:00:12,328
-Both lines are in the repository, with the transcript beside them.
+00:00:09,297 --> 00:00:14,218
+Both lines are committed, and the transcript is in docs as an excerpt.
 
 4
-00:00:13,208 --> 00:00:17,249
-The reviewer agent called the project's own MCP server.
+00:00:14,648 --> 00:00:18,870
+This is a replay of the reviewer agent's MCP calls.
 
 5
-00:00:17,329 --> 00:00:21,369
+00:00:18,950 --> 00:00:22,742
 Reconcile, verify, exceptions. Same engine as the command line.
 
 6
-00:00:21,449 --> 00:00:25,032
+00:00:22,822 --> 00:00:26,184
 A fingerprint is a check, not a claim.
 
 7
-00:00:25,912 --> 00:00:29,457
+00:00:26,614 --> 00:00:30,159
 What each byte means lives in a COBOL copybook.
 
 8
-00:00:29,537 --> 00:00:35,902
+00:00:30,239 --> 00:00:36,604
 One area of a hundred bytes, two meanings: the payment, and the trailer declared with REDEFINES.
 
 9
-00:00:35,982 --> 00:00:40,736
+00:00:36,684 --> 00:00:41,438
 The type byte picks the layout, and the copybook must say so.
 
 10
-00:00:41,616 --> 00:00:44,729
+00:00:41,868 --> 00:00:44,981
 Here is the trailer, read through its own layout.
 
 11
-00:00:44,809 --> 00:00:48,631
+00:00:45,061 --> 00:00:48,883
 Total amount at bytes 22 to 34, and the record count.
 
 12
-00:00:48,711 --> 00:00:52,888
+00:00:48,963 --> 00:00:53,140
 The detail fields sharing those bytes are not decoded for this record.
 
 13
-00:00:53,768 --> 00:01:00,166
+00:00:53,570 --> 00:00:59,968
 This screen runs in the browser tab. No server, no upload.
 
 14
-00:01:00,246 --> 00:01:03,700
+00:01:00,048 --> 00:01:03,502
 Same code, compiled for the page.
 
 15
-00:01:03,780 --> 00:01:09,000
+00:01:03,582 --> 00:01:08,802
 Ten details. Declared 1,284,550.00, summed the same. Verdict pass.
 
 16
-00:01:09,880 --> 00:01:12,613
+00:01:09,232 --> 00:01:11,965
 Now a file with defects. Four findings.
 
 17
-00:01:12,693 --> 00:01:17,837
+00:01:12,045 --> 00:01:17,189
 Control total short by 100.00. One record of 99 bytes instead of 100.
 
 18
-00:01:17,917 --> 00:01:22,659
+00:01:17,269 --> 00:01:22,011
 Two references with no bank counterpart. One value date outside the window.
 
 19
-00:01:22,739 --> 00:01:23,864
+00:01:22,091 --> 00:01:23,216
 Exit code two.
 
 20
-00:01:24,744 --> 00:01:28,999
+00:01:23,646 --> 00:01:27,901
 Select a finding and the screen shows the bytes behind it.
 
 21
-00:01:29,079 --> 00:01:34,516
+00:01:27,981 --> 00:01:33,418
 Record 2, value date, bytes 40 to 47: 2026, 11, 14. Outside the window.
 
 22
-00:01:34,596 --> 00:01:36,880
+00:01:33,498 --> 00:01:35,782
 The claim is checkable, not asserted.
 
 23
-00:01:37,760 --> 00:01:42,652
+00:01:36,212 --> 00:01:41,104
 BAI2 is a bank statement with no copybook, read by its own reader.
 
 24
-00:01:42,732 --> 00:01:46,859
+00:01:41,184 --> 00:01:45,311
 One credit is missing and there is a 25.00 bank fee.
 
 25
-00:01:46,939 --> 00:01:49,536
+00:01:45,391 --> 00:01:47,988
 Delta -79,025.00: credits 1,205,550.00 minus debits 25.00.
 
 26
-00:01:50,416 --> 00:01:52,788
+00:01:48,418 --> 00:01:50,790
 A model cannot clear a finding.
 
 27
-00:01:52,868 --> 00:01:56,875
+00:01:50,870 --> 00:01:54,877
 A person records an exception: owner, reason, compensating control, expiry.
 
 28
-00:01:56,955 --> 00:02:00,553
+00:01:54,957 --> 00:01:58,555
 Append only and hash chained. The verdict stays fail.
 
 29
-00:02:00,633 --> 00:02:05,048
+00:01:58,635 --> 00:02:03,050
 A release puts the finding back in front of a human.
 
 30
-00:02:05,928 --> 00:02:12,728
+00:02:03,480 --> 00:02:08,487
 Verify re-runs the deterministic layers from the recorded inputs.
 
 31
-00:02:12,808 --> 00:02:21,136
+00:02:08,567 --> 00:02:14,704
 Same fingerprint, same verdict, and the report file is not touched.
 
 32
-00:02:22,016 --> 00:02:25,184
-300 tests, property based where it matters.
+00:02:15,134 --> 00:02:18,420
+311 tests, property based where it matters.
 
 33
-00:02:25,264 --> 00:02:31,216
+00:02:18,500 --> 00:02:24,672
 A truncated record used to pass with zero findings; it now reports incomplete.
 
 34
-00:02:31,296 --> 00:02:34,464
+00:02:24,752 --> 00:02:28,038
 A report verifies from any working directory.
 
 35
-00:02:35,344 --> 00:02:37,986
-The exception register was implemented by Kiro from spec task 7.1.
+00:02:28,468 --> 00:02:31,798
+The exception register came from Kiro, spec task 7.1.
 
 36
-00:02:38,066 --> 00:02:40,460
-Transcript, hook firings and MCP calls are in the repository.
+00:02:31,878 --> 00:02:37,103
+Task 9.5 ran through Kiro's task runner: the task hook wrote its evidence row.
 
 37
-00:02:40,540 --> 00:02:42,934
-The repairs made afterwards are listed beside them, not hidden.
+00:02:37,183 --> 00:02:42,407
+Excerpts of the transcript, the hook firings and the MCP calls are in docs.
 
 38
-00:02:43,014 --> 00:02:45,656
-Steering files set the rules, and the spec was the contract.
+00:02:42,487 --> 00:02:46,196
+Steering set the rules, and the spec was the contract.
 
 39
-00:02:46,536 --> 00:02:54,403
+00:02:46,626 --> 00:02:52,859
 For a finance team this replaces retyping a payment file into a spreadsheet.
 
 40
-00:02:54,483 --> 00:02:56,848
+00:02:52,939 --> 00:02:54,802
 820. Resurrection. Apache 2.0.
 

@@ -45,6 +45,12 @@ export function createGroundedAdapter(): ExplainerAdapter {
             suggestedFix:
               'Locate the missing or extra detail record, correct the file or the trailer, and re-run verify.',
           };
+        case 'MISSING_CURRENCY':
+          return {
+            cause: `${finding.detail}`,
+            suggestedFix:
+              'Check the currency field of the declared total and of the detail records; either the declaration or the detail amounts are in the wrong currency. Do not resolve this by borrowing another currency bucket.',
+          };
         case 'REF_UNMATCHED':
           return finding.reference === undefined || finding.reference === ''
             ? {

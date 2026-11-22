@@ -272,7 +272,7 @@ def plate_hook_fire():
     lines = [ln for ln in open(os.path.join(OUTPUTS, "hook-fire.txt"), encoding="utf-8").read().split("\n")]
     keep = [ln for ln in lines if ln.strip()][:11]
     return terminal(keep, "p12_hook", "0 / KIRO HOOKS   a real session, not a promise", "#6BA8FF",
-                    "820: hook log and the stop hook's own run", hl=("trigger=PostFileSave", "trigger=Stop", "RESULT"))
+                    "820: the hook log and the stop hook's own run", hl=("trigger=PostFileSave", "trigger=PostTaskExecution", "RESULT"))
 
 
 def plate_mcp_call():
@@ -462,8 +462,11 @@ def plate_tests():
     raw = [ln for ln in open(os.path.join(OUTPUTS, "tests.txt"), encoding="utf-8").read().split("\n") if ln.strip()]
     # Keep the tail: the last file lines and the summary that carries the count.
     lines = raw[-13:]
+    # The highlight follows the captured summary line, so a changed test count cannot leave a stale
+    # number lit on screen (the red-team pass of 2026-11-22 found exactly that: the plate said 300).
+    summary = next((ln.split("(")[0].strip() for ln in lines if "Tests" in ln and "passed" in ln), "Tests")
     return terminal(lines, "p08_tests", "8 / PROPERTY BASED TESTS   npx vitest run", "#3FB950",
-                    "npx vitest run", hl=("Tests  300",))
+                    "npx vitest run", hl=(summary,))
 
 
 def plate_bai2():
@@ -502,8 +505,8 @@ def plate_kiro():
     """The session facts, from the evidence file and the hook log, not from a slide."""
     c = Canvas()
     c.card((54, 108, W - 54, 760), fill=(12, 17, 25), stroke=(46, 58, 74))
-    c.text((96, 132), "one session, from this repository", font(SANS_B, 30), (233, 239, 246))
-    c.text((96, 176), "docs/kiro-session-evidence.md  ·  logs/kiro-t71-pass{1..4}.log  ·  out/hook-log.txt",
+    c.text((96, 132), "two sessions, one process, from this repository", font(SANS_B, 30), (233, 239, 246))
+    c.text((96, 176), "docs/kiro-session-evidence.md  ·  out/hook-log.txt  ·  EVIDENCE.md",
            font(MONO_R, 18), DIM)
     rows = [
         ("session", "kiro-cli 3.5.0, V3 engine, --agent 820-implementer, claude-haiku-4.5"),
@@ -512,16 +515,17 @@ def plate_kiro():
         ("agent wrote", "820 exceptions | waive | release, and the exceptions MCP tool"),
         ("agent wrote", "38 tests: tamper detection, expiry, finding identity, round trip"),
         ("hooks", "PostFileSave ran the tests, Stop re-derived the newest verdict"),
+        ("task runner", "T9.5 through task_update: PostTaskExec wrote its own evidence row"),
         ("mcp", "reviewer called @820/reconcile, @820/verify and @820/exceptions"),
-        ("afterwards", "six repairs listed in the evidence file, not buried in a commit"),
+        ("afterwards", "every repair listed in the evidence file, not buried in a commit"),
     ]
-    y = 240
+    y = 222
     for left, right in rows:
-        c.text((96, y), left, font(MONO_B, 22), BLUE)
-        c.text((330, y), clean(right), font(MONO_R, 22), (206, 220, 235))
-        y += 58
-    c.text((96, 700), "the session's own last line:  TypeScript 0 errors, 20 files, 270 tests passed",
-           font(SANS_R, 22), MUTED)
+        c.text((96, y), left, font(MONO_B, 21), BLUE)
+        c.text((330, y), clean(right), font(MONO_R, 21), (206, 220, 235))
+        y += 52
+    c.text((96, 700), "the T7.1 session's own last line:  TypeScript 0 errors, 20 files, 270 tests passed",
+           font(SANS_R, 21), MUTED)
     c.chip("11 / KIRO   the process is in the repository", "#6BA8FF")
     return c.save("p10_kiro")
 

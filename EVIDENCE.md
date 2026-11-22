@@ -1,12 +1,14 @@
 # EVIDENCE — build log
 
-> Append-only. One row per completed spec task, written by the `PostTaskExecution` hook
-> (`scripts/append-evidence.mjs`). Until the hook fires inside a Kiro session, the same script is
-> invoked by hand with the same payload shape — the rows are identical either way, and this note
-> says which way it was.
+> Append-only. One row per completed spec task. Rows up to 2026-11-21, and T9.1 to T9.4, were written
+> by `scripts/append-evidence.mjs` invoked by hand with the same payload shape, because no session had
+> run a spec task through Kiro's task tools; each says which session it came from. From 2026-11-22 the
+> task hook (`trigger` `PostTaskExec`) writes the row itself: the last four rows of the table are its
+> own output, unedited, including the two that came out wrong before its payload picker was fixed.
 > Format: `YYYY-MM-DD HH:MM | task | command | result | commit`
-> Test counts are from `npx vitest run`: **300 tests / 22 files** after the `REDEFINES` work
-> (2026-11-21 20:05); 284 / 21 after the static demo, 275 / 20 after T7.1, 222 / 17 at T5, 148 before T4/T5.
+> Test counts are from `npx vitest run`: **311 tests / 23 files** after the red-team repairs
+> (2026-11-22 10:18); 300 / 22 after the `REDEFINES` work (2026-11-21 20:05); 284 / 21 after the
+> static demo, 275 / 20 after T7.1, 222 / 17 at T5, 148 before T4/T5.
 
 | when | task | command | result | commit |
 |---|---|---|---|---|
@@ -62,8 +64,23 @@
 | 2026-11-21 20:03 | UI | `npx vitest run test/unit/explain test/unit/cli` | the default explainer is named `grounded` everywhere (adapter, CLI `--adapter`, MCP enum, screen label `L3 · grounded`); no `L3 · mock` string remains in `src/` | (this commit) |
 | 2026-11-21 20:08 | DEMO-CHECK | `python3 scripts/check-static.py` (Chromium, 1920x1080) | 8 scenarios: verdict and fingerprint equal the CLI for all eight (S7 `344591ae…`, S8 `426cc093…`); the `REDEFINES` trailer is sliced by `REC-TYPE, ORIG-ID-T, RECEIVER-ID-T, TOTAL-AMOUNT, TOTAL-CURRENCY, REC-COUNT, FILLER` while its neighbour is still sliced by the detail layout; dropped COMP-3, waiver/release, re-derive, 0 requests after load, 0 console/page errors | (this commit) |
 | 2026-11-21 20:20 | VIDEO | `python3 demo-video/build/{plates,make_tts,build}.py` | 2:57.67, 19.01 MB, 1920×1080 30 fps + AAC, 40 cues; new shot 3 is the `REDEFINES` copybook plate, new shot 3b is the trailer read through its layout; tests plate reads 300; subtitles restyled with a box; 0 em dashes, 0 en dashes, 0 emoji | (this commit) |
-| 2026-11-21 20:26 | DOCS | — | README, `devpost-submission-draft.md` (§9 rewritten to the 2:57 cut; closing section now leads with how spec, steering, agent, hooks, MCP and CLI combine), `review.md` re-scored, `제출검토-한글요약.md`, `docs/copybook-dialect.md` §4-5, `docs/guarantees.md`, `.kiro/specs/.../design.md` §14, `samples/README.md` | (this commit) |
+| 2026-11-21 20:26 | DOCS | — | README, `devpost-submission-draft.md` (§9 rewritten to the 2:57 cut; closing section now leads with how spec, steering, agent, hooks, MCP and CLI combine), `review.md` re-scored, the internal Korean summary (kept out of the repository), `docs/copybook-dialect.md` §4-5, `docs/guarantees.md`, `.kiro/specs/.../design.md` §14, `samples/README.md` | (this commit) |
 | 2026-11-21 16:06 | TYPE+TEST | `npx tsc --noEmit && npx vitest run` | 0 errors; 222 passed (222) in 17 files | c65a45f |
+
+The last four rows, and why two of them are unusable:
+
+```
+| 2026-11-22 10:32 | n/a | — | — | — |
+| 2026-11-22 10:32 | T9.5 **Claim checker** — a script that fails when a published document states a  (.kiro/specs/edi820-importer/tasks.md) | — | — | — |
+| 2026-11-22 10:33 | T9.5 (.kiro/specs/edi820-importer/tasks.md) | — | task_success=true | — |
+| 2026-11-22 10:45 | T9.5 (.kiro/specs/edi820-importer/tasks.md) | — | task_success=true | — |
+```
+
+They are the hook's own output, kept as written. The first two are before `append-evidence.mjs` knew
+the event's field names (`task_name`, `task_success`), so it printed `n/a` and then the whole task
+line. `out/hook-payload/*.json` holds the payload the hook received (a runtime path, not committed);
+`docs/kiro-session-evidence.md` §8.4 quotes it, which is how the names were found instead of guessed. The rows are not tidied afterwards: an append-only log that edits its own
+mistakes is not a log.
 
 ## Demo run (the numbers the video shows)
 
@@ -117,8 +134,19 @@
 ## How the T6 rows were produced
 
 - The rows above were appended by `node scripts/append-evidence.mjs` with the same payload shape the
-  hook would pass. The hook is committed in `.kiro/hooks/parser-guardrails.json`; it was not observed
-  firing inside a live Kiro session, and no row claims it did.
+  hook passes. The hook is committed in `.kiro/hooks/parser-guardrails.json`; on 2026-11-22 it was
+  observed firing in a live session (trigger `PostTaskExec`, see `docs/kiro-session-evidence.md` §8),
+  and the four rows at the end of the table are its own output rather than a hand-run script.
 - The video's numbers are read from the files at render time: the copybook byte offsets come from the
   compiler (`dump-copybook.mjs`), the screenshots come from the running server with 0 page errors,
   and the terminal plates are rendered from the captured stdout in `demo-video/build/outputs/`.
+| 2026-11-22 10:12 | T9.0 | `npx vitest run` (baseline) | 300 tests / 22 files, 31 properties; `npx tsc --noEmit` 0 errors. The starting point the red-team review scored | (this commit) |
+| 2026-11-22 10:15 | T9.1 | `npx vitest run test/unit/exception test/pbt/exception test/regressions/red-team-code` | `appendWaiver` refuses a missing, blank, malformed or past `expiresOn`; `820 waive` requires `--expires` and exits 3 without it; the register panel in the static build refuses too; R8.1/R8.2/R8.4 and design §15.1 amended | (this commit) |
+| 2026-11-22 10:16 | T9.2 | `npx vitest run test/regressions/red-team-code` | `MISSING_CURRENCY` (R4.6) replaces the `Object.keys(buckets)[0]` fallback: a USD declaration against an all-EUR file is now a finding, not a PASS; the summary row says "not compared" instead of borrowing a currency | (this commit) |
+| 2026-11-22 10:17 | T9.3 | `npx vitest run test/regressions/red-team-code test/unit/explain test/pbt/explain` | the L3 guard keeps identifier tokens (`0011`) apart from values (`11`): `Record 11 was never sent` on a finding anchored to record 9 is rejected; the reference itself still cites | (this commit) |
+| 2026-11-22 10:18 | T9.4 | `npx tsc --noEmit && npx vitest run` | 0 errors, 311 tests / 23 files, 31 properties. The exception PBT now releases waivers and asserts `unadjudicated = OPEN + EXPIRED + RELEASED`; the last non-English strings are gone from `src/`, `docs/`, `samples/` and `scripts/` | (this commit) |
+| 2026-11-22 10:32 | T9.5 | `kiro-cli chat --v3 --mode spec ... "T9.5 in_progress, run npm run check:claims, T9.5 completed"` | the task hook fired for the first time in this repository's history: `trigger=PostTaskExecution evidence row appended`, and the row below is its output | (this commit) |
+| 2026-11-22 10:32 | n/a | — | — | — |
+| 2026-11-22 10:32 | T9.5 **Claim checker** — a script that fails when a published document states a  (.kiro/specs/edi820-importer/tasks.md) | — | — | — |
+| 2026-11-22 10:33 | T9.5 (.kiro/specs/edi820-importer/tasks.md) | — | task_success=true | — |
+| 2026-11-22 10:45 | T9.5 (.kiro/specs/edi820-importer/tasks.md) | — | task_success=true | — |

@@ -456,10 +456,16 @@ function wire(): void {
     const reason = el<HTMLInputElement>('l4reason').value.trim();
     const control = el<HTMLInputElement>('l4control').value.trim();
     const expires = el<HTMLInputElement>('l4expires').value.trim();
+    if (!expires) {
+      // The rule the submission text states: no waiver without an end date. The module refuses it
+      // too; this message says why instead of showing the module's constraint as a bare throw.
+      toast('an expiry date is required: a waiver is a decision with an end date');
+      return;
+    }
     try {
       state.ledger = appendWaiver(
         state.ledger,
-        { owner, reason, compensatingControl: control, ...(expires ? { expiresOn: expires } : {}), decidedOn: TODAY },
+        { owner, reason, compensatingControl: control, expiresOn: expires, decidedOn: TODAY },
         finding,
         { fingerprint: state.run!.fingerprint, decidedOn: TODAY },
       );

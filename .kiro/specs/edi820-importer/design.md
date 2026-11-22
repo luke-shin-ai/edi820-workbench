@@ -21,7 +21,7 @@ file + copybook
 report.json + report.md + fingerprint
 ```
 
-Rationale: the demo's credibility comes from the fact that **the verdict is not produced by a model**. The model only narrates findings the deterministic layers already produced. This mirrors the playbook rule "AI를 신뢰하는 대신 역할을 분리한다".
+Rationale: the demo's credibility comes from the fact that **the verdict is not produced by a model**. The model only narrates findings the deterministic layers already produced. This is the playbook rule "separate the roles instead of trusting the AI", applied to money.
 
 ## 2. Data model
 
@@ -98,7 +98,11 @@ Tools: `parse_file(copybookPath, filePath)`, `reconcile(files[])`, `explain_find
   of shared bytes with one active layout per record, and a layout the copybook does not bind to a
   discriminator value is refused (`COPYBOOK_SEMANTICS`), not guessed. `OCCURS` and binary `COMP`
   remain `UNSUPPORTED_STRUCTURE`.
-- Very large files stream record-by-record; totals hold in `bigint`, so no overflow at realistic volumes.
+- Volume: a whole file is read into memory (one `readFileSync` in `src/core/ops.ts`) and split into
+  records in one pass (`splitRecords` in `src/parser/parser.ts`), so peak memory follows file size.
+  Totals are `bigint` minor units and cannot overflow, but a file larger than the machine's memory
+  is not handled. Record-by-record streaming is future work, not a current property
+  (the earlier draft of this section said the opposite; corrected 2026-11-22).
 
 ## 10. Implementation deltas (agreed while building T1–T3)
 
@@ -203,7 +207,8 @@ export function verifyLedger(ledger: Ledger): { ok: boolean; firstInvalidSeq: nu
 export function classify(findings: Finding[], ledger: Ledger, onDate: string): Classification;
 ```
 
-`WaiverInput = { owner, reason, compensatingControl, expiresOn?, decidedOn? }`;
+`WaiverInput = { owner, reason, compensatingControl, expiresOn, decidedOn? }` — `expiresOn` is
+required since the red-team pass of 2026-11-22 (§15.1);
 `DecisionContext = { fingerprint: string; decidedOn: string }` (the caller supplies the date,
 so a test can decide "today" without freezing the real clock).
 `Classification = { entries: Array<{ findingKey, code, recordIndex, field?, reference?, status,
@@ -245,9 +250,10 @@ and `EXPIRED` are reported as such; neither is silently dropped from the classif
 ### 13.5 Surfaces
 
 - CLI: `exceptions --report <dir> [--ledger <path>] [--today YYYY-MM-DD] [--json]` (read-only),
-  `waive --report <dir> --index <n> --owner --reason --control [--expires]`,
-  `release --report <dir> --id <waiverId> --owner --reason [--control]`.
-  Default ledger path: `<report dir>/ledger.json`. Exit codes per R8.6.
+  `waive --report <dir> --index <n> --owner --reason --control --expires YYYY-MM-DD`,
+  `release --report <dir> --id <waiverId> --owner --reason --control`.
+  Default ledger path: `<report dir>/ledger.json`. Exit codes per R8.6; a missing or malformed
+  `--expires` is a `USAGE` error and exits 3, because nothing was decided.
 - MCP: `exceptions(reportPath, ledgerPath?, today?)`, read-only, same classification object.
 - Web/static: a panel beside the findings; the verdict badge keeps `FAIL`/`INCOMPLETE` while
   the panel shows what a human decided. A waiver never turns the badge green, because the
@@ -286,3 +292,52 @@ most common bank copybook shape unreadable, so T8 replaced the refusal with a mo
   fingerprint only when the copybook declares a region, so the six sample scenarios without
   `REDEFINES` keep the exact fingerprints recorded before T8 (pinned in
   `test/regressions/redefines-view.test.ts`).
+
+## 15. Implementation deltas for the red-team pass (2026-11-22)
+
+The second external review (`gcp-hermes-grand-prize-review-v2.md`, not in the public repository)
+reproduced 13 places where the documents were stronger than the code. Three of them were code
+defects rather than wording, and each one is recorded here with the rule it changed.
+
+### 15.1 A waiver needs an expiry
+
+§13 and R8.1 said an exception carries "a reason, an expiry and a compensating control", and
+`docs/guarantees.md` and the submission text repeated it, while `expiresOn` was optional and the
+CLI printed `(no expiry)`. Both could not stay. The requirement is the product promise, so the code
+moved: `appendWaiver` refuses a missing, blank, malformed or out-of-order `expiresOn`
+(`INVALID_WAIVER`), `820 waive` requires `--expires` and exits 3 without it, and the register panel
+in the static demo refuses to submit without one. `classify` still reads an entry that has no
+expiry as `WAIVED`, because a ledger written by an earlier build keeps the hash it was written
+with; the new rule governs what can be appended, not what can be read. R8.1, R8.2 and R8.4 were
+amended to say so. The MCP surface has no `waive` tool — it is read-only by design (§13.5) — so there
+is no second write path that could still accept a waiver without an expiry.
+
+### 15.2 A declared total is never compared against another currency
+
+`controlFindings` used `buckets[declared.currency] ?? Object.keys(buckets)[0]`, so a total declared
+in USD on a file whose details were all EUR was compared against the EUR bucket and could earn a
+`PASS`. `resolveDeclaredBucket()` now returns the bucket only when the declaration names it or when
+the file holds exactly one currency; otherwise the run emits **`MISSING_CURRENCY`** (a new finding
+code, with its own steering hint and grounded explanation) naming what the declaration says and
+which currencies the details actually carry, and no comparison is made. The summary row shows the
+declared total with `-` for computed and delta and the basis "not compared", instead of borrowing
+another currency's numbers. Pinned by `test/regressions/red-team-code.test.ts`.
+
+### 15.3 A reference fragment is an identifier, not a number
+
+§9's explanation guard normalised every literal by stripping leading zeros, so the reference
+`NWP-2611-0011` contributed `11` to the vocabulary and `"Record 11 was never sent"` passed on a
+finding anchored to record 9. The guard now keeps two kinds of vocabulary: **values** (amounts,
+counts, the record index, and numbers in `detail`) compared by magnitude, and **identifier
+tokens** (the digit runs of `reference`, and digit runs in `detail` that start with `0`) compared
+exactly, zeros kept. `0011` therefore matches `0011` and never `11`. The residual limit is stated
+rather than hidden: the guard checks numbers, not the sentence around them, so a draft that writes
+`record 0011` still cites a token the finding really contains.
+
+### 15.4 One property described the wrong state machine
+
+`test/pbt/exception.pbt.test.ts` asserted "unadjudicated always equals OPEN + EXPIRED" while
+§13.4 says a released exception is back in front of a human. The generator never released a
+waiver, so it could not fail. The property now releases some waivers, asserts
+`unadjudicated === OPEN + EXPIRED + RELEASED` and `unadjudicated === findings − WAIVED`, and its
+title says what it tests.

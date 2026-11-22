@@ -31,8 +31,8 @@ FF = imageio_ffmpeg.get_ffmpeg_exe()
 
 FPS = 30
 W, H = 1920, 1080
-LEAD = 0.6
-TAIL = 0.7
+LEAD = 0.45
+TAIL = 0.40
 XFADE = 0.5
 NAME = "820-demo-en"
 

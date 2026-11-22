@@ -64,3 +64,20 @@
   - **After the session** (recorded in `docs/kiro-session-evidence.md` §4.1): findings revived to `bigint` before the key is computed, ledger integrity checked before an append, `unadjudicated` corrected to count `RELEASED`, `release` requires `--control`, EPIPE guard, and CLI-level exit-code tests. 275 tests / 20 files, tsc 0 errors.
 - [x] T7.2 Record the session: `docs/kiro-session-evidence.md` with the redacted agent transcript, the hook firings (PostFileSave, PostTaskExecution, AgentStop) and the reviewer's `@820` MCP call, so the Kiro usage is evidence in the repository and not a claim.
   - **Delivered:** `docs/kiro-session-evidence.md` — three sessions, the hook firings (`Stop` ×3, `PostFileSave` ×1) with their `out/hook-log.txt` lines, the reviewer's three `@820` tool calls with returned values, the repairs, the reviewer's MINOR, and the limits (non-interactive, `PostTaskExecution` unobserved, credit balance unprinted).
+
+## Phase 8 — `REDEFINES` as a region (2026-11-21 evening)
+- [x] T8.1 Model a `REDEFINES` line as a region of shared bytes with declared layouts (`* @view`), refuse an unbound region (`COPYBOOK_SEMANTICS`) and a wider redefining item (`COPYBOOK_REDEFINES`). Evidence: `npx tsx demo-video/build/dump-copybook.mjs`.
+  - **Delivered:** `820-redefines.cpy` compiles to 101 bytes: one 100-byte region (`PAYMENT-DETAIL`, bytes 2-101) with two layouts, `PAYMENT-TRAILER` selected by `REC-TYPE=T`, the detail by `P`.
+- [x] T8.2 Decode exactly one layout per record; a record whose discriminator matches none is `REDEFINES_VIEW_UNMATCHED`, a blocking parse issue. Evidence: `npx vitest run test/unit/copybook test/pbt/copybook`.
+  - **Delivered:** 27 copybook tests + 4 properties, including 120 generated two-layout copybooks.
+- [x] T8.3 Two fixtures (`820-redefines-good.txt`, `820-redefines-bad.txt`) and the six pre-existing scenario fingerprints pinned. Evidence: `npx vitest run test/unit/fixtures test/regressions/redefines-view`.
+- [x] T8.4 Ship it as product evidence: static scenarios S7/S8, a copybook plate and a trailer plate in the video. Evidence: `python3 scripts/check-static.py`.
+
+## Phase 9 — red-team repairs (2026-11-22)
+> Source: the second external review (`gcp-hermes-grand-prize-review-v2.md`, §4 and §5), which reproduced 13 places where the documents were stronger than the code. Design record: `design.md` §15.
+
+- [x] T9.1 Make the waiver expiry required everywhere (`appendWaiver`, `820 waive`, the static register), and amend R8.1/R8.2/R8.4 to match. Evidence: `npx vitest run test/unit/exception test/regressions/red-team-code`, plus `820 waive` without `--expires` exiting 3.
+- [x] T9.2 Stop comparing a declared total against another currency bucket: add `MISSING_CURRENCY` (R4.6) and use `resolveDeclaredBucket()` in the reconciler and in the summary. Evidence: `npx vitest run test/regressions/red-team-code`.
+- [x] T9.3 Split the L3 guard vocabulary into values and identifier tokens, so a reference fragment (`0011`) can no longer be cited as a record number (`11`). Evidence: the same regression file.
+- [x] T9.4 Correct the property that described the wrong state machine, and remove the last non-English strings from `src/`, `docs/`, `samples/` and `scripts/`. Evidence: `npx vitest run test/pbt/exception`.
+- [x] T9.5 **Claim checker** — a script that fails when a published document states a test count, property count or requirement count that the repository does not hold. Task: write `scripts/check-claims.mjs`, add `"check:claims"` to `package.json`, run it, and record the result. Evidence: `npm run check:claims` printing every claim it checked and exiting 0.

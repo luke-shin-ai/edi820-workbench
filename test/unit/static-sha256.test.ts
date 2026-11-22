@@ -25,7 +25,7 @@ describe('browser SHA-256 equals node:crypto', () => {
     ['empty string', ''],
     ['ascii', '820 resurrection workbench'],
     ['latin1 high bytes', '\u0080\u0099\uffff A'],
-    ['korean text', '결제 파일 대사'],
+    ['multi-byte utf8', 'payment reconciliation: \u00e0\u00e9\u00ee\u00f5\u00fc \u00a3\u00a5'],
     ['newline + crlf', 'a\r\nb\nc'],
     ['binary bytes', Uint8Array.from([0x00, 0x80, 0xff, 0x7f, 0x01])],
     ['long ascii', 'x'.repeat(1000)],

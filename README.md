@@ -2,7 +2,7 @@
 
 > Kiroween 2026 · **Resurrection** category · built with Kiro (spec-driven, steering, hooks, MCP, PBT)
 
-> **Build status (2026-11-21):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **2:57 English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **300 tests / 22 files** (unit, property-based and regression). Publishing the repository, hosting the static build, uploading the video and submitting the Devpost entry are the account holder's acts and remain open; see `review.md` §5.
+> **Build status (2026-11-22):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**), the Kiro write-up, the self review and the **English demo video**. `npx tsc --noEmit` is clean and `npx vitest run` is **311 tests / 23 files** (unit, property-based and regression, 31 of them properties). Publishing the repository, hosting the static build, uploading the video and submitting the Devpost entry are the account holder's acts and remain open; see `review.md` §5.
 
 Corporate payment files never died. The people and tools that could read them did.
 
@@ -19,12 +19,11 @@ Corporate payment files never died. The people and tools that could read them di
 
 The verdict is **deterministic and re-verifiable** (`820 verify`); the model never decides whether numbers match, and by default it is not called at all. A waiver never turns a verdict green: the register says what a person accepted, beside the answer the code produced.
 
-Verdicts: `PASS` (every check agreed), `INCOMPLETE` (a parse issue left bytes uninterpreted, so no PASS is earned), `FAIL` (findings exist). Exit codes are `0` / `2` / `2`.
+Verdicts: `PASS` (every check agreed), `INCOMPLETE` (a parse issue left bytes uninterpreted, so no PASS is earned), `FAIL` (findings exist). Exit codes are `0` / `2` / `3`.
 
 ## Watch it
 
-`demo-video/820-demo-en.mp4`, 2 minutes 57 seconds, 1920x1080, English narration and burned-in subtitles, no music. It opens with the hook log from a real Kiro session and the reviewer agent's MCP calls, then the bank copybook with its two `REDEFINES` layouts, the trailer read through its own layout, the static browser demo (PASS, four findings, the bytes behind a finding), the BAI2 delta with its credit and debit parts, the exception register with a waiver recorded, `verify`, the test suite, and what the session did. Script and shot list: `demo-video/build/README.md`.
-
+`demo-video/820-demo-en.mp4`, 2 minutes 55 seconds, 1920x1080, English narration and burned-in subtitles, no music. It opens with the hook log from a real Kiro session and the reviewer agent's MCP calls, then the bank copybook with its two `REDEFINES` layouts, the trailer read through its own layout, the static browser demo (PASS, four findings, the bytes behind a finding), the BAI2 delta with its credit and debit parts, the exception register with a waiver recorded, `verify`, the test suite, and what the session did. Script and shot list: `demo-video/build/README.md`.
 ## Try it with no server
 
 `docs/demo/index.html` is a static build of the same engine: the parser, the reconciler, the BAI2 reader, the L3 grounded explainer and the L4 register compiled for the browser by `esbuild`. Eight scenarios run with one click (the two `REDEFINES` ones included), a dropped file is read as bytes (`arrayBuffer`, so a COMP-3 amount survives), the register accepts a waiver and a release, and `Re-derive and compare` re-runs the case and prints the fingerprint. Nothing is uploaded: after the two files load, no request leaves the tab.
@@ -41,10 +40,11 @@ python3 scripts/check-static.py       # Chromium at 1920: every scenario's finge
 
 ```bash
 npm install
-npm test                       # 300 tests: npx vitest run
+npm test                       # 311 tests: npx vitest run
 npm run typecheck              # tsc --noEmit for node + for the browser build, 0 errors
 npm run demo:cli               # parse + reconcile eight scenarios (820/823/fixed/COMP-3/REDEFINES/BAI2)
 npm run evidence               # write out/evidence/report.json, the report the hook re-derives
+npm run check:claims           # every test/property/requirement count a document states, against the code
 ```
 
 ### Three minutes, one judge
@@ -136,10 +136,10 @@ BAI2 has no fixed width and no copybook. Rather than fake a layout for a comma-d
 
 - `.kiro/specs/edi820-importer/` — `requirements.md` (EARS, R1 to R8) → `design.md` → `tasks.md`; `design.md` §12 and §13 record every implementation delta, including the two stack substitutions (MCP protocol implemented directly instead of `@modelcontextprotocol/sdk`; the screen as one dependency-free document instead of Vite + React) and why
 - `.kiro/steering/` — product, tech (parsing rules), structure, conventions, and finance-file domain rules
-- `.kiro/hooks/` — tests on save, re-verify on `Stop`, evidence appended on task completion. The first two fired in a live session: `out/hook-log.txt` holds the firings, and `docs/kiro-session-evidence.md` explains the two that were broken before (a command with no entry point, and the wrong trigger name)
+- `.kiro/hooks/` — tests on save, re-verify on `Stop`, evidence appended on task completion. All three have fired in a live session: `out/hook-log.txt` is committed and holds every firing, and `docs/kiro-session-evidence.md` explains the three that were broken before (a command with no entry point, the wrong stop trigger, and the wrong task trigger)
 - `.kiro/agents/reviewer.json` and `.kiro/agents/820-implementer.json` — the adversarial reviewer and the spec executor, both with `@820` MCP access
 - `EVIDENCE.md` — the build log, with the defects the build found in itself (overpunch table off by one, implied decimals dropped when encoding, a blank reference silently dropped, BAI2 record counting, a truncated record that reached PASS, a verify that depended on the working directory)
-- `docs/kiro-session-evidence.md` — the T7 session that implemented the exception register: what the agent wrote, what fired, what the reviewer got back from the MCP server, and the six repairs made afterwards
+- `docs/kiro-session-evidence.md` — the T7 session that implemented the exception register (what the agent wrote, what fired, what the reviewer got back from the MCP server, the repairs afterwards) and §8, the task-runner run that made `PostTaskExec` fire and wrote its own `EVIDENCE.md` row
 - `docs/copybook-to-spec.md` — how a legacy spec document became a Kiro spec (what it got right, what it got wrong)
 - `docs/kiro-cli-validation.md` — the earlier CLI session, the agent validation, and the reviewer run that was confidently wrong
 - `review.md` — self scoring on the five criteria, with what a cold judge would still mark down

@@ -1694,6 +1694,26 @@
   function withinWindow(date, window2, toleranceDays) {
     return dayDiff(date, window2.start) >= -toleranceDays && dayDiff(window2.end, date) >= -toleranceDays;
   }
+  function resolveDeclaredBucket(declared, buckets) {
+    const keys = Object.keys(buckets);
+    if (declared.currency) {
+      return buckets[declared.currency] ? { currency: declared.currency } : { missing: "declared-absent" };
+    }
+    if (keys.length === 0) return { missing: "no-amounts" };
+    if (keys.length === 1) return { currency: keys[0] };
+    return { missing: "undeclared-multi" };
+  }
+  function missingCurrencyDetail(label, declared, buckets, reason) {
+    const keys = Object.keys(buckets).sort();
+    const declaredText = declared.currency ? formatAmount(declared) : `${formatAmount({ ...declared, currency: "" })} with no currency`;
+    if (reason === "declared-absent") {
+      return `${label} control total declares ${declaredText} but no detail record is denominated in ${declared.currency} (detail currencies: ${keys.join(", ")}); the total is not compared against another currency`;
+    }
+    if (reason === "undeclared-multi") {
+      return `${label} control total declares ${declaredText} and the detail records carry more than one currency (${keys.join(", ")}); which bucket it controls cannot be read from the file, so it is not compared`;
+    }
+    return `${label} control total declares ${declaredText} but no detail record carries an amount, so there is nothing to compare`;
+  }
   function controlFindings(result, label) {
     const findings = [];
     const { copybook, declaredControl, computedControl } = result;
@@ -1716,23 +1736,34 @@
     if (declaredControl?.total) {
       const declared = declaredControl.total;
       const buckets = computedControl.totalsByCurrency;
-      const bucketKey = declared.currency && buckets[declared.currency] ? declared.currency : Object.keys(buckets)[0];
-      const bucket = bucketKey ? buckets[bucketKey] : void 0;
-      const computedMinor = bucket?.minorUnits ?? 0n;
-      const delta = computedMinor - declared.minorUnits;
-      if (delta !== 0n) {
-        const credits = bucketKey ? computedControl.creditTotalsByCurrency?.[bucketKey] : void 0;
-        const debits = bucketKey ? computedControl.debitTotalsByCurrency?.[bucketKey] : void 0;
-        const composition = credits || debits ? ` (credits ${formatAmount({ minorUnits: credits?.minorUnits ?? 0n, currency: declared.currency || (bucketKey ?? ""), scale: declared.scale })} minus debits ${formatAmount({ minorUnits: debits?.minorUnits ?? 0n, currency: declared.currency || (bucketKey ?? ""), scale: declared.scale })})` : "";
+      const resolution = resolveDeclaredBucket(declared, buckets);
+      if (!resolution.currency) {
         findings.push({
-          code: "CONTROL_TOTAL_MISMATCH",
+          code: "MISSING_CURRENCY",
           recordIndex: declaredControl.recordIndex,
           field: copybook.control?.totalField,
           declared,
-          computed: { minorUnits: computedMinor, currency: declared.currency || (bucketKey ?? ""), scale: declared.scale },
-          delta: { minorUnits: delta, currency: declared.currency || (bucketKey ?? ""), scale: declared.scale },
-          detail: `${label} control total declares ${formatAmount(declared)} but the detail records net to ${formatAmount({ ...declared, minorUnits: computedMinor })}${composition} (delta ${formatAmount({ ...declared, minorUnits: delta })})`
+          detail: missingCurrencyDetail(label, declared, buckets, resolution.missing)
         });
+      } else {
+        const bucketKey = resolution.currency;
+        const bucket = buckets[bucketKey];
+        const computedMinor = bucket?.minorUnits ?? 0n;
+        const delta = computedMinor - declared.minorUnits;
+        if (delta !== 0n) {
+          const credits = computedControl.creditTotalsByCurrency?.[bucketKey];
+          const debits = computedControl.debitTotalsByCurrency?.[bucketKey];
+          const composition = credits || debits ? ` (credits ${formatAmount({ minorUnits: credits?.minorUnits ?? 0n, currency: declared.currency || bucketKey, scale: declared.scale })} minus debits ${formatAmount({ minorUnits: debits?.minorUnits ?? 0n, currency: declared.currency || bucketKey, scale: declared.scale })})` : "";
+          findings.push({
+            code: "CONTROL_TOTAL_MISMATCH",
+            recordIndex: declaredControl.recordIndex,
+            field: copybook.control?.totalField,
+            declared,
+            computed: { minorUnits: computedMinor, currency: declared.currency || bucketKey, scale: declared.scale },
+            delta: { minorUnits: delta, currency: declared.currency || bucketKey, scale: declared.scale },
+            detail: `${label} control total declares ${formatAmount(declared)} but the detail records net to ${formatAmount({ ...declared, minorUnits: computedMinor })}${composition} (delta ${formatAmount({ ...declared, minorUnits: delta })})`
+          });
+        }
       }
     }
     return findings;
@@ -1884,33 +1915,57 @@
     const totals = {};
     const declaredTotal = input.payment.declaredControl?.total;
     if (declaredTotal) {
-      const currency = declaredTotal.currency || Object.keys(paymentTotals)[0] || "";
-      const computed = paymentTotals[currency]?.minorUnits ?? 0n;
-      const credits = input.payment.computedControl.creditTotalsByCurrency?.[currency];
-      const debits = input.payment.computedControl.debitTotalsByCurrency?.[currency];
-      totals[currency] = {
-        declared: declaredTotal.minorUnits.toString(),
-        computed: computed.toString(),
-        delta: (computed - declaredTotal.minorUnits).toString(),
-        basis: "signed detail total",
-        ...credits ? { credits: credits.minorUnits.toString() } : {},
-        ...debits ? { debits: debits.minorUnits.toString() } : {}
-      };
+      const resolution = resolveDeclaredBucket(declaredTotal, paymentTotals);
+      if (resolution.currency) {
+        const currency = resolution.currency;
+        const computed = paymentTotals[currency]?.minorUnits ?? 0n;
+        const credits = input.payment.computedControl.creditTotalsByCurrency?.[currency];
+        const debits = input.payment.computedControl.debitTotalsByCurrency?.[currency];
+        totals[currency] = {
+          declared: declaredTotal.minorUnits.toString(),
+          computed: computed.toString(),
+          delta: (computed - declaredTotal.minorUnits).toString(),
+          basis: "signed detail total",
+          ...credits ? { credits: credits.minorUnits.toString() } : {},
+          ...debits ? { debits: debits.minorUnits.toString() } : {}
+        };
+      } else {
+        const label = declaredTotal.currency || "(no currency declared)";
+        totals[label] = {
+          declared: declaredTotal.minorUnits.toString(),
+          computed: "-",
+          delta: "-",
+          basis: "not compared: the file holds no detail amount in this currency"
+        };
+      }
     }
     const bankDeclared = input.bank?.declaredControl?.total;
     if (input.bank && bankDeclared) {
-      const currency = bankDeclared.currency || Object.keys(input.bank.computedControl.totalsByCurrency)[0] || "";
-      const bankTotals = input.bank.computedControl.totalsByCurrency[currency];
-      const bankCredits = input.bank.computedControl.creditTotalsByCurrency?.[currency];
-      const bankDebits = input.bank.computedControl.debitTotalsByCurrency?.[currency];
-      totals[`${currency} (bank ${input.bank.copybook.format === "bai2" ? "03/100 credits" : "trailer"})`] = {
-        declared: bankDeclared.minorUnits.toString(),
-        computed: (bankTotals?.minorUnits ?? 0n).toString(),
-        delta: ((bankTotals?.minorUnits ?? 0n) - bankDeclared.minorUnits).toString(),
-        basis: "credits minus debits (net)",
-        ...bankCredits ? { credits: bankCredits.minorUnits.toString() } : {},
-        ...bankDebits ? { debits: bankDebits.minorUnits.toString() } : {}
-      };
+      const bankTotalsByCurrency = input.bank.computedControl.totalsByCurrency;
+      const resolution = resolveDeclaredBucket(bankDeclared, bankTotalsByCurrency);
+      const source = input.bank.copybook.format === "bai2" ? "03/100 credits" : "trailer";
+      if (resolution.currency) {
+        const currency = resolution.currency;
+        const bankTotals = bankTotalsByCurrency[currency];
+        const bankCredits = input.bank.computedControl.creditTotalsByCurrency?.[currency];
+        const bankDebits = input.bank.computedControl.debitTotalsByCurrency?.[currency];
+        totals[`${currency} (bank ${source})`] = {
+          declared: bankDeclared.minorUnits.toString(),
+          computed: (bankTotals?.minorUnits ?? 0n).toString(),
+          delta: ((bankTotals?.minorUnits ?? 0n) - bankDeclared.minorUnits).toString(),
+          basis: "credits minus debits (net)",
+          ...bankCredits ? { credits: bankCredits.minorUnits.toString() } : {},
+          ...bankDebits ? { debits: bankDebits.minorUnits.toString() } : {}
+        };
+      } else {
+        const label = bankDeclared.currency || "(no currency declared)";
+        totals[`${label} (bank ${source})`] = {
+          declared: bankDeclared.minorUnits.toString(),
+          computed: "-",
+          delta: "-",
+          basis: "not compared: the file holds no bank detail amount in this currency"
+        };
+      }
     }
     const paymentBlocking = blockingIssuesOf(input.payment);
     const bankBlocking = input.bank ? blockingIssuesOf(input.bank) : [];
@@ -1974,6 +2029,11 @@
               cause: `The trailer declares ${render(finding.declared)} detail records but ${render(finding.computed)} were read.`,
               suggestedFix: "Locate the missing or extra detail record, correct the file or the trailer, and re-run verify."
             };
+          case "MISSING_CURRENCY":
+            return {
+              cause: `${finding.detail}`,
+              suggestedFix: "Check the currency field of the declared total and of the detail records; either the declaration or the detail amounts are in the wrong currency. Do not resolve this by borrowing another currency bucket."
+            };
           case "REF_UNMATCHED":
             return finding.reference === void 0 || finding.reference === "" ? {
               cause: `Record ${finding.recordIndex} has a blank reference field, so it cannot be matched to any counterpart.`,
@@ -2005,14 +2065,15 @@
   // src/explain/evidence.ts
   var NUMERIC_LITERAL_RE = /[+\-\u2212]?\d[\d,]*(?:\.\d+)?/g;
   var ISO_DATE_RE = /\d{4}-\d{2}-\d{2}/g;
-  function extractNumericLiterals(text) {
+  var DIGIT_RUN_RE = /\d+/g;
+  function scanNumericLiterals(text) {
     const literals = [];
     const withoutDates = text.replace(ISO_DATE_RE, (match) => {
-      for (const part of match.split("-")) literals.push(normaliseNumericLiteral(part));
+      for (const part of match.split("-")) literals.push(part);
       return " ".repeat(match.length);
     });
     for (const token of withoutDates.match(NUMERIC_LITERAL_RE) ?? []) {
-      literals.push(normaliseNumericLiteral(token));
+      literals.push(token);
     }
     return literals;
   }
@@ -2022,6 +2083,14 @@
       return `-${stripLeadingZeros(unified.slice(1))}`;
     }
     return stripLeadingZeros(unified);
+  }
+  function identifierToken(raw) {
+    const digits = raw.replace(/[+\-\u2212\u2013\u2014]/g, "").replace(/,/g, "");
+    return digits;
+  }
+  function looksLikeIdentifier(raw) {
+    const digits = identifierToken(raw);
+    return digits.length > 1 && digits.startsWith("0");
   }
   function stripLeadingZeros(digits) {
     const dot = digits.indexOf(".");
@@ -2040,7 +2109,13 @@
     if (dot > 0) set.add(magnitude.slice(0, dot));
   }
   function addScanned(set, text) {
-    for (const literal of extractNumericLiterals(text)) addLiteral(set, literal);
+    for (const literal of scanNumericLiterals(text)) {
+      if (looksLikeIdentifier(literal)) set.add(identifierToken(literal));
+      else addLiteral(set, literal);
+    }
+  }
+  function addIdentifierTokens(set, text) {
+    for (const token of text.match(DIGIT_RUN_RE) ?? []) set.add(token);
   }
   function amountForms(amount) {
     const signed = { minorUnits: amount.minorUnits, currency: amount.currency, scale: amount.scale };
@@ -2084,7 +2159,7 @@
     addValue(set, finding.computed);
     addValue(set, finding.delta);
     addLiteral(set, String(finding.recordIndex));
-    if (finding.reference !== void 0) addScanned(set, finding.reference);
+    if (finding.reference !== void 0) addIdentifierTokens(set, finding.reference);
     addScanned(set, finding.detail);
     return [...set].sort();
   }
@@ -2093,11 +2168,14 @@
     const cited = [];
     const unsupported = [];
     const seen = /* @__PURE__ */ new Set();
-    for (const normalised of extractNumericLiterals(text)) {
-      if (seen.has(normalised)) continue;
-      seen.add(normalised);
-      if (allowed.has(normalised)) cited.push(normalised);
-      else unsupported.push(normalised);
+    for (const raw of scanNumericLiterals(text)) {
+      const canonical = normaliseNumericLiteral(raw);
+      const identifier = identifierToken(raw);
+      const key = `${canonical}|${identifier}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (allowed.has(canonical) || allowed.has(identifier)) cited.push(canonical);
+      else unsupported.push(canonical);
     }
     return {
       ok: unsupported.length === 0,
@@ -2116,6 +2194,7 @@
   var STEERING_HINT = {
     CONTROL_TOTAL_MISMATCH: "Control totals in 820/823/BAI2 declare counts and sums. Compare count and sum separately; a matching sum with a wrong count is still a failure. Amounts are minor-unit-scaled by the copybook.",
     CONTROL_COUNT_MISMATCH: "A trailer declares how many detail records it controls. A missing or extra detail record is a count mismatch even when the money still sums correctly.",
+    MISSING_CURRENCY: "A control total belongs to one currency bucket. If the declared currency has no detail amount, or a single total is declared against several currencies, which bucket it controls cannot be read from the file: report it and withhold the verdict instead of comparing against another bucket.",
     REF_UNMATCHED: "820 references (TRN/RMR) must be echoed by the bank side (823 RMR/REF, BAI2 customer reference). Matching is exact reference first, then amount+currency+value-date window; anything else is reported, never dropped.",
     DATE_OUT_OF_WINDOW: "Value dates come from the copybook-qualified date field, never guessed. The settlement window is declared for the run, with an explicit day tolerance (default 0).",
     FIELD_DECLARED_LENGTH_EXCEEDED: "A fixed-width field cannot hold more bytes than its picture declares. This code is reserved for records built by hand rather than read from a file."
@@ -2383,6 +2462,14 @@ ${draft.suggestedFix}`, finding);
   }
 
   // src/exception/register.ts
+  var ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+  function isIsoDate(value) {
+    if (!ISO_DATE.test(value)) return false;
+    const [year, month, day] = value.split("-").map((part) => Number(part));
+    if (year === void 0 || month === void 0 || day === void 0) return false;
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  }
   var LedgerError = class extends Error {
     constructor(code, message) {
       super(message);
@@ -2466,7 +2553,13 @@ ${draft.suggestedFix}`, finding);
       throw new LedgerError("INVALID_WAIVER", "compensatingControl is required");
     }
     const decidedOn = input.decidedOn ?? context.decidedOn;
-    if (input.expiresOn && input.expiresOn < decidedOn) {
+    if (!input.expiresOn || input.expiresOn.trim().length === 0) {
+      throw new LedgerError("INVALID_WAIVER", "expiresOn is required: a waiver is a decision with an end date");
+    }
+    if (!isIsoDate(input.expiresOn)) {
+      throw new LedgerError("INVALID_WAIVER", `expiresOn (${input.expiresOn}) must be a real date in YYYY-MM-DD form`);
+    }
+    if (input.expiresOn < decidedOn) {
       throw new LedgerError("INVALID_WAIVER", `expiresOn (${input.expiresOn}) cannot be before decidedOn (${decidedOn})`);
     }
     const key = findingKey2(finding);
@@ -3000,10 +3093,14 @@ ${draft.suggestedFix}`, finding);
       const reason = el("l4reason").value.trim();
       const control = el("l4control").value.trim();
       const expires = el("l4expires").value.trim();
+      if (!expires) {
+        toast("an expiry date is required: a waiver is a decision with an end date");
+        return;
+      }
       try {
         state.ledger = appendWaiver(
           state.ledger,
-          { owner, reason, compensatingControl: control, ...expires ? { expiresOn: expires } : {}, decidedOn: TODAY },
+          { owner, reason, compensatingControl: control, expiresOn: expires, decidedOn: TODAY },
           finding,
           { fingerprint: state.run.fingerprint, decidedOn: TODAY }
         );

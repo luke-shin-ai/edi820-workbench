@@ -3,6 +3,7 @@ import * as fc from 'fast-check';
 import {
   emptyLedger,
   appendWaiver,
+  appendRelease,
   verifyLedger,
   serialiseLedger,
   parseLedger,
@@ -40,7 +41,9 @@ const waiverInputArb = () =>
     owner: fc.stringMatching(/^[A-Za-z]+$/),
     reason: fc.stringMatching(/^[A-Za-z0-9 ]+$/),
     compensatingControl: fc.stringMatching(/^[A-Za-z0-9 ]+$/),
-    expiresOn: fc.option(fc.date({ min: new Date('2026-11-01'), max: new Date('2026-12-31') }).map((d) => d.toISOString().split('T')[0]!), { nil: undefined }),
+    // Required since 2026-11-22: the generator never produces a waiver without an end date,
+    // because the module refuses one (that refusal has its own property below).
+    expiresOn: fc.date({ min: new Date('2026-11-01'), max: new Date('2026-12-31') }).map((d) => d.toISOString().split('T')[0]!),
   });
 
 const mockContextArb = () =>
@@ -59,13 +62,7 @@ describe('Exception register — property-based tests (T7.1)', () => {
           fc.array(
             fc
               .tuple(mockFindingArb(), waiverInputArb(), fc.date({ min: new Date('2026-11-01'), max: new Date('2026-11-30') }))
-              .filter(([finding, input, date]) => {
-                // Ensure expiresOn is not before decidedOn
-                if (input.expiresOn) {
-                  return input.expiresOn >= date.toISOString().split('T')[0]!;
-                }
-                return true;
-              }),
+              .filter(([, input, date]) => input.expiresOn >= date.toISOString().split('T')[0]!),
             { minLength: 1, maxLength: 10 },
           ),
           (items) => {
@@ -94,7 +91,7 @@ describe('Exception register — property-based tests (T7.1)', () => {
             .array(
               fc
                 .tuple(mockFindingArb(), waiverInputArb(), fc.date({ min: new Date('2026-11-01'), max: new Date('2026-11-30') }))
-                .filter(([, input, date]) => !input.expiresOn || input.expiresOn >= date.toISOString().split('T')[0]!),
+                .filter(([, input, date]) => input.expiresOn >= date.toISOString().split('T')[0]!),
               { minLength: 1, maxLength: 5 },
             )
             .chain((items) =>
@@ -136,7 +133,7 @@ describe('Exception register — property-based tests (T7.1)', () => {
           fc.array(
             fc
               .tuple(mockFindingArb(), waiverInputArb(), fc.date({ min: new Date('2026-11-01'), max: new Date('2026-11-30') }))
-              .filter(([, input, date]) => !input.expiresOn || input.expiresOn >= date.toISOString().split('T')[0]!),
+              .filter(([, input, date]) => input.expiresOn >= date.toISOString().split('T')[0]!),
             { minLength: 1, maxLength: 10 },
           ),
           (items) => {
@@ -172,7 +169,7 @@ describe('Exception register — property-based tests (T7.1)', () => {
           fc.array(
             fc
               .tuple(mockFindingArb(), waiverInputArb(), fc.date({ min: new Date('2026-11-01'), max: new Date('2026-11-30') }))
-              .filter(([, input, date]) => !input.expiresOn || input.expiresOn >= date.toISOString().split('T')[0]!),
+              .filter(([, input, date]) => input.expiresOn >= date.toISOString().split('T')[0]!),
             { maxLength: 5 },
           ),
           (items) => {
@@ -203,7 +200,7 @@ describe('Exception register — property-based tests (T7.1)', () => {
         fc.property(fc.array(mockFindingArb(), { maxLength: 3 }), (findings) => {
           let ledger = emptyLedger();
           for (const finding of findings) {
-            const input = { owner: 'A', reason: 'B', compensatingControl: 'C' };
+            const input = { owner: 'A', reason: 'B', compensatingControl: 'C', expiresOn: '2026-12-20' };
             const context = { fingerprint: 'a'.repeat(64), decidedOn: '2026-11-20' };
             try {
               ledger = appendWaiver(ledger, input, finding, context);
@@ -231,7 +228,7 @@ describe('Exception register — property-based tests (T7.1)', () => {
             let ledger = emptyLedger();
             // Optionally add a waiver for the first finding
             if (findings.length > 0 && fc.sample(fc.boolean(), 1)[0]) {
-              const input = { owner: 'A', reason: 'B', compensatingControl: 'C' };
+              const input = { owner: 'A', reason: 'B', compensatingControl: 'C', expiresOn: '2026-12-20' };
               const context = { fingerprint: 'a'.repeat(64), decidedOn: '2026-11-20' };
               try {
                 ledger = appendWaiver(ledger, input, findings[0]!, context);
@@ -253,27 +250,54 @@ describe('Exception register — property-based tests (T7.1)', () => {
       );
     });
 
-    it('unadjudicated always equals OPEN + EXPIRED', () => {
+    it('unadjudicated always equals OPEN + EXPIRED + RELEASED, and a release is never counted as covered', () => {
       fc.assert(
-        fc.property(fc.array(mockFindingArb(), { maxLength: 5 }), (findings) => {
-          let ledger = emptyLedger();
-          for (const finding of findings) {
-            const input = { owner: 'A', reason: 'B', compensatingControl: 'C', expiresOn: '2026-11-10' };
-            const context = { fingerprint: 'a'.repeat(64), decidedOn: '2026-11-01' };
-            try {
-              ledger = appendWaiver(ledger, input, finding, context);
-            } catch {
-              continue;
-            }
-          }
+        fc.property(
+          fc.tuple(
+            fc.array(mockFindingArb(), { minLength: 1, maxLength: 5 }),
+            // Which waivers a human later released, and which expiry each got.
+            fc.array(fc.record({ release: fc.boolean(), futureExpiry: fc.boolean() }), { minLength: 0, maxLength: 5 }),
+          ),
+          ([findings, choices]) => {
+            let ledger = emptyLedger();
+            const waivedIds: string[] = [];
+            findings.forEach((finding, index) => {
+              const choice = choices[index] ?? { release: false, futureExpiry: false };
+              const input = {
+                owner: 'A',
+                reason: 'B',
+                compensatingControl: 'C',
+                // 2026-11-05 is behind the reporting date below, 2026-11-30 is ahead of it.
+                expiresOn: choice.futureExpiry ? '2026-11-30' : '2026-11-05',
+              };
+              const context = { fingerprint: 'a'.repeat(64), decidedOn: '2026-11-01' };
+              try {
+                ledger = appendWaiver(ledger, input, finding, context);
+                const id = ledger.entries[ledger.entries.length - 1]!.id;
+                if (choice.release) {
+                  // A release puts the finding back in front of a human (design 13.4).
+                  ledger = appendRelease(ledger, { owner: 'A', reason: 'withdrawn', control: 're-checked', decidedOn: '2026-11-20' }, id);
+                } else {
+                  waivedIds.push(id);
+                }
+              } catch {
+                // A rejected input leaves the ledger as it was; the next finding is still processed.
+              }
+            });
 
-          try {
-            const classification = classify(findings, ledger, '2026-11-20'); // After expiry
-            return classification.unadjudicated === classification.counts.OPEN + classification.counts.EXPIRED;
-          } catch {
-            return true;
-          }
-        }),
+            const classification = classify(findings, ledger, '2026-11-20');
+            const sum = classification.counts.OPEN + classification.counts.EXPIRED + classification.counts.RELEASED;
+            // The property the previous title claimed and the generator could not reach: RELEASED
+            // is part of unadjudicated, so a release reopens rather than covers.
+            if (classification.unadjudicated !== sum) return false;
+            if (classification.unadjudicated !== findings.length - classification.counts.WAIVED) return false;
+            // And every state the generator was asked for is the state that came back.
+            return waivedIds.every((id) => {
+              const entry = classification.entries.find((candidate) => candidate.waiverId === id);
+              return entry === undefined || entry.status === 'WAIVED' || entry.status === 'EXPIRED';
+            });
+          },
+        ),
         { numRuns: 100 },
       );
     });
