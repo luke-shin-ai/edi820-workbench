@@ -315,6 +315,11 @@ narrates and a layer that proves.
 - Streaming parse for files larger than memory, and `OCCURS DEPENDING ON`, which changes every
   offset after it and therefore needs a decided rule rather than a parser tweak.
 
+The parsing and reconciliation core is already decoupled from the runtime (CLI, stdio MCP server,
+and local browser tab), and human waivers already use a SHA-256 hash-chained append-only ledger.
+For enterprise deployment, the next step is integrating with on-prem DLP policies and adding
+multi-signature approval workflows on top of that ledger to prevent single-approver fraud.
+
 ---
 
 ## How the Kiro pieces fit, and the five lines this submission does not cross
