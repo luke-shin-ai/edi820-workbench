@@ -197,12 +197,12 @@ describe('the MCP path policy: a model-facing surface reads only where a person 
   });
 
   it('caps maxLiveCalls and refuses a date that is not a real day', async () => {
-    const tooMany = await call('explain_findings', { reportPath: 'out/l4-review', maxLiveCalls: MAX_LIVE_CALLS + 1 });
+    const tooMany = await call('explain_findings', { reportPath: 'out/evidence', maxLiveCalls: MAX_LIVE_CALLS + 1 });
     expect(tooMany.isError).toBe(true);
     expect(tooMany.text).toContain(`0 to ${MAX_LIVE_CALLS}`);
-    const negative = await call('explain_findings', { reportPath: 'out/l4-review', maxLiveCalls: -1 });
+    const negative = await call('explain_findings', { reportPath: 'out/evidence', maxLiveCalls: -1 });
     expect(negative.isError).toBe(true);
-    const badDate = await call('exceptions', { reportPath: 'out/l4-review', today: '2026-02-30' });
+    const badDate = await call('exceptions', { reportPath: 'out/evidence', today: '2026-02-30' });
     expect(badDate.isError).toBe(true);
     expect(badDate.text).toContain('YYYY-MM-DD');
   });

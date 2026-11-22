@@ -296,12 +296,14 @@ async function callTool(name: string, params: Record<string, unknown>): Promise<
     case 'explain_findings': {
       const reportPath = str(params, 'reportPath');
       if (!reportPath) throw new AppError('USAGE', 'reportPath is required');
-      const { report } = loadReport(resolveAllowedPath(reportPath, 'read'));
-      const adapter = adapterByName(str(params, 'adapter') ?? 'grounded');
+      // Argument checks come before any file is opened, so a bad request is answered as a bad
+      // request even when the report is missing.
       const requested = params.maxLiveCalls;
       if (requested !== undefined && (typeof requested !== 'number' || !Number.isInteger(requested) || requested < 0 || requested > MAX_LIVE_CALLS)) {
         throw new AppError('USAGE', `maxLiveCalls must be an integer from 0 to ${MAX_LIVE_CALLS}`);
       }
+      const adapter = adapterByName(str(params, 'adapter') ?? 'grounded');
+      const { report } = loadReport(resolveAllowedPath(reportPath, 'read'));
       const run = await explainReport(report, { adapter, maxLiveCalls: requested ?? 0 });
       return { liveCalls: run.liveCalls, budgetLimited: run.budgetLimited, explanations: run.explanations };
     }
