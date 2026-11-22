@@ -367,6 +367,12 @@ write records `head {count, hash}`, so a ledger whose trailing entries were remo
 re-derives; and `decidedOn`, the CLI `--today` and the MCP `today` are checked with `isIsoDate`,
 which had only ever been applied to `expiresOn`.
 
+A ledger written by the earlier build no longer verifies, and that is the intended trade: the
+canonical form changed, so its hashes have to be recomputed, and keeping a compatibility path that
+accepts the old ambiguous form would keep the ambiguity. There is no ledger in the repository and
+none in production, so nothing is lost here; a real deployment would migrate by re-appending its
+decisions, which is the act the register exists to record.
+
 ### 16.3 The BAI2 account control total summed the wrong things
 
 The `49` check used the first `03` amount plus signed `16` details. Published BAI2 files add the
