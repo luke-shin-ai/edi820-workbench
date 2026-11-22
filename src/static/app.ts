@@ -406,6 +406,9 @@ function renderVerify(identical: boolean, note: string): void {
 }
 
 function wire(): void {
+  wireStrip('strip-top');
+  wireStrip('strip-bottom');
+
   el('scenarios').addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest('.scenario') as HTMLElement | null;
     if (!button) return;
@@ -576,11 +579,42 @@ function restore(): void {
   }
 }
 
+/**
+ * One compact strip: the tag, a one-line summary, a toggle and the full list.
+ *
+ * The list is in the document (so the text a reviewer looks for is still there) but closed by
+ * default: the full guarantee text used to take 150px of the first screen on a desktop and
+ * five screens on a phone before any scenario was visible.
+ */
+function stripHtml(tag: string, brief: string, items: string[]): string {
+  return `<span class="tag">${tag}</span><span class="item brief">${esc(brief)}</span>` +
+    `<button type="button" class="strip-toggle" aria-expanded="false">Show all (${items.length})</button>` +
+    `<div class="strip-items">${items.map((item) => `<span class="item">${esc(item)}</span>`).join('')}</div>`;
+}
+
 function stripGuarantees(): void {
-  el('strip-top').innerHTML = '<span class="tag">Guaranteed</span>' +
-    GUARANTEES.guaranteed.map((item) => `<span class="item">${esc(item)}</span>`).join('');
-  el('strip-bottom').innerHTML = '<span class="tag">Not guaranteed: a human decides</span>' +
-    GUARANTEES.notGuaranteed.map((item) => `<span class="item">${esc(item)}</span>`).join('');
+  el('strip-top').innerHTML = stripHtml(
+    'Guaranteed',
+    '6 checks: format, layout, arithmetic, references, replay, grounding',
+    GUARANTEES.guaranteed,
+  );
+  el('strip-bottom').innerHTML = stripHtml(
+    'Not guaranteed: a human decides',
+    '4 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity',
+    GUARANTEES.notGuaranteed,
+  );
+}
+
+/** The strips are rebuilt from the bundle, so the toggle is heard on the strip, not the button. */
+function wireStrip(id: string): void {
+  const node = el(id);
+  node.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest('.strip-toggle') as HTMLElement | null;
+    if (!button) return;
+    const open = node.classList.toggle('open');
+    button.setAttribute('aria-expanded', String(open));
+    button.textContent = open ? 'Hide' : `Show all (${node.querySelectorAll('.strip-items .item').length})`;
+  });
 }
 
 function boot(): void {

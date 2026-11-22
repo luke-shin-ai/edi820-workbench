@@ -32,7 +32,7 @@ ${PAGE_CSS}
   <span class="fingerprint" id="fp">fingerprint -</span>
 </header>
 
-<div class="strip top" id="strip-top"><span class="tag">Guaranteed</span><span class="item">loading...</span></div>
+<div class="strip top" id="strip-top"><span class="tag">Guaranteed</span><span class="item brief">6 checks: format, layout, arithmetic, references, replay, grounding</span><button type="button" class="strip-toggle" aria-expanded="false">Show all (6)</button><div class="strip-items"><span class="item">loading...</span></div></div>
 
 <main>
   <section class="col col-left">
@@ -81,7 +81,7 @@ ${PAGE_CSS}
         <div class="counter"><div class="n" id="cUnmatched">-</div><div class="k">refs unmatched</div></div>
       </div>
       <h3>Control totals (minor units)</h3>
-      <table id="totals"><thead><tr><th>currency</th><th>declared</th><th>summed</th><th>delta</th></tr></thead><tbody></tbody></table>
+      <div class="tablewrap"><table id="totals"><thead><tr><th>currency</th><th>declared</th><th>summed</th><th>delta</th></tr></thead><tbody></tbody></table></div>
     </div>
 
     <h3>Findings</h3>
@@ -104,7 +104,7 @@ ${PAGE_CSS}
   </section>
 </main>
 
-<div class="strip bottom" id="strip-bottom"><span class="tag">Not guaranteed: a human decides</span><span class="item">loading...</span></div>
+<div class="strip bottom" id="strip-bottom"><span class="tag">Not guaranteed: a human decides</span><span class="item brief">4 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity</span><button type="button" class="strip-toggle" aria-expanded="false">Show all (4)</button><div class="strip-items"><span class="item">loading...</span></div></div>
 
 <script>
 (function () {
@@ -122,6 +122,29 @@ ${PAGE_CSS}
     el('bytes').innerHTML = '<span class="err">' + esc(err && err.message ? err.message : err) + '</span>';
   }
 
+  // One compact strip: tag, a one-line summary, a toggle and the full list (closed by default).
+  function stripHtml(tag, brief, items) {
+    var html = '<span class="tag">' + esc(tag) + '</span><span class="item brief">' + esc(brief) + '</span>' +
+      '<button type="button" class="strip-toggle" aria-expanded="false">Show all (' + items.length + ')</button>' +
+      '<div class="strip-items">';
+    for (var i = 0; i < items.length; i++) html += '<span class="item">' + esc(items[i]) + '</span>';
+    return html + '</div>';
+  }
+
+  function wireStrip(id) {
+    var node = el(id);
+    node.addEventListener('click', function (event) {
+      var button = event.target.closest ? event.target.closest('.strip-toggle') : null;
+      if (!button) return;
+      var open = node.className.indexOf('open') < 0;
+      node.className = open ? node.className + ' open' : node.className.replace(' open', '');
+      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      button.textContent = open ? 'Hide' : 'Show all (' + node.querySelectorAll('.strip-items .item').length + ')';
+    });
+  }
+  wireStrip('strip-top');
+  wireStrip('strip-bottom');
+
   function fillSelect(select, items, placeholder) {
     var html = '<option value="">' + esc(placeholder) + '</option>';
     for (var i = 0; i < items.length; i++) {
@@ -136,14 +159,10 @@ ${PAGE_CSS}
       fillSelect(el('selCopybook'), data.copybooks, '(none; BAI2 needs no copybook)');
       fillSelect(el('selFile'), data.files, '(choose a payment file)');
       fillSelect(el('selBank'), data.files, '(no bank side)');
-      var stripTop = el('strip-top');
-      var stripBottom = el('strip-bottom');
-      stripTop.innerHTML = '<span class="tag">Guaranteed</span>' + data.guarantees.guaranteed.map(function (g) {
-        return '<span class="item">' + esc(g) + '</span>';
-      }).join('');
-      stripBottom.innerHTML = '<span class="tag">Not guaranteed: a human decides</span>' + data.guarantees.notGuaranteed.map(function (g) {
-        return '<span class="item">' + esc(g) + '</span>';
-      }).join('');
+      el('strip-top').innerHTML = stripHtml('Guaranteed',
+        '6 checks: format, layout, arithmetic, references, replay, grounding', data.guarantees.guaranteed);
+      el('strip-bottom').innerHTML = stripHtml('Not guaranteed: a human decides',
+        '4 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity', data.guarantees.notGuaranteed);
       return data;
     });
   }

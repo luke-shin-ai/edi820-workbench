@@ -25,10 +25,11 @@ const STATIC_CSS = `
   .scenario .exp.pass { color: #79d492; }
   .scenario .exp.fail { color: #ff9c94; }
   .banner {
-    display: flex; gap: 10px; align-items: center; padding: 7px 20px; font-size: 12px;
+    display: flex; gap: 4px 10px; align-items: baseline; flex-wrap: wrap; padding: 5px 16px; font-size: 11.5px;
     background: #101c28; border-bottom: 1px solid #25405a; color: #9dc7ea;
   }
-  .banner b { color: #cfe6fb; font-weight: 600; }
+  .banner b { color: #cfe6fb; font-weight: 600; white-space: nowrap; }
+  .banner span { flex: 1 1 320px; min-width: 0; }
   .l4 { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; }
   .l4 table { font-size: 11px; }
   .l4 .st { font-family: var(--mono); font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid; }
@@ -46,6 +47,20 @@ const STATIC_CSS = `
   .toast { position: fixed; right: 18px; bottom: 64px; background: var(--panel-2); border: 1px solid var(--accent);
     color: var(--ink); padding: 8px 12px; border-radius: 8px; font-size: 12px; opacity: 0; transition: opacity .2s; }
   .toast.on { opacity: 1; }
+
+  /* These rules come after the base ones above, so they win at phone widths. */
+  @media (max-width: 1080px) {
+    .banner { padding: 5px 12px; font-size: 11px; }
+    .l4 form { grid-template-columns: 1fr; }
+    .l4 form .full { grid-column: 1 / -1; }
+    .l4 table { font-size: 10.5px; }
+  }
+  @media (max-width: 620px) {
+    .l4 .row2 { flex-wrap: wrap; }
+    .l4 .row2 button { flex: 1 1 46%; }
+    .scenario { grid-template-columns: 24px 1fr 34px; padding: 7px; }
+    .toast { bottom: 12px; }
+  }
 `;
 
 export function renderStaticPage(): string {
@@ -72,7 +87,7 @@ ${STATIC_CSS}
   <span>Nothing is uploaded, nothing is stored on a server. The parser, reconciler, BAI2 reader, explainer and exception register are the same code the CLI runs, compiled for the browser.</span>
 </div>
 
-<div class="strip top" id="strip-top"><span class="tag">Guaranteed</span><span class="item">loading...</span></div>
+<div class="strip top" id="strip-top"><span class="tag">Guaranteed</span><span class="item brief">6 checks: format, layout, arithmetic, references, replay, grounding</span><button type="button" class="strip-toggle" aria-expanded="false">Show all (6)</button><div class="strip-items"><span class="item">loading...</span></div></div>
 
 <main>
   <section class="col col-left">
@@ -112,7 +127,7 @@ ${STATIC_CSS}
         <div class="counter"><div class="n" id="cOpen">-</div><div class="k">open exceptions</div></div>
       </div>
       <h3>Control totals (minor units)</h3>
-      <table id="totals"><thead><tr><th>currency</th><th>declared</th><th>summed</th><th>delta</th></tr></thead><tbody></tbody></table>
+      <div class="tablewrap"><table id="totals"><thead><tr><th>currency</th><th>declared</th><th>summed</th><th>delta</th></tr></thead><tbody></tbody></table></div>
       <div class="row" style="margin-top:10px">
         <button id="btnVerify">Re-derive and compare</button>
       </div>
@@ -129,7 +144,7 @@ ${STATIC_CSS}
     <div class="l4">
       <h2>4. Exception register (L4): what a human decided</h2>
       <div class="small muted" id="l4note">A waiver records a reason, an owner, a compensating control and an expiry. It never changes the verdict above.</div>
-      <table id="l4table"><thead><tr><th>status</th><th>finding</th><th>owner / reason</th></tr></thead><tbody></tbody></table>
+      <div class="tablewrap"><table id="l4table"><thead><tr><th>status</th><th>finding</th><th>owner / reason</th></tr></thead><tbody></tbody></table></div>
       <form id="l4form" autocomplete="off">
         <input id="l4owner" class="full" placeholder="owner (a person, not a team)" />
         <input id="l4reason" class="full" placeholder="reason: why this exception is acceptable" />
@@ -158,7 +173,7 @@ ${STATIC_CSS}
   </section>
 </main>
 
-<div class="strip bottom" id="strip-bottom"><span class="tag">Not guaranteed: a human decides</span><span class="item">loading...</span></div>
+<div class="strip bottom" id="strip-bottom"><span class="tag">Not guaranteed: a human decides</span><span class="item brief">4 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity</span><button type="button" class="strip-toggle" aria-expanded="false">Show all (4)</button><div class="strip-items"><span class="item">loading...</span></div></div>
 <div class="toast" id="toast"></div>
 
 <script src="bundle.js"></script>

@@ -3047,6 +3047,8 @@ ${draft.suggestedFix}`, finding);
     el("verifyOut").innerHTML = identical ? `<span style="color:#79d492">identical: same inputs, same verdict</span><br/>${esc(note)}` : `<span style="color:#ff9c94">DIFFERENT: ${esc(note)}</span>`;
   }
   function wire() {
+    wireStrip("strip-top");
+    wireStrip("strip-bottom");
     el("scenarios").addEventListener("click", (event) => {
       const button = event.target.closest(".scenario");
       if (!button) return;
@@ -3201,9 +3203,30 @@ ${draft.suggestedFix}`, finding);
       state.ledger = emptyLedger();
     }
   }
+  function stripHtml(tag, brief, items) {
+    return `<span class="tag">${tag}</span><span class="item brief">${esc(brief)}</span><button type="button" class="strip-toggle" aria-expanded="false">Show all (${items.length})</button><div class="strip-items">${items.map((item) => `<span class="item">${esc(item)}</span>`).join("")}</div>`;
+  }
   function stripGuarantees() {
-    el("strip-top").innerHTML = '<span class="tag">Guaranteed</span>' + GUARANTEES.guaranteed.map((item) => `<span class="item">${esc(item)}</span>`).join("");
-    el("strip-bottom").innerHTML = '<span class="tag">Not guaranteed: a human decides</span>' + GUARANTEES.notGuaranteed.map((item) => `<span class="item">${esc(item)}</span>`).join("");
+    el("strip-top").innerHTML = stripHtml(
+      "Guaranteed",
+      "6 checks: format, layout, arithmetic, references, replay, grounding",
+      GUARANTEES.guaranteed
+    );
+    el("strip-bottom").innerHTML = stripHtml(
+      "Not guaranteed: a human decides",
+      "4 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity",
+      GUARANTEES.notGuaranteed
+    );
+  }
+  function wireStrip(id) {
+    const node = el(id);
+    node.addEventListener("click", (event) => {
+      const button = event.target.closest(".strip-toggle");
+      if (!button) return;
+      const open = node.classList.toggle("open");
+      button.setAttribute("aria-expanded", String(open));
+      button.textContent = open ? "Hide" : `Show all (${node.querySelectorAll(".strip-items .item").length})`;
+    });
   }
   function boot() {
     wire();
