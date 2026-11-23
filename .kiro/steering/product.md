@@ -5,7 +5,7 @@ inclusion: always
 # Product: 「820」
 
 ## What this is
-「820」 is a resurrection workbench for **fixed-width corporate payment and reconciliation files** - ANSI X12 **EDI 820/823**, bank **BAI2**, described by **COBOL copybooks**. The file formats are alive in enterprise back offices; the tools and people who could read them are gone.
+「820」 is a resurrection workbench for **fixed-width corporate payment and reconciliation files** - the 820/823 style files that ANSI X12 EDI defines and that enterprises store positionally, described by **COBOL copybooks**, plus bank **BAI2** statements. In this build those formats are the fixed-width files a copybook describes; a delimited ANSI X12 transaction set (`ST*820*...~`) is not parsed. The file formats are alive in enterprise back offices; the tools and people who could read them are gone.
 
 Given a data file plus its copybook, 「820」:
 1. **types every record** with a deterministic parser (no AI),
