@@ -30,9 +30,10 @@ based testing, an MCP server over stdio, and one dependency free HTML screen.
 
 Corporate payment files never died. The people and tools that could read them did.
 
-EDI 820 remittance orders, 823 confirmations, and BAI2 bank statements still move between banks and
-ERP systems every day as fixed-width text. What each byte means is written in a COBOL copybook, and
-a back office that cannot read it retypes the file into a spreadsheet.
+Fixed-width payment and remittance files still move between banks and ERP systems every day as
+positional text: a payer's payment order and the bank side answer, whose 820 and 823 style layouts
+are described by a COBOL copybook, plus BAI2 bank statements. What each byte means is written in
+the copybook, and a back office that cannot read it retypes the file into a spreadsheet.
 
 「820」 takes a file plus its copybook (or a BAI2 file, which needs none) and runs four separate
 layers:
@@ -50,6 +51,11 @@ layers:
    `INSUFFICIENT_EVIDENCE`. By default it runs a deterministic template and spends no credits.
 4. **Human.** The exception register. A reason, an expiry date and a compensating control are
    required before an exception can exist.
+
+**What this is not.** None of these files is a delimited ANSI X12 transaction set, which uses the
+same 820 and 823 numbers: those begin with a segment identifier and end with `~`
+(`ST*820*...~`), and a standard X12 segment parser is not part of this build. An 823 is read here
+as the bank side remittance and lockbox confirmation, not as a receipt that a payment was made.
 
 The verdict is deterministic and re-derivable: `820 verify` re-runs the deterministic layers from
 the recorded inputs and compares a SHA-256 fingerprint, read-only.
@@ -313,7 +319,9 @@ narrates and a layer that proves.
   hash chained over a JSON array of its fields rather than a joined string, and records a head of
   entry count and hash, so a removed trailing entry is `LEDGER_TRUNCATED` and `verify` fails. A
   waiver carries an owner, a reason, a compensating control and an expiry, and editing any entry
-  afterwards breaks the chain at that sequence number.
+  afterwards breaks the chain at that sequence number. This is tamper evidence, not tamper proof:
+  the chain has no anchor outside the file, so someone who recomputes every hash and the head still
+  produces a ledger that verifies.
 - One engine in three places: the CLI, the local screen and a static browser build share the
   parser and the reconciler, and the static build's fingerprints are asserted equal to the CLI's
   for all eight sample scenarios (`scripts/check-static.py`).
@@ -333,9 +341,11 @@ narrates and a layer that proves.
   Decoding EBCDIC is a roadmap item and is not claimed here.
 
 The parsing and reconciliation core is already decoupled from the runtime (CLI, stdio MCP server,
-and local browser tab), and human waivers already use a SHA-256 hash-chained append-only ledger.
-For enterprise deployment, the next step is integrating with on-prem DLP policies and adding
-multi-signature approval workflows on top of that ledger to prevent single-approver fraud.
+and local browser tab), and human waivers already use a SHA-256 hash-chained append-only ledger
+that is tamper evident rather than tamper proof: an anchor for its head outside the file is what
+makes a rewritten history detectable. For enterprise deployment, the next step is that anchor,
+then integrating with on-prem DLP policies and adding multi-signature approval workflows on top of
+the ledger to prevent single-approver fraud.
 
 ---
 

@@ -104,7 +104,7 @@ ${PAGE_CSS}
   </section>
 </main>
 
-<div class="strip bottom" id="strip-bottom"><span class="tag">Not guaranteed: a human decides</span><span class="item brief">4 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity</span><button type="button" class="strip-toggle" aria-expanded="false">Show all (4)</button><div class="strip-items"><span class="item">loading...</span></div></div>
+<div class="strip bottom" id="strip-bottom"><span class="tag">Not guaranteed: a human decides</span><span class="item brief">6 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity, ANSI X12 transaction sets, tamper proof history</span><button type="button" class="strip-toggle" aria-expanded="false">Show all (6)</button><div class="strip-items"><span class="item">loading...</span></div></div>
 
 <script>
 (function () {
@@ -162,7 +162,7 @@ ${PAGE_CSS}
       el('strip-top').innerHTML = stripHtml('Guaranteed',
         '6 checks: format, layout, arithmetic, references, replay, grounding', data.guarantees.guaranteed);
       el('strip-bottom').innerHTML = stripHtml('Not guaranteed: a human decides',
-        '4 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity', data.guarantees.notGuaranteed);
+        '6 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity, ANSI X12 transaction sets, tamper proof history', data.guarantees.notGuaranteed);
       return data;
     });
   }

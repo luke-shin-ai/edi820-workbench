@@ -29,6 +29,8 @@ const FALLBACK: Guarantees = {
     'Whether an exception is acceptable - a human attaches reason, expiry and compensating control.',
     'Coverage of unmodelled clauses - OCCURS DEPENDING ON, binary COMP, EBCDIC and unbound REDEFINES are refused, never guessed.',
     'Source data authenticity - the tool verifies internal consistency, not who sent the file.',
+    'The ANSI X12 transaction set - the input is a positional file with its copybook or a BAI2 statement; a delimited X12 transaction set is not parsed.',
+    'An immutable history - the register chain detects an edited, reordered or truncated entry, but it has no external anchor, so a full rewrite verifies.',
   ],
   sourcePath: '(built-in copy of docs/guarantees.md)',
 };

@@ -6,7 +6,7 @@
 
 Corporate payment files never died. The people and tools that could read them did.
 
-**EDI 820/823** remittance files, bank **BAI2** statements, and the **COBOL copybooks** that describe them still move between banks and ERP systems every day, as fixed-width text that no modern system can interpret. Back-office teams retype them into spreadsheets and hope.
+Two families of file are meant here. **Fixed-width payment and remittance files** whose 820/823 style layouts are described by a **COBOL copybook**: the payer's payment order (820) and the bank side answer (823), which in this repository is a remittance and lockbox confirmation, not a bare notice that a payment arrived. And **BAI2** bank statements, which carry their own layout. Both are positional, so what a byte means comes from its offset. Neither is the delimited **ANSI X12** transaction set that uses the same 820/823 numbers (`ST*820*...~`): a standard X12 segment parser is not part of this build and is a roadmap item. Back-office teams retype these files into spreadsheets and hope.
 
 「820」 takes a file **and its copybook** (or a BAI2 file, which needs none) and does four things, in four separate layers:
 
@@ -18,6 +18,8 @@ Corporate payment files never died. The people and tools that could read them di
 | L4 register | records a human decision per finding: owner, reason, compensating control, expiry, hash chained and append only | human | `src/exception` |
 
 The verdict is **deterministic and re-verifiable** (`820 verify`); the model never decides whether numbers match, and by default it is not called at all. A waiver never turns a verdict green: the register says what a person accepted, beside the answer the code produced.
+
+The register is **tamper-evident, not tamper-proof**. Its hash chain and recorded head catch an entry that was edited, reordered or cut from the tail: `verify` fails and names the sequence. The chain is local and has no outside trust anchor, so a person who recomputes every hash in the file, head included, produces a file that still verifies. Making that detectable needs a witness outside the file, which is why it is on the roadmap rather than in the claims.
 
 Verdicts: `PASS` (every check agreed), `INCOMPLETE` (a parse issue left bytes uninterpreted, so no PASS is earned), `FAIL` (findings exist). Exit codes are `0` / `2` / `3`.
 
@@ -167,7 +169,7 @@ Both files agree with the reader on the `49` account control totals, the `98` gr
 - `devpost-submission-draft.md`: the submission text and the write-up, including how spec, steering, the custom agent, hooks, MCP and the CLI combine, and the five boundaries the submission keeps
 
 ## What this guarantees / does not guarantee
-See [`docs/guarantees.md`](docs/guarantees.md), which is parsed and printed by `820 verify` and shown in both strips of the screen. Short version: it guarantees format interpretation (including one active layout per `REDEFINES` region), exact arithmetic, reference reconciliation, reproducibility and explanation grounding; it does **not** guarantee legal or accounting adequacy, and whether an exception is acceptable is a human's call, on purpose.
+See [`docs/guarantees.md`](docs/guarantees.md), which is parsed and printed by `820 verify` and shown in both strips of the screen. Short version: it guarantees format interpretation (including one active layout per `REDEFINES` region), exact arithmetic, reference reconciliation, reproducibility and explanation grounding; it does **not** guarantee legal or accounting adequacy, whether an exception is acceptable (a human's call, on purpose), the authenticity of the source data, delimited ANSI X12 transaction sets (not read here), or the immutability of the register (its chain is tamper-evident only).
 
 ## Data
 

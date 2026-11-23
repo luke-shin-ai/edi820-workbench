@@ -600,7 +600,7 @@ function stripGuarantees(): void {
   );
   el('strip-bottom').innerHTML = stripHtml(
     'Not guaranteed: a human decides',
-    '4 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity',
+    '6 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity, ANSI X12 transaction sets, tamper proof history',
     GUARANTEES.notGuaranteed,
   );
 }
