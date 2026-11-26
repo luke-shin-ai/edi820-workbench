@@ -1,9 +1,26 @@
 # Copybook to Kiro spec: the conversion log
 
 > This document is both a build artifact and a demo asset. It records **what actually happened**
-> when three legacy record definitions were turned into a Kiro spec, including the parts that were
-> typed by hand and the parts Kiro did not do.
+> when three synthetic record definitions, written for this project, were turned into a Kiro spec,
+> including the parts that were typed by hand and the parts Kiro did not do.
 > Rule: if a step was done by hand, it says `[manual]`. If it was not verified, it says so.
+
+## Where the three copybooks came from
+
+The copybooks in `samples/copybooks/` are **synthetic definitions written for this entry**, on
+2026-11-21, in this workspace. No customer file, no employer file and no vendor document was copied
+into them, and no third-party "legacy spec document" was used as a source: the phrase "legacy" in
+this page describes the generation of the format (settlement files whose original readers have been
+retired), not a document that existed before this repository. The first commit in this repository is
+`6dfa9aa` on 2026-11-21, and the copybooks arrive with it, so there is no earlier history to point at
+and none is claimed.
+
+What the three files do reproduce is the set of conventions that public format descriptions and
+COBOL copybooks in general share: byte offsets, `PIC` widths, trailing overpunch on a display amount,
+`SIGN LEADING SEPARATE`, `COMP-3`, implied decimals, and `REDEFINES` over one byte range. The record
+layouts, field names, company name (*Northwind Pay*) and every amount are invented. The two BAI2
+files in `samples/public/` are the only third-party material in the repository, and their provenance
+is in `samples/public/SOURCES.md`.
 
 ## Why convert a spec at all
 
@@ -26,8 +43,9 @@ This file records how each line got there.
 ## Step 0: the three byte contracts
 
 Three synthetic copybooks were written first, each representing a real convention that modern
-tooling drops. The numbers below are printed by `demo-video/build/dump-copybook.mjs`, which calls
-the real compiler (`src/copybook/compiler.ts`), not a hand count.
+tooling drops. They are this project's own definitions (see the section above), and the numbers
+below are printed by `demo-video/build/dump-copybook.mjs`, which calls the real compiler
+(`src/copybook/compiler.ts`), not a hand count.
 
 | copybook | record length | framing | amount field | sign convention | bytes of AMOUNT |
 |---|---|---|---|---|---|
@@ -162,7 +180,7 @@ Recorded here rather than in a commit message nobody reads.
 
 ## Step 6: what this is worth in the write-up
 
-The conversion produced 33 requirements, 14 recorded design deltas, and 311 tests from four
+The conversion produced 33 requirements, 14 recorded design deltas, and 334 tests from four
 copybooks that contain no requirements at all. Six of the deltas exist because a rule had to be
 *decided*, one exists because a steering file overruled the design draft, and the tenth (`REDEFINES`
 as a region with declared layouts) exists because the copybook said which bytes are shared and

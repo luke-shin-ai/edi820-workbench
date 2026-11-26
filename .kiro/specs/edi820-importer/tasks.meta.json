@@ -1,0 +1,71 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "T6.5 Blog post + social post with `#KiroweenHackathon26` at the start. Not attempted in this run: both are public posts under the account holder's name.": [
+      {
+        "executionId": "7bdb33c5-372b-4d13-a603-4ebcd31ce648",
+        "chatSessionId": "sess_f35505e7-a0be-4292-9ab9-9f8b63909bbe",
+        "timestamp": 1795311005988
+      }
+    ],
+    "T6.6 Final Devpost submission before **2026-12-04 23:00 KST** (8 hours of buffer). The form text is ready in `devpost-submission-draft.md`; the entry itself is the account holder's act.": [
+      {
+        "executionId": "7bdb33c5-372b-4d13-a603-4ebcd31ce648",
+        "chatSessionId": "sess_f35505e7-a0be-4292-9ab9-9f8b63909bbe",
+        "timestamp": 1795311006021
+      }
+    ],
+    "T9.5 **Claim checker** - a script that fails when a published document states a test count, property count or requirement count that the repository does not hold. Task: write `scripts/check-claims.mjs`, add `\"check:claims\"` to `package.json`, run it, and record the result. Evidence: `npm run check:claims` printing every claim it checked and exiting 0.": [
+      {
+        "executionId": "7bdb33c5-372b-4d13-a603-4ebcd31ce648",
+        "chatSessionId": "sess_f35505e7-a0be-4292-9ab9-9f8b63909bbe",
+        "timestamp": 1795311038291
+      },
+      {
+        "executionId": "7bdb33c5-372b-4d13-a603-4ebcd31ce648",
+        "chatSessionId": "sess_f35505e7-a0be-4292-9ab9-9f8b63909bbe",
+        "timestamp": 1795311039718
+      },
+      {
+        "executionId": "02f712cb-e8ac-4632-92aa-7bb586ec3528",
+        "chatSessionId": "sess_c38f6012-7201-46dc-99c0-98a85eedaaed",
+        "timestamp": 1795311098078
+      },
+      {
+        "executionId": "02f712cb-e8ac-4632-92aa-7bb586ec3528",
+        "chatSessionId": "sess_c38f6012-7201-46dc-99c0-98a85eedaaed",
+        "timestamp": 1795311124727
+      },
+      {
+        "executionId": "d9296da7-00c7-468e-9e3d-ee54a373ba99",
+        "chatSessionId": "sess_515ee423-3152-4719-a65c-6ebcebaf1bd6",
+        "timestamp": 1795311161721
+      },
+      {
+        "executionId": "d9296da7-00c7-468e-9e3d-ee54a373ba99",
+        "chatSessionId": "sess_515ee423-3152-4719-a65c-6ebcebaf1bd6",
+        "timestamp": 1795311162937
+      },
+      {
+        "executionId": "96abe66b-1527-4c3b-9754-d74bf45c2d0d",
+        "chatSessionId": "sess_0816e9c1-69dd-42ed-af48-b90c548dde1b",
+        "timestamp": 1795311197714
+      },
+      {
+        "executionId": "96abe66b-1527-4c3b-9754-d74bf45c2d0d",
+        "chatSessionId": "sess_0816e9c1-69dd-42ed-af48-b90c548dde1b",
+        "timestamp": 1795311199108
+      },
+      {
+        "executionId": "56ff8ca7-01bf-4c69-8b4c-63559ceaf988",
+        "chatSessionId": "sess_414aa196-928b-4658-9aed-450272858585",
+        "timestamp": 1795311923958
+      },
+      {
+        "executionId": "56ff8ca7-01bf-4c69-8b4c-63559ceaf988",
+        "chatSessionId": "sess_414aa196-928b-4658-9aed-450272858585",
+        "timestamp": 1795311925206
+      }
+    ]
+  }
+}

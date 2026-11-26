@@ -13,8 +13,8 @@ out/evidence/*
 .DS_Store
 *.log
 
-# Kiroween 2026 submission requirement: /.kiro MUST be committed.
-# Never add .kiro, .kiro/specs, .kiro/steering or .kiro/hooks to this file.
+# Kiroween 2026 submission requirement: the .kiro directory MUST be committed.
+# Do not add an ignore rule for it or for anything inside it.
 
 # Working copy only: local notes, drafts, run logs and review scratch. The patterns are
 # general on purpose, so this file describes a kind of file rather than listing the ones
@@ -32,9 +32,6 @@ screenshots/
 reviews*/
 *-review.md
 *-review-v*.md
-
-# Kiro's task-graph state: session ids and timestamps for the task tool, not part of the spec.
-.kiro/specs/**/tasks.meta.json
 
 # local scratch (tool runs, temporary reports)
 .tmp/

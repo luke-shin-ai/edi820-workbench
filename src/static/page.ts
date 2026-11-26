@@ -44,6 +44,16 @@ const STATIC_CSS = `
   .l4 .row2 { display: flex; gap: 6px; margin-top: 8px; align-items: center; }
   .l4 button { padding: 5px 10px; font-size: 11px; }
   .l4 button.ghost { padding: 5px 10px; }
+  /* The one-line result, above everything else: a judge reads the answer before the dump. */
+  .hero {
+    display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap;
+    padding: 10px 16px; background: #0f1a26; border-bottom: 1px solid #25405a;
+  }
+  .hero .chip { font-size: 14px; padding: 3px 12px; letter-spacing: 0.06em; }
+  .hero .hero-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 420px; }
+  .hero .hero-line { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+  .hero .hero-line .lead { color: #cfe6fb; font-weight: 600; }
+  .hero .hero-note { font-size: 11px; color: #8fb4d4; }
   .toast { position: fixed; right: 18px; bottom: 64px; background: var(--panel-2); border: 1px solid var(--accent);
     color: var(--ink); padding: 8px 12px; border-radius: 8px; font-size: 12px; opacity: 0; transition: opacity .2s; }
   .toast.on { opacity: 1; }
@@ -51,6 +61,8 @@ const STATIC_CSS = `
   /* These rules come after the base ones above, so they win at phone widths. */
   @media (max-width: 1080px) {
     .banner { padding: 5px 12px; font-size: 11px; }
+    .hero { padding: 8px 12px; }
+    .hero .hero-body { flex: 1 1 260px; }
     .l4 form { grid-template-columns: 1fr; }
     .l4 form .full { grid-column: 1 / -1; }
     .l4 table { font-size: 10.5px; }
@@ -81,6 +93,14 @@ ${STATIC_CSS}
   <span class="sub">fixed-width 820/823 + BAI2: verdict by code, narration by agent</span>
   <span class="fingerprint" id="fp">fingerprint -</span>
 </header>
+
+<div class="hero" id="hero">
+  <span class="chip info" id="heroChip">-</span>
+  <div class="hero-body">
+    <div class="hero-line" id="heroLine">running the first scenario...</div>
+    <div class="hero-note">Fixed-width 820/823 payment files and BAI2 bank statements, reconciled against the bank side. This is not the ANSI X12 transaction set (ST*820): no X12 segment file is read here.</div>
+  </div>
+</div>
 
 <div class="banner">
   <b>Runs in this tab.</b>

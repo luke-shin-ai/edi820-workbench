@@ -16,14 +16,34 @@ Both publishers present the account numbers, names and references as fictitious 
 reproduced here only so that a reviewer can run the reader over them again:
 
 ```bash
-npx tsx scripts/verify-public-bai2.mjs
+npm run verify:public                      # tsx scripts/verify-public-bai2.ts
 npx vitest run test/unit/public-bai2.test.ts
 ```
 
+## Use and permission, as far as it could be established
+
+Both files are published by their owners as public documentation of the BAI2 format, without a
+registration wall, and both contain fictitious data. Neither publisher states a licence or terms of
+use on the page the file came from, and no written permission was requested before this entry was
+submitted (checked 2026-11-26 against the two URLs above). What is claimed here is only that:
+
+- the files are copied **verbatim** and attributed to the publisher, with the URL and the download
+date, so the source of every byte is traceable;
+- they are used to test a reader against data this project did not write, which is the purpose the
+  publishers put them to in their own documents;
+- the bank names appear only as the source of a format sample, not as customers, partners or
+  endorsers of this project;
+- if a publisher asks for removal, the file is deleted from `samples/public/`, the two tests that use
+  it are removed with it, and the numbers in the README that depend on it are withdrawn.
+
+If that is not enough basis for a redistribution, the honest reading is that the samples should be
+replaced with synthetic BAI2 files before publication. They are kept because the alternative, a
+fixture this project wrote itself, cannot show that the reader handles a file it did not choose.
+
 ## What the copies prove
 
-`scripts/verify-public-bai2.mjs` parses each file with `src/bai2/reader.ts` and prints what the reader
-found. As of 2026-11-23 both files parse with **no issues**: the record counts in the `49`, `98` and
+`scripts/verify-public-bai2.ts` parses each file with `src/bai2/reader.ts` and prints what the reader
+found. As of 2026-11-26 both files parse with **no issues**: the record counts in the `49`, `98` and
 `99` trailers agree with the records read, and the `49` account control totals agree with the amounts
 in the `03`, `16` and `88` records.
 
@@ -37,6 +57,6 @@ continuations (`88`) for both summaries and detail text, the other has four acco
 
 ## Adding a third file
 
-Add the file, its source URL and download date to the table, extend `scripts/verify-public-bai2.mjs`
+Add the file, its source URL and download date to the table, extend `scripts/verify-public-bai2.ts`
 and `test/unit/public-bai2.test.ts`, and keep the copy byte-identical except for the notes above. A
 file that the reader cannot parse is worth keeping too: say what the reader reported and why.

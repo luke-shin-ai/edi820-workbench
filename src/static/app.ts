@@ -243,6 +243,16 @@ function renderVerdict(): void {
   const status = el('status');
   status.textContent = view.status;
   status.className = `chip ${view.status === 'PASS' ? 'pass' : view.status === 'INCOMPLETE' ? 'warn' : 'fail'}`;
+  // The same answer, one line, above the scenario rail and the record dump: verdict, how many
+  // findings, and the fingerprint a reader can compare with the CLI (P1-7, 2026-11-26).
+  const heroChip = el('heroChip');
+  heroChip.textContent = view.status;
+  heroChip.className = `chip ${view.status === 'PASS' ? 'pass' : view.status === 'INCOMPLETE' ? 'warn' : 'fail'}`;
+  const bankLabel = view.files.bank ? ` against the bank side (${view.files.bank.path})` : '';
+  el('heroLine').textContent =
+    `${view.status}, ${view.findings.length} finding${view.findings.length === 1 ? '' : 's'}, ` +
+    `${view.files.payment.details} records from ${view.files.payment.path}${bankLabel}, ` +
+    `fingerprint ${view.fingerprint.slice(0, 16)}...`;
   el('verdictMeta').textContent = `${view.files.payment.details} details, ${view.files.payment.format}` +
     (view.files.bank ? ` + bank ${view.files.bank.details} details (${view.files.bank.format})` : '') +
     (view.summary.blockingParseIssues ? `, ${view.summary.blockingParseIssues} blocking parse issue(s)` : '') +
