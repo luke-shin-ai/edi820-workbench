@@ -14,12 +14,28 @@ Form fields are marked **[form]**. The write-up answers are marked **[write-up]*
 
 ## [form] Elevator pitch (tagline)
 
-Read, reconcile and re-verify fixed-width EDI 820/823 payment files and BAI2 bank statements from
-their COBOL copybooks, with a verdict that never comes from a model.
+Read, reconcile and re-verify fixed-width 820/823 payment files (not ANSI X12) and BAI2 statements
+from their COBOL copybooks, with a verdict that never comes from a model.
 
 ## [form] Category
 
 Resurrection.
+
+## [form] Bonus Prizes and submitter (as entered on 2026-11-26)
+
+| field | value on the form |
+|---|---|
+| Sponsor / Special Prizes | `Bonus Blog Prize` |
+| Which Bonus Prizes are you entering? | `Blog Prize` |
+| Bonus Blog Prize URL | https://dev.to/luke_shin_ai/verdict-by-code-narration-by-agent-two-days-with-kiro-on-a-dead-payment-format-51hh |
+| Social Blitz URL | left empty (not entered) |
+| Category | `Resurrection` |
+| Submitter Country of Residence | Korea Republic of |
+| Submitter Type | Individual |
+| Representative | ILSOON SHIN, Devpost `luke-shin`, GitHub `luke-shin-ai`, YouTube `luke luck (yottaman)` |
+
+The public body says the same three things in its first three lines: who submitted it and under which
+handles, the category and the bonus prize with its URL, and the repository and live demo links.
 
 ## [form] Built with
 
@@ -79,11 +95,24 @@ All sample data is synthetic, from a fictional company. No customer, bank or emp
 ## [form] Links
 
 - Repository: https://github.com/luke-shin-ai/edi820-workbench (public GitHub, Apache-2.0, `.kiro/` at the root)
-- Video: https://youtu.be/rncG1wwqTAM (public upload, 2 minutes 55 seconds / 2:55.30 / 175.3 s, English narration and subtitles)
+- Video: https://youtu.be/rncG1wwqTAM (public upload, 2 minutes 55 seconds / 2:55.30 / 175.3 s, English narration, burned-in English captions, and an English subtitle track that can be switched on in the player)
 - Working application: https://luke-shin-ai.github.io/edi820-workbench/demo/ , the static build in
   `docs/demo/index.html` ("Runs in this tab"). It is the same engine compiled for the browser, so
   nothing is uploaded and the verdict still comes from code. The local server build
   (`npm run web`) remains the back-office path, bound to `127.0.0.1`.
+
+## [form] Third-party material in the repository
+
+Two files in `samples/public/` are not generated here: a BAI2 sample published by Westpac / Qvalent
+and one from the SouthState Bank BAI-2 user guide. `samples/public/SOURCES.md` records both URLs, the
+download date, what was normalised, and the basis for keeping them: both are published as public
+format samples, neither page states a licence, they are reproduced verbatim with attribution, their
+account numbers and names are the publishers' fictitious examples, and they will be removed on
+request. The bank names appear as the source of a format sample only, not as customers or endorsers.
+
+The copybooks in `samples/copybooks/` are synthetic definitions written for this entry on 2026-11-21.
+No vendor document and no older legacy spec file sits behind them; `docs/copybook-to-spec.md` says
+so in its first section.
 
 ---
 
@@ -107,6 +136,13 @@ I used **Kiro CLI 3.5.0** and the **`.kiro` workspace format**. Not the IDE, not
 Why the CLI: the Kiro Web IDE requires a paid plan, and the free plan gives 50 credits a month while
 the 4,000 credit request was pending. The CLI is the surface that could run headless, be logged, and
 be replayed.
+
+What each surface would have added, and why it is absent: the IDE spec panel would have shown the
+requirements, design and task graph as one click-through, so what a judge does not see here is the
+panel itself; the work it drives is in `.kiro/specs/` and the sessions that read it are in
+`docs/kiro-session-transcripts.md`. Kiro Web is Pro only, so it was not available on this account.
+Kiro Crew was not used. The CLI, the two custom agents, the hooks and the MCP server are the whole
+surface, and the write-up says so instead of listing features that were read about but not run.
 
 **Honest boundary:** I did not run the IDE spec flow (`spec to tasks to implementation inside a
 session`). The spec was authored in this workspace from the copybooks, and the implementation ran
@@ -165,6 +201,11 @@ nothing and exited 0; its trigger name was `AgentStop`, which never fires; the t
 name was `PostTaskExecution` instead of `PostTaskExec`, and no session had the spec tools at all
 without `--mode spec`, so the hook could not have fired whatever it was called. The probe that
 found each one is in `docs/kiro-session-evidence.md` (§2.1 and §8).
+
+The sessions themselves are committed, sanitized, in `docs/kiro-session-transcripts.md`: S1
+implementing T7.1 over three turns with the failed tool calls left in, S2 the reviewer calling the
+MCP server three times, S3 the save that fired the file save hook. The raw logs stay out of the
+repository because the same folder holds the login attempts from that morning.
 
 **What is still a boundary:** the `EVIDENCE.md` rows for T7.1 were written by the same script the
 hook calls, invoked from the CLI, and they are marked that way. Only the T9.5 row is the hook's own
