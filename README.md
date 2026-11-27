@@ -4,7 +4,7 @@ Corporate payment files never died. The people and tools that could read them di
 
 A bank back office still receives fixed-width payment files from a COBOL era and no longer has anyone who can read them. 「820」 reads a file against its copybook, or a BAI2 statement against its own layout, reconciles it with the bank's answer, and returns a verdict that a stranger can re-run with one command. A model never decides whether the numbers match, and by default it is not called at all.
 
-- **Watch it, 2 minutes 55 seconds:** https://youtu.be/rncG1wwqTAM
+- **Watch it, 2 minutes 41 seconds:** https://youtu.be/65xfo3u-DaU
 - **Click it, no install and no server:** https://luke-shin-ai.github.io/edi820-workbench/demo/
 - **Check it:** 334 tests in 25 files, 31 of them properties; `npm run check:claims` compares every count this file states with the code
 - **Built with Kiro, Kiroween 2026, Resurrection category:** a spec of 33 requirements in EARS form, five steering files, three hooks, a reviewer agent over MCP, and the committed Kiro sessions that show each of them running
@@ -45,7 +45,7 @@ Verdicts: `PASS` (every check agreed), `INCOMPLETE` (a parse issue left bytes un
 
 ## Watch it
 
-**https://youtu.be/rncG1wwqTAM** (public, 2 minutes 55 seconds). The same file is `demo-video/820-demo-en.mp4`, 2 minutes 55 seconds, 1920x1080, English narration and burned-in subtitles, no music. It opens with the hook log from a real Kiro session and the reviewer agent's MCP calls, then the bank copybook with its two `REDEFINES` layouts, the trailer read through its own layout, the static browser demo (PASS, four findings, the bytes behind a finding), the BAI2 delta with its credit and debit parts, the exception register with a waiver recorded, `verify`, the test suite, and what the session did. Script and shot list: `demo-video/build/README.md`.
+**https://youtu.be/65xfo3u-DaU** (public, 2 minutes 41 seconds). The same file is `demo-video/820-demo-en.mp4`, 2 minutes 41 seconds, 1920x1080, English narration and burned-in subtitles, no music. It opens on the running page, not a terminal: the money sentence, the `COBOL GHOST` guide bar, bytes 24 to 36 of the first finding, and the register after a waiver with the verdict still FAIL. Then the spec and the steering files as documents read from `.kiro`, the hook log from a real Kiro session, the bank copybook with its two `REDEFINES` layouts, the BAI2 delta, `verify`, the test suite (334 in 25 files), and the end card. The 2026-11-22 cut is unlisted; it opened with the hook log and predates the guide bar. Script and shot list: `demo-video/build/README.md`.
 ## Try it with no server
 
 **https://luke-shin-ai.github.io/edi820-workbench/demo/** runs the same build from GitHub Pages.
