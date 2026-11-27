@@ -65,11 +65,13 @@ const state: {
   run: RunState | null;
   ledger: Ledger;
   selected: number;
+  /** True once the reader has picked a finding themselves: the guide answers the click. */
+  picked: boolean;
   /** Record whose layout the evidence panel shows when no finding is selected. */
   spotlight: { side: 'payment' | 'bank'; index: number } | null;
   droppedFile: { name: string; bytes: Uint8Array } | null;
   droppedCopybook: { name: string; bytes: Uint8Array } | null;
-} = { run: null, ledger: emptyLedger(), selected: -1, spotlight: null, droppedFile: null, droppedCopybook: null };
+} = { run: null, ledger: emptyLedger(), selected: -1, picked: false, spotlight: null, droppedFile: null, droppedCopybook: null };
 
 const el = <T extends HTMLElement>(id: string): T => document.getElementById(id) as unknown as T;
 
@@ -173,6 +175,7 @@ async function present(
   });
   state.run = { view, findings: result.findings, fingerprint: result.fingerprint, scenarioId };
   state.selected = result.findings.length > 0 ? 0 : -1;
+  state.picked = false;
   state.spotlight = null;
   render();
 }
@@ -291,6 +294,19 @@ function guideFor(view: ViewModel): { line: string; actions: GuideAction[] } {
     return {
       line: `${esc(waiver.owner)} accepts <b>${esc(waiver.code)}</b>${until}. The verdict is still <b>${esc(view.status)}</b>, and that is the point: a person can accept a gap, never edit the answer.`,
       actions: [{ label: 'Check the ledger chain', act: 'ledger' }, { label: 'Open the register', act: 'register' }],
+    };
+  }
+
+  // Second act: the reader took the first tap, so the guide answers it instead of repeating it.
+  const chosen = state.picked && state.selected >= 0 ? view.findings[state.selected] : undefined;
+  if (chosen) {
+    const span = chosen.evidence.span;
+    const where = span
+      ? `bytes ${span.start} to ${span.start + span.length - 1} of ${chosen.evidence.side} record ${chosen.recordIndex}`
+      : `${chosen.evidence.side} record ${chosen.recordIndex}`;
+    return {
+      line: `Finding ${state.selected + 1} of ${view.findings.length}: <b>${esc(chosen.code)}</b>, ${where}. The bytes are lit in column three. A person decides below, with an owner and an expiry; the verdict never moves.`,
+      actions: [{ label: 'Go to the register', act: 'register' }, clean],
     };
   }
 
@@ -567,6 +583,7 @@ function wire(): void {
     const item = (event.target as HTMLElement).closest('li[data-i]') as HTMLElement | null;
     if (!item) return;
     state.selected = Number(item.dataset.i);
+    state.picked = true;
     render();
   });
 
@@ -588,6 +605,7 @@ function wire(): void {
       }
       const index = Number(button.dataset.target ?? '0');
       state.selected = Number.isInteger(index) && index >= 0 && index < run.findings.length ? index : 0;
+      state.picked = true;
       render();
       document.getElementById('findings')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;

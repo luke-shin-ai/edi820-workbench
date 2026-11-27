@@ -238,6 +238,12 @@ def main():
             opened["selected"] == 0 and "24-36" in opened["note"],
             json.dumps(opened),
         )
+        answered = page.evaluate("() => document.getElementById('guideLine').textContent")
+        check(
+            "the ghost answers the click with the finding it opened",
+            "Finding 1 of 4" in answered and "bytes 24 to 36" in answered,
+            answered,
+        )
 
         page.click('#findings li[data-i="0"]')
         page.fill("#l4owner", "S. Shin (TPM)")

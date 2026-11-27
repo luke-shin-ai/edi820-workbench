@@ -2910,7 +2910,7 @@ ${draft.suggestedFix}`, finding);
     { id: "S7", name: "820-redefines good + 823-bank", payment: "820-redefines-good.txt", copybook: "820-redefines.cpy", bank: "823-bank.txt", bankCopybook: "823.cpy", expect: "PASS" },
     { id: "S8", name: "820-redefines bad + 823-bank", payment: "820-redefines-bad.txt", copybook: "820-redefines.cpy", bank: "823-bank.txt", bankCopybook: "823.cpy", expect: "FAIL" }
   ];
-  var state = { run: null, ledger: emptyLedger(), selected: -1, spotlight: null, droppedFile: null, droppedCopybook: null };
+  var state = { run: null, ledger: emptyLedger(), selected: -1, picked: false, spotlight: null, droppedFile: null, droppedCopybook: null };
   var el = (id) => document.getElementById(id);
   function esc(text) {
     return String(text ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -2987,6 +2987,7 @@ ${draft.suggestedFix}`, finding);
     });
     state.run = { view, findings: result.findings, fingerprint: result.fingerprint, scenarioId };
     state.selected = result.findings.length > 0 ? 0 : -1;
+    state.picked = false;
     state.spotlight = null;
     render2();
   }
@@ -3068,6 +3069,15 @@ ${draft.suggestedFix}`, finding);
       return {
         line: `${esc(waiver.owner)} accepts <b>${esc(waiver.code)}</b>${until}. The verdict is still <b>${esc(view.status)}</b>, and that is the point: a person can accept a gap, never edit the answer.`,
         actions: [{ label: "Check the ledger chain", act: "ledger" }, { label: "Open the register", act: "register" }]
+      };
+    }
+    const chosen = state.picked && state.selected >= 0 ? view.findings[state.selected] : void 0;
+    if (chosen) {
+      const span = chosen.evidence.span;
+      const where = span ? `bytes ${span.start} to ${span.start + span.length - 1} of ${chosen.evidence.side} record ${chosen.recordIndex}` : `${chosen.evidence.side} record ${chosen.recordIndex}`;
+      return {
+        line: `Finding ${state.selected + 1} of ${view.findings.length}: <b>${esc(chosen.code)}</b>, ${where}. The bytes are lit in column three. A person decides below, with an owner and an expiry; the verdict never moves.`,
+        actions: [{ label: "Go to the register", act: "register" }, clean]
       };
     }
     if (view.status === "INCOMPLETE") {
@@ -3265,6 +3275,7 @@ ${draft.suggestedFix}`, finding);
       const item = event.target.closest("li[data-i]");
       if (!item) return;
       state.selected = Number(item.dataset.i);
+      state.picked = true;
       render2();
     });
     el("guideActions").addEventListener("click", (event) => {
@@ -3283,6 +3294,7 @@ ${draft.suggestedFix}`, finding);
         }
         const index = Number(button.dataset.target ?? "0");
         state.selected = Number.isInteger(index) && index >= 0 && index < run.findings.length ? index : 0;
+        state.picked = true;
         render2();
         document.getElementById("findings")?.scrollIntoView({ block: "center", behavior: "smooth" });
         return;
