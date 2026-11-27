@@ -10,7 +10,9 @@ What this checks, all from the built `docs/demo/` directory served over plain HT
      and a release returns the finding to open adjudication;
   5. "Re-derive and compare" prints identical;
   6. after the page loads, no request of any kind leaves the tab (no XHR, no fetch, no beacon),
-     and there are no console or page errors.
+     and there are no console or page errors;
+  7. the ghost bar tells the story in money and offers the next tap: on a failing case its button
+     opens the total finding, and after a waiver its line reports the human decision (2026-11-27).
 
 Screenshots land in `docs/images/` (committed) and `demo-video/build/shots-static/` (for the
 video plate). Run with the same LD_LIBRARY_PATH the other captures use:
@@ -203,6 +205,40 @@ def main():
         # 4 ; L4: waive the selected finding, then release it
         page.click('.scenario[data-id="S3"]')
         page.wait_for_function("window.demo.state.run.scenarioId === 'S3'")
+        page.wait_for_timeout(150)
+
+        # 7a ; the ghost bar: the money in plain words, and a button that is the next tap
+        guide = page.evaluate(
+            """() => ({
+                line: document.getElementById('guideLine').textContent,
+                plain: document.getElementById('heroPlain').textContent,
+                buttons: [...document.querySelectorAll('#guideActions button')].map(b => b.textContent),
+            })"""
+        )
+        check(
+            "the first screen states the disagreement in money",
+            "1,284,550.00 USD" in guide["plain"] and "1,284,450.00 USD" in guide["plain"],
+            guide["plain"],
+        )
+        check(
+            "the ghost bar offers the next tap by name",
+            "Open the total finding" in guide["buttons"] and "bytes 24 to 36" in guide["line"],
+            json.dumps(guide["buttons"]) + " | " + guide["line"],
+        )
+        page.click('#guideActions button[data-act="finding"]')
+        page.wait_for_timeout(250)
+        opened = page.evaluate(
+            """() => ({
+                selected: window.demo.state.selected,
+                note: document.getElementById('evidenceNote').textContent,
+            })"""
+        )
+        check(
+            "that button opens the finding whose bytes the ghost pointed at",
+            opened["selected"] == 0 and "24-36" in opened["note"],
+            json.dumps(opened),
+        )
+
         page.click('#findings li[data-i="0"]')
         page.fill("#l4owner", "S. Shin (TPM)")
         page.fill("#l4reason", "Annex A total approved against the corrected bank statement; the shortfall is booked as a manual adjustment.")
@@ -241,6 +277,16 @@ def main():
         check("a waiver shows as WAIVED in the register", after_waive["counts"]["WAIVED"] == 1, json.dumps(after_waive["counts"]))
         check("the verdict badge does not change when a finding is waived", after_waive["badge"] == "FAIL", after_waive["badge"])
         check("the ledger chain stays intact after an append", after_waive["integrity"] is True and "intact" in after_waive["chain"], after_waive["chain"])
+
+        # 7b ; after a human decides, the ghost bar reports the decision, not a changed verdict
+        guide_after = page.evaluate(
+            "() => ({ line: document.getElementById('guideLine').textContent, badge: document.getElementById('status').textContent })"
+        )
+        check(
+            "after a waiver the ghost bar reports the decision and keeps the verdict",
+            "S. Shin (TPM)" in guide_after["line"] and "FAIL" in guide_after["line"] and guide_after["badge"] == "FAIL",
+            guide_after["line"],
+        )
         page.screenshot(path=os.path.join(SHOTS, "demo-l4-waived.png"))
         with open(os.path.join(VIDEO_SHOTS, "static-l4.json"), "w") as fh:
             json.dump({"badge": after_waive["badge"], "counts": after_waive["counts"], "chain": after_waive["chain"]}, fh)

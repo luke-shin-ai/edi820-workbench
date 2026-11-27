@@ -67,7 +67,7 @@ the reader's comments:
   templates total the `16` amounts only, because their `03` summarises the same details;
   a file built to that convention now shows up as a `49` mismatch, which is what the
   check exists for, and the message names the computed sum so the convention is visible.
-- Every summary group of an `03` is read, not just the first. A `03` record is a list of
+- Every summary group of an `03` is read, not only the first. A `03` record is a list of
   `[type code, amount, item count, funds type]` groups, and a trailing type code may push
   its amount onto the following `88`; both are handled, so a `100` total credits that is
   not the first group is still found (the Westpac sample declares it that way).

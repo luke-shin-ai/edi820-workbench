@@ -44,6 +44,21 @@ based testing, an MCP server over stdio, and one dependency free HTML screen.
 
 ## [form] Text description
 
+> As posted on 2026-11-27, the public body opens with three lines of submitter, category and links,
+> then the two paragraphs below, then the hook. The wording is the same as in this file.
+
+**In 30 seconds.** A bank back office still receives fixed-width payment files from a COBOL era and
+no longer has anyone who can read them. 「820」 reads the file against its copybook, reconciles it
+with the bank's answer, and returns a verdict a stranger can re-run with one command; a model never
+decides whether the numbers match. Kiro is what made that hold: the spec in
+`.kiro/specs/edi820-importer/` is the contract the parser is tested against, five steering files
+carry the finance rules the code may not break, three hooks re-derive the evidence on save, stop and
+task completion, and a reviewer agent over MCP tried to break the claims and found two real defects.
+
+The one thing I would not have built without Kiro is the unglamorous part: writing 33 requirements
+in EARS form before the parser, then holding the code to them with a task list where every task ends
+in a command whose output goes into the evidence log.
+
 Corporate payment files never died. The people and tools that could read them did.
 
 Fixed-width payment and remittance files still move between banks and ERP systems every day as
@@ -91,6 +106,20 @@ first amount pair of an `03` record and to compare the `49` total against signed
 published file satisfies.
 
 All sample data is synthetic, from a fictional company. No customer, bank or employer data is used.
+
+## [form] Text description, closing section (as posted 2026-11-27)
+
+**How this entry answers the judge briefing.** The Kiroween briefing mail of 2026-11-26 asked three
+things, and each one is checkable rather than asserted. Floor Mesters asked for a little mischief and
+a next tap that is always visible: the live demo opens on the failing case, states the gap in money
+instead of a code, and puts a guide bar under it in the voice of the 1985 program that kept those
+totals, with two buttons that are the literal next step. Vivek Velso asked for a real problem and a
+build that a judge would not have imagined before Kiro: the spec is what the parser is tested
+against, the steering file on money is why amounts are bigint minor units, and the reviewer agent
+with read tools is what found two of the six defects listed in `EVIDENCE.md`. Sameer Ali asked
+whether the work outlives the hackathon: the CLI and the MCP server are the product, the static page
+is one more surface over the same engine, and Apache-2.0 with a working `verify` is the invitation
+to reuse it.
 
 ## [form] Links
 

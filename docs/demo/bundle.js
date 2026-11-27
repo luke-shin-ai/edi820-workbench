@@ -2419,6 +2419,7 @@ ${draft.suggestedFix}`, finding);
     };
   }
   function sideFor(finding, payment, bank) {
+    if (bank && /^bank\b/i.test(finding.detail)) return "bank";
     const field = finding.field;
     if (field) {
       const inPayment = payment.copybook.fields.some((f) => f.name === field) || payment.copybook.semantics.reference === field;
@@ -2992,12 +2993,14 @@ ${draft.suggestedFix}`, finding);
   function readWindow() {
     const raw = el("inpWindow").value.trim();
     const match = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(raw);
-    if (!match) throw new Error("the settlement window must look like 2026-11-18..2026-11-20");
+    if (!match) {
+      throw new Error("the ghost reads windows in one shape only, 2026-11-18..2026-11-20. Fix the box, then press Run dropped again");
+    }
     return { start: match[1], end: match[2] };
   }
   async function runDropped() {
     if (!state.droppedFile) {
-      toast("drop a payment file first");
+      toast("nothing to haunt yet: drop a payment file in the top box, then press Run dropped");
       return;
     }
     const format = el("selFormat").value;
@@ -3028,6 +3031,83 @@ ${draft.suggestedFix}`, finding);
     </button>`
     ).join("");
   }
+  function plainVerdict(view) {
+    const total = view.findings.find((finding) => finding.code === "CONTROL_TOTAL_MISMATCH");
+    if (view.status === "FAIL" && total?.declared && total.computed) {
+      const side = total.evidence.side;
+      const details = side === "bank" ? view.files.bank?.details : view.files.payment.details;
+      const who = side === "bank" ? "bank" : "payment";
+      const delta = total.delta ? `, a difference of <b>${esc(total.delta)}</b>` : "";
+      return `The ${who} control trailer declares <b>${esc(total.declared)}</b>. Its ${details} detail records add up to <b>${esc(total.computed)}</b>${delta}.`;
+    }
+    if (view.status === "FAIL") {
+      const first = view.findings[0];
+      return `${view.findings.length} finding${view.findings.length === 1 ? "" : "s"}: the first is <b>${esc(first?.code ?? "")}</b> at ${esc(first?.evidence.side ?? "payment")} record <b>${esc(first?.recordIndex ?? "")}</b>.`;
+    }
+    if (view.status === "INCOMPLETE") {
+      const issues = view.summary.blockingParseIssues;
+      return `${issues} parse issue${issues === 1 ? "" : "s"}: bytes arrived that no layout explains, so <b>no PASS is earned</b>.`;
+    }
+    return view.files.bank ? "Every control total, reference and value date agrees, <b>on both sides</b>." : "The payment file reads clean. There is no bank side in this run, so this is <b>not yet a verdict</b> about agreement.";
+  }
+  function waiverInView() {
+    const c = classification();
+    if (!c) return null;
+    const decided = c.entries.find((entry) => entry.status === "WAIVED" || entry.status === "EXPIRED");
+    if (!decided?.waiverId) return null;
+    const waiver = state.ledger.entries.find((entry) => entry.id === decided.waiverId);
+    if (!waiver) return null;
+    return { code: decided.code, owner: waiver.owner, expiresOn: waiver.expiresOn ?? "" };
+  }
+  function guideFor(view) {
+    const clean = { label: "Show a clean run (S1)", act: "scenario", target: "S1" };
+    const total = view.findings.find((finding) => finding.code === "CONTROL_TOTAL_MISMATCH");
+    const waiver = waiverInView();
+    if (waiver) {
+      const until = waiver.expiresOn ? ` until <b>${esc(waiver.expiresOn)}</b>` : "";
+      return {
+        line: `${esc(waiver.owner)} accepts <b>${esc(waiver.code)}</b>${until}. The verdict is still <b>${esc(view.status)}</b>, and that is the point: a person can accept a gap, never edit the answer.`,
+        actions: [{ label: "Check the ledger chain", act: "ledger" }, { label: "Open the register", act: "register" }]
+      };
+    }
+    if (view.status === "INCOMPLETE") {
+      return {
+        line: "I will not guess at a byte nobody wrote down, so nobody gets a PASS today. Read the parse issue, fix the copybook, run it again.",
+        actions: [{ label: "Read the parse issues", act: "issues" }, clean]
+      };
+    }
+    if (view.status === "PASS") {
+      return view.files.bank ? {
+        line: "Agreed to the cent, on both sides. Forty years of silence, and the numbers still behave. Now break it on purpose.",
+        actions: [
+          { label: "Break it on purpose (S3)", act: "scenario", target: "S3" },
+          { label: "Let the bank disagree (S4)", act: "scenario", target: "S4" }
+        ]
+      } : {
+        line: "One side of the story only. Drop the bank file in the top box to turn this into a verdict about agreement.",
+        actions: [clean]
+      };
+    }
+    if (total?.declared && total.computed) {
+      const span = total.evidence.span;
+      const where = span ? `bytes ${span.start} to ${span.start + span.length - 1} of ${total.evidence.side} record ${total.recordIndex}` : `${total.evidence.side} record ${total.recordIndex}`;
+      return {
+        line: `I kept both numbers for forty years and never subtracted one from the other. Open the total finding: the amount sits at ${where}.`,
+        actions: [{ label: "Open the total finding", act: "finding", target: String(total.index) }, clean]
+      };
+    }
+    return {
+      line: `${view.findings.length} things the ghost got wrong. Open the first one, or watch it behave on a clean file.`,
+      actions: [{ label: "Open the first finding", act: "finding" }, clean]
+    };
+  }
+  function renderGuide(view) {
+    const guide = guideFor(view);
+    el("guideLine").innerHTML = guide.line;
+    el("guideActions").innerHTML = guide.actions.map(
+      (action, index) => `<button type="button" class="${index === 0 ? "" : "ghost"}" data-act="${action.act}"${action.target ? ` data-target="${action.target}"` : ""}>${esc(action.label)}</button>`
+    ).join("");
+  }
   function renderRecords() {
     const view = state.run?.view;
     if (!view) return;
@@ -3047,6 +3127,8 @@ ${draft.suggestedFix}`, finding);
     heroChip.className = `chip ${view.status === "PASS" ? "pass" : view.status === "INCOMPLETE" ? "warn" : "fail"}`;
     const bankLabel = view.files.bank ? ` against the bank side (${view.files.bank.path})` : "";
     el("heroLine").textContent = `${view.status}, ${view.findings.length} finding${view.findings.length === 1 ? "" : "s"}, ${view.files.payment.details} records from ${view.files.payment.path}${bankLabel}, fingerprint ${view.fingerprint.slice(0, 16)}...`;
+    el("heroPlain").innerHTML = plainVerdict(view);
+    renderGuide(view);
     el("verdictMeta").textContent = `${view.files.payment.details} details, ${view.files.payment.format}` + (view.files.bank ? ` + bank ${view.files.bank.details} details (${view.files.bank.format})` : "") + (view.summary.blockingParseIssues ? `, ${view.summary.blockingParseIssues} blocking parse issue(s)` : "") + `, ${view.files.payment.path}`;
     el("cDet").textContent = String(view.files.payment.details);
     el("cFind").textContent = String(view.findings.length);
@@ -3079,7 +3161,7 @@ ${draft.suggestedFix}`, finding);
             <td>${esc(entry.code)}<div class="small muted">record ${esc(entry.recordIndex)}${entry.expiresOn ? `; expires ${esc(entry.expiresOn)}` : ""}</div></td>
             <td>${waiver ? `${esc(waiver.owner)}<div class="small muted">${esc(waiver.reason)}</div>` : '<span class="muted">-</span>'}</td></tr>`;
     }).join("") : '<tr><td colspan="3" class="muted">run a scenario to see the register</td></tr>';
-    el("chain").textContent = state.ledger.entries.length ? `${state.ledger.entries.length} entr${state.ledger.entries.length === 1 ? "y" : "ies"}; chain ${integrity.ok ? "intact" : `BROKEN at seq ${integrity.firstInvalidSeq}`}; head ${state.ledger.entries[state.ledger.entries.length - 1].hash.slice(0, 16)}...` : "ledger empty: no decision recorded yet";
+    el("chain").textContent = state.ledger.entries.length ? `${state.ledger.entries.length} entr${state.ledger.entries.length === 1 ? "y" : "ies"}; chain ${integrity.ok ? "intact" : `BROKEN at seq ${integrity.firstInvalidSeq}`}; head ${state.ledger.entries[state.ledger.entries.length - 1].hash.slice(0, 16)}...` : "ledger empty: the chain starts when a person waives the first finding";
   }
   function firstDetail(side) {
     const view = state.run?.view;
@@ -3156,12 +3238,24 @@ ${draft.suggestedFix}`, finding);
   function selectedFinding() {
     return state.run && state.selected >= 0 ? state.run.findings[state.selected] ?? null : null;
   }
+  function checkLedger() {
+    const entries = state.ledger.entries.length;
+    if (entries === 0) {
+      toast("the ledger is empty: no human has decided anything yet. Waive a finding to start the chain");
+      return;
+    }
+    const integrity = verifyLedger(state.ledger);
+    toast(
+      integrity.ok ? `chain intact: ${entries} decision${entries === 1 ? "" : "s"}, nothing edited behind your back` : `chain BROKEN at sequence ${integrity.firstInvalidSeq}: someone edited a decision after the fact`
+    );
+  }
   function renderVerify(identical, note) {
     el("verifyOut").innerHTML = identical ? `<span style="color:#79d492">identical: same inputs, same verdict</span><br/>${esc(note)}` : `<span style="color:#ff9c94">DIFFERENT: ${esc(note)}</span>`;
   }
   function wire() {
     wireStrip("strip-top");
     wireStrip("strip-bottom");
+    wireStrip("strip-kiro");
     el("scenarios").addEventListener("click", (event) => {
       const button = event.target.closest(".scenario");
       if (!button) return;
@@ -3172,6 +3266,36 @@ ${draft.suggestedFix}`, finding);
       if (!item) return;
       state.selected = Number(item.dataset.i);
       render2();
+    });
+    el("guideActions").addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-act]");
+      if (!button) return;
+      const act = button.dataset.act;
+      if (act === "scenario" && button.dataset.target) {
+        void runScenario(button.dataset.target).catch((error) => toast(error.message));
+        return;
+      }
+      if (act === "finding") {
+        const run = state.run;
+        if (!run || run.findings.length === 0) {
+          toast("this run has no findings to open: every control total, reference and value date agrees");
+          return;
+        }
+        const index = Number(button.dataset.target ?? "0");
+        state.selected = Number.isInteger(index) && index >= 0 && index < run.findings.length ? index : 0;
+        render2();
+        document.getElementById("findings")?.scrollIntoView({ block: "center", behavior: "smooth" });
+        return;
+      }
+      if (act === "issues") {
+        document.getElementById("issues")?.scrollIntoView({ block: "center", behavior: "smooth" });
+        return;
+      }
+      if (act === "register") {
+        document.getElementById("l4table")?.scrollIntoView({ block: "center", behavior: "smooth" });
+        return;
+      }
+      if (act === "ledger") checkLedger();
     });
     el("records").addEventListener("click", (event) => {
       const item = event.target.closest("li[data-index]");
@@ -3201,7 +3325,7 @@ ${draft.suggestedFix}`, finding);
     el("btnWaive").addEventListener("click", () => {
       const finding = selectedFinding();
       if (!finding) {
-        toast("select a finding in the verdict column first");
+        toast("pick a finding in the verdict column first, then waive it");
         return;
       }
       const owner = el("l4owner").value.trim();
@@ -3209,7 +3333,7 @@ ${draft.suggestedFix}`, finding);
       const control = el("l4control").value.trim();
       const expires = el("l4expires").value.trim();
       if (!expires) {
-        toast("an expiry date is required: a waiver is a decision with an end date");
+        toast("a waiver without an expiry is a ghost story that never ends: add a date in expires YYYY-MM-DD");
         return;
       }
       try {
@@ -3221,7 +3345,7 @@ ${draft.suggestedFix}`, finding);
         );
         persist();
         render2();
-        toast(`waived ${finding.code}. The verdict above is unchanged`);
+        toast(`waived ${finding.code}. The verdict above still says FAIL: a person can accept a gap, not edit the answer`);
       } catch (error) {
         toast(error.message);
       }
@@ -3232,7 +3356,7 @@ ${draft.suggestedFix}`, finding);
       const c = classification();
       const entry = c?.entries.find((candidate) => candidate.code === finding.code && candidate.recordIndex === finding.recordIndex);
       if (!entry?.waiverId) {
-        toast("this finding has no waiver to release");
+        toast("there is no waiver on this finding, so nothing to release: waive it first, then release it");
         return;
       }
       try {
@@ -3248,15 +3372,12 @@ ${draft.suggestedFix}`, finding);
         );
         persist();
         render2();
-        toast("released: the finding is open again");
+        toast("released: the finding is open again, and the ghost keeps the receipt");
       } catch (error) {
         toast(error.message);
       }
     });
-    el("btnLedger").addEventListener("click", () => {
-      const integrity = verifyLedger(state.ledger);
-      toast(integrity.ok ? "ledger chain intact" : `ledger BROKEN at seq ${integrity.firstInvalidSeq}`);
-    });
+    el("btnLedger").addEventListener("click", () => checkLedger());
     el("btnDownload").addEventListener("click", () => {
       const blob = new Blob([serialiseLedger(state.ledger)], { type: "application/json" });
       const link = document.createElement("a");
@@ -3270,7 +3391,7 @@ ${draft.suggestedFix}`, finding);
         try {
           await runDropped();
         } catch (error) {
-          toast(error.message);
+          toast(`the ghost refused that file: ${error.message}. Check the copybook first, then select fixed-width or BAI2 and run again`);
         }
       })();
     });

@@ -134,6 +134,12 @@ function recordView(
 }
 
 function sideFor(finding: Finding, payment: ParseResult, bank: ParseResult | undefined): 'payment' | 'bank' {
+  // A comparison finding spans both files, and the reconciler says which file it is talking about
+  // at the start of the detail: "820 control total declares ..." or "bank control total declares
+  // ...". That prefix is the only reliable side, because field names such as AMOUNT exist in both
+  // copybooks and the old field-first lookup pointed a bank trailer finding at a payment record
+  // (fixed 2026-11-27, found while writing the demo guide).
+  if (bank && /^bank\b/i.test(finding.detail)) return 'bank';
   const field = finding.field;
   if (field) {
     const inPayment = payment.copybook.fields.some((f) => f.name === field) || payment.copybook.semantics.reference === field;

@@ -53,15 +53,45 @@ const STATIC_CSS = `
   .hero .hero-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 420px; }
   .hero .hero-line { font-family: var(--mono); font-size: 13px; color: var(--ink); }
   .hero .hero-line .lead { color: #cfe6fb; font-weight: 600; }
-  .hero .hero-note { font-size: 11px; color: #8fb4d4; }
+  .hero .hero-note { font-size: 12px; color: #b9c9d8; }
+  .hero .hero-note b { font-family: var(--mono); color: #ffffff; font-weight: 600; }
+
+  /* The ghost bar: the premise, the numbers in plain words, and the two taps that come next.
+     Amber on near black, one line of voice and at most two buttons, so the first screen still
+     belongs to the verdict and the evidence. */
+  .guide {
+    display: flex; gap: 6px 12px; align-items: flex-start; flex-wrap: wrap;
+    padding: 9px 16px; background: #171310; border-bottom: 1px solid #3a2f1d;
+  }
+  .guide .ghost-tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: #e2b33c;
+    border: 1px solid #4a3a16; background: #2a2010; border-radius: 999px; padding: 2px 9px;
+    white-space: nowrap; margin-top: 1px;
+  }
+  .guide .guide-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 420px; }
+  .guide .guide-line { font-size: 13px; color: #f3e7cd; }
+  .guide .guide-line b { font-family: var(--mono); color: #ffffff; font-weight: 600; }
+  .guide .guide-note { font-size: 11px; color: #a99672; }
+  .guide .guide-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .guide .guide-actions button { padding: 5px 10px; font-size: 11.5px; }
+  .guide .guide-actions button.ghost { border-color: #6b5424; color: #e2b33c; }
+  .guide .guide-actions button:hover { border-color: #e2b33c; color: #f3e7cd; }
+  .rail-note { margin: -4px 0 10px; }
   .toast { position: fixed; right: 18px; bottom: 64px; background: var(--panel-2); border: 1px solid var(--accent);
     color: var(--ink); padding: 8px 12px; border-radius: 8px; font-size: 12px; opacity: 0; transition: opacity .2s; }
   .toast.on { opacity: 1; }
+
+  .strip.kiro { background: #101c28; border-top: 1px solid #25405a; }
+  .strip.kiro .tag { color: #9dc7ea; }
+  .strip.kiro .item { color: #a8bcce; }
 
   /* These rules come after the base ones above, so they win at phone widths. */
   @media (max-width: 1080px) {
     .banner { padding: 5px 12px; font-size: 11px; }
     .hero { padding: 8px 12px; }
+    .guide { padding: 8px 12px; }
+    .guide .guide-actions { flex: 1 1 100%; }
+    .guide .guide-actions button { flex: 1 1 46%; }
     .hero .hero-body { flex: 1 1 260px; }
     .l4 form { grid-template-columns: 1fr; }
     .l4 form .full { grid-column: 1 / -1; }
@@ -90,16 +120,25 @@ ${STATIC_CSS}
 <body>
 <header>
   <h1>「820」 resurrection workbench</h1>
-  <span class="sub">fixed-width 820/823 + BAI2: verdict by code, narration by agent</span>
+  <span class="sub">reads fixed-width bank payment files from a COBOL era, reconciles them against the bank, and keeps a verdict anyone can re-run</span>
   <span class="fingerprint" id="fp">fingerprint -</span>
 </header>
 
 <div class="hero" id="hero">
   <span class="chip info" id="heroChip">-</span>
   <div class="hero-body">
-    <div class="hero-line" id="heroLine">running the first scenario...</div>
-    <div class="hero-note">Fixed-width 820/823 payment files and BAI2 bank statements, reconciled against the bank side. This is not the ANSI X12 transaction set (ST*820): no X12 segment file is read here.</div>
+    <div class="hero-line" id="heroLine">reading the first file</div>
+    <div class="hero-note" id="heroPlain">reading the trailer and the records</div>
   </div>
+</div>
+
+<div class="guide" id="guide">
+  <span class="ghost-tag">COBOL GHOST</span>
+  <div class="guide-body">
+    <div class="guide-line" id="guideLine" role="status" aria-live="polite">waking the program that kept these totals</div>
+    <div class="guide-note">Fixed-width 820/823 payment files and BAI2 statements, not the ANSI X12 transaction set (ST*820). Built for the back office that still receives them and no longer has anyone who can read them.</div>
+  </div>
+  <div class="guide-actions" id="guideActions"></div>
 </div>
 
 <div class="banner">
@@ -112,6 +151,7 @@ ${STATIC_CSS}
 <main>
   <section class="col col-left">
     <h2>1. Scenario</h2>
+    <div class="small muted rail-note">Eight cases: four where both sides agree, four where they do not. Press one and the verdict, the bytes behind it and the register follow.</div>
     <div class="scenarios" id="scenarios"></div>
 
     <h3>Drop your own file</h3>
@@ -156,7 +196,7 @@ ${STATIC_CSS}
 
     <h3>Findings</h3>
     <ul class="findings" id="findings"></ul>
-    <div class="empty" id="noFindings">No findings: every control total, reference and value date agrees.</div>
+    <div class="empty" id="noFindings">Nothing to haunt: every control total, reference and value date agrees. Press S3 in the left column if you would rather watch it disagree.</div>
 
     <h3>Parse issues</h3>
     <ul class="issues" id="issues"></ul>
@@ -192,6 +232,8 @@ ${STATIC_CSS}
     </div>
   </section>
 </main>
+
+<div class="strip kiro" id="strip-kiro"><span class="tag">Built with Kiro</span><span class="item brief">33 EARS requirements, five steering files, three hooks, a reviewer agent over MCP</span><button type="button" class="strip-toggle" aria-expanded="false">Show all (6)</button><div class="strip-items"><span class="item">Spec: .kiro/specs/edi820-importer holds 33 EARS requirements, a design with a decision log, and tasks T0.1 to T9.5.</span><span class="item">Steering: five files. tech.md is why money is a bigint of minor units and never a float.</span><span class="item">Hooks: three of them, on file save, on stop and on task completion, all firing in the committed session logs.</span><span class="item">Agent: .kiro/agents/reviewer.json reads and greps only, and its cross review found two real defects.</span><span class="item">MCP: five tools over stdio, called by that agent inside the review session.</span><span class="item">Property based testing: 31 properties over generated copybooks and byte streams; one of them found an encoder bug.</span></div></div>
 
 <div class="strip bottom" id="strip-bottom"><span class="tag">Not guaranteed: a human decides</span><span class="item brief">6 limits: legal adequacy, exception sign-off, unmodelled clauses, source authenticity, ANSI X12 transaction sets, tamper proof history</span><button type="button" class="strip-toggle" aria-expanded="false">Show all (6)</button><div class="strip-items"><span class="item">loading...</span></div></div>
 <div class="toast" id="toast"></div>

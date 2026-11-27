@@ -56,7 +56,7 @@ the documents no longer claim more than the code does (13 corrections, `design.m
    region. The parser decodes exactly one layout per record; the other layout's fields are absent,
    and a record whose type byte matches no layout is `REDEFINES_VIEW_UNMATCHED`, a blocking issue
    that cannot earn a PASS.
-2. **Product evidence, not just tests.** `samples/copybooks/820-redefines.cpy` plus a good and a bad
+2. **Product evidence, not tests alone.** `samples/copybooks/820-redefines.cpy` plus a good and a bad
    fixture; two static scenarios (S7 PASS, S8 FAIL with `TOTAL-AMOUNT` at bytes 22-34 and a 100.00
    delta); a copybook plate and a trailer plate in the video.
 3. **No fingerprint drift.** The `views:` component is added to the fingerprint only for copybooks

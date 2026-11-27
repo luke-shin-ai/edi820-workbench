@@ -20,7 +20,7 @@ export interface ExplanationDraft {
 export interface RejectionRecord {
   /** Numeric literals the draft cited that the finding does not contain. */
   unsupported: string[];
-  /** Kept so a reviewer can see exactly what was blocked, not just that it was. */
+  /** Kept so a reviewer can see exactly what was blocked, not only that it was. */
   draft: ExplanationDraft;
 }
 
