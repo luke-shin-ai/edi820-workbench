@@ -23,6 +23,25 @@ export function renderPage(): string {
 <style>
 ${PAGE_CSS}
 
+  /* The ghost bar, the same one the public demo speaks: the verdict in money, one line of
+     voice, and one tap that comes next. Kept here rather than in the shared sheet because
+     the static build has its own layout for it. */
+  .guide {
+    display: flex; gap: 6px 12px; align-items: flex-start; flex-wrap: wrap;
+    padding: 9px 16px; background: #171310; border-bottom: 1px solid #3a2f1d;
+  }
+  .guide .ghost-tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: #e2b33c;
+    border: 1px solid #4a3a16; background: #2a2010; border-radius: 999px; padding: 2px 9px;
+    white-space: nowrap; margin-top: 1px;
+  }
+  .guide .guide-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 420px; }
+  .guide .guide-line { font-size: 13px; color: #f3e7cd; }
+  .guide .guide-line b { font-family: var(--mono); color: #ffffff; font-weight: 600; }
+  .guide .guide-note { font-size: 11px; color: #a99672; }
+  .guide .guide-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .guide .guide-actions button { padding: 5px 10px; font-size: 11.5px; border-color: #6b5424; color: #e2b33c; }
+  .guide .guide-actions button:hover { border-color: #e2b33c; color: #f3e7cd; }
 </style>
 </head>
 <body>
@@ -31,6 +50,15 @@ ${PAGE_CSS}
   <span class="sub">fixed-width 820/823 + BAI2: verdict by code, narration by agent</span>
   <span class="fingerprint" id="fp">fingerprint -</span>
 </header>
+
+<div class="guide" id="guide">
+  <span class="ghost-tag">COBOL GHOST</span>
+  <div class="guide-body">
+    <div class="guide-line" id="guideLine" role="status" aria-live="polite">waking the program that kept these totals</div>
+    <div class="guide-note">Fixed-width 820/823 payment files and BAI2 statements, not the ANSI X12 transaction set (ST*820). The same line the public demo speaks, over the run on this screen.</div>
+  </div>
+  <div class="guide-actions"><button type="button" id="guideGo">Sample FAIL</button></div>
+</div>
 
 <div class="strip top" id="strip-top"><span class="tag">Guaranteed</span><span class="item brief">6 checks: format, layout, arithmetic, references, replay, grounding</span><button type="button" class="strip-toggle" aria-expanded="false">Show all (6)</button><div class="strip-items"><span class="item">loading...</span></div></div>
 
@@ -344,6 +372,83 @@ ${PAGE_CSS}
     el('explain').innerHTML = html;
   }
 
+  /** The verdict in money, the same sentence the public demo puts first. */
+  function plainVerdict(view) {
+    var total = null;
+    for (var i = 0; i < view.findings.length; i++) {
+      if (view.findings[i].code === 'CONTROL_TOTAL_MISMATCH') { total = view.findings[i]; break; }
+    }
+    if (view.status === 'FAIL' && total && total.declared && total.computed) {
+      var side = total.evidence ? total.evidence.side : 'payment';
+      var details = side === 'bank' && view.files.bank ? view.files.bank.details : view.files.payment.details;
+      var who = side === 'bank' ? 'bank' : 'payment';
+      var delta = total.delta ? ', a difference of <b>' + esc(total.delta) + '</b>' : '';
+      return 'The ' + who + ' control trailer declares <b>' + esc(total.declared) + '</b>. Its ' + details +
+        ' detail records add up to <b>' + esc(total.computed) + '</b>' + delta + '.';
+    }
+    if (view.status === 'FAIL') {
+      var first = view.findings[0];
+      return view.findings.length + ' finding' + (view.findings.length === 1 ? '' : 's') + ': the first is <b>' +
+        esc(first ? first.code : '') + '</b> at ' + esc(first && first.evidence ? first.evidence.side : 'payment') +
+        ' record <b>' + esc(first ? first.recordIndex : '') + '</b>.';
+    }
+    if (view.status === 'INCOMPLETE') {
+      var issues = view.summary.blockingParseIssues;
+      return issues + ' parse issue' + (issues === 1 ? '' : 's') + ': bytes arrived that no layout explains, so <b>no PASS is earned</b>.';
+    }
+    return view.files.bank
+      ? 'Every control total, reference and value date agrees, <b>on both sides</b>.'
+      : 'The payment file reads clean. There is no bank side in this run, so this is <b>not yet a verdict</b> about agreement.';
+  }
+
+  /** The line under the money sentence, and the one tap after it. */
+  function guideNext(view) {
+    var totalIndex = -1;
+    for (var i = 0; i < view.findings.length; i++) {
+      if (view.findings[i].code === 'CONTROL_TOTAL_MISMATCH') { totalIndex = i; break; }
+    }
+    if (view.status === 'FAIL') {
+      var chosen = state.selected >= 0 ? view.findings[state.selected] : null;
+      if (chosen && chosen.evidence && chosen.evidence.span) {
+        var span = chosen.evidence.span;
+        return {
+          line: 'I kept both numbers for forty years and never subtracted one from the other. The amount sits at bytes ' +
+            span.start + ' to ' + (span.start + span.length - 1) + ' of ' + chosen.evidence.side + ' record ' +
+            chosen.recordIndex + '.',
+          label: 'Go to the total finding', act: 'finding', target: String(totalIndex >= 0 ? totalIndex : 0)
+        };
+      }
+      if (totalIndex >= 0) {
+        return { line: 'The bytes behind the difference are in column three. A person decides below; the verdict never moves.',
+          label: 'Open the total finding', act: 'finding', target: String(totalIndex) };
+      }
+      return { line: view.findings.length + ' things the ghost got wrong. Open the first one.',
+        label: 'Open the first finding', act: 'finding', target: '0' };
+    }
+    if (view.status === 'INCOMPLETE') {
+      return { line: 'I will not guess at a byte nobody wrote down, so nobody gets a PASS today. Read the parse issues.',
+        label: 'Read the parse issues', act: 'issues' };
+    }
+    if (view.files.bank) {
+      return { line: 'Agreed to the cent, on both sides. Now break it on purpose.',
+        label: 'Break it on purpose (Sample FAIL)', act: 'fail' };
+    }
+    return { line: 'One side of the story only. Add the bank file to turn this into a verdict about agreement.',
+      label: 'Sample PASS with the bank side', act: 'pass' };
+  }
+
+  function renderGuide(view) {
+    el('guideLine').innerHTML = plainVerdict(view);
+    var next = guideNext(view);
+    var note = el('guide').querySelector('.guide-note');
+    if (note) note.textContent = next.line;
+    var button = el('guideGo');
+    button.textContent = next.label;
+    button.setAttribute('data-act', next.act);
+    if (next.target !== undefined) button.setAttribute('data-target', next.target);
+    else button.removeAttribute('data-target');
+  }
+
   function render() {
     var view = state.view;
     if (!view) return;
@@ -399,8 +504,25 @@ ${PAGE_CSS}
         esc(rec.side.charAt(0)) + String(rec.index).padStart(3, '0') + '  ' + esc(rec.raw) + '</li>';
     }
     el('records').innerHTML = records;
+    renderGuide(view);
     renderEvidence();
   }
+
+  el('guideGo').addEventListener('click', function () {
+    var button = el('guideGo');
+    var act = button.getAttribute('data-act');
+    if (act === 'fail') { el('btnFail').click(); return; }
+    if (act === 'pass') { el('btnPass').click(); return; }
+    if (act === 'finding') {
+      state.selected = Number(button.getAttribute('data-target') || 0);
+      render();
+      return;
+    }
+    if (act === 'issues') {
+      var issues = el('issues');
+      if (issues) issues.scrollIntoView({ block: 'center' });
+    }
+  });
 
   el('findings').addEventListener('click', function (event) {
     var li = event.target.closest ? event.target.closest('li[data-i]') : null;

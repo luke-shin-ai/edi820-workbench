@@ -317,7 +317,7 @@ if (evidenceProps) {
 // move. The Devpost text is no longer frozen: it states today's count and names the video's older
 // one in place, so every count it claims is checked against the run.
 const RECORDED_COUNTS = new Map([
-  ["demo-video/820-demo-en.srt", { tests: 311, files: 23, note: "burned into the video recorded 2026-11-22" }],
+  ["demo-video/820-demo-en.srt", { tests: 334, files: 25, note: "burned into the video recorded 2026-11-27" }],
 ]);
 
 // Step 5: Report results

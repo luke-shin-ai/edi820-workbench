@@ -1,39 +1,46 @@
 
- RUN v2.1.9 <repo>
+ RUN  v2.1.9 /workspace/hackathons/kiroween-2026
 
- ✓ test/unit/exception.test.ts (40 tests) 4244ms
- ✓ R8.6 - the CLI exit code follows the adjudication state > exits 0 once every finding is WAIVED, then 2 again after a release 1994ms
- ✓ R8.6 - the CLI exit code follows the adjudication state > exits 3 when a waiver is attempted without an expiry date 569ms
- ✓ R8.6 - the CLI exit code follows the adjudication state > an expiry before the reporting date reads EXPIRED and does not count as waived 556ms
- ✓ test/unit/copybook.test.ts (27 tests) 15ms
- ✓ test/pbt/exception.pbt.test.ts (7 tests) 137ms
- ✓ test/unit/parser.test.ts (25 tests) 16ms
- ✓ test/unit/reconcile.test.ts (21 tests) 27ms
- ✓ test/unit/cli.test.ts (14 tests) 510ms
- ✓ T5.1 - exit codes 0 / 2 / 3 > the contract holds at the process boundary too (real exit code) 337ms
- ✓ test/unit/explain.test.ts (14 tests) 60ms
- ✓ test/unit/bai2.test.ts (18 tests) 57ms
- ✓ test/unit/mcp.test.ts (9 tests) 663ms
- ✓ T5.4 - a real stdio session > answers four ordered requests and shuts down cleanly on EOF 357ms
- ✓ test/unit/web.test.ts (10 tests) 109ms
- ✓ test/unit/fixtures.test.ts (10 tests) 65ms
- ✓ test/regressions/red-team-code.test.ts (9 tests) 13ms
- ✓ test/pbt/parser.pbt.test.ts (5 tests) 179ms
- ✓ test/regressions/verdict-integrity.test.ts (7 tests) 831ms
- ✓ a record that is one byte short never earns PASS > the process boundary agrees: exit code is 2 for INCOMPLETE 308ms
- ✓ verify is independent of the working directory > re-derives a report whose inputs live outside the current directory 473ms
- ✓ test/pbt/copybook.pbt.test.ts (5 tests) 114ms
+ ✓ test/unit/exception.test.ts (40 tests) 5678ms
+   ✓ R8.6 - the CLI exit code follows the adjudication state > exits 2 while a finding is OPEN 370ms
+   ✓ R8.6 - the CLI exit code follows the adjudication state > exits 0 once every finding is WAIVED, then 2 again after a release 2754ms
+   ✓ R8.6 - the CLI exit code follows the adjudication state > exits 3 when the ledger was edited after the fact 434ms
+   ✓ R8.6 - the CLI exit code follows the adjudication state > exits 3 when a waiver is attempted without an expiry date 771ms
+   ✓ R8.6 - the CLI exit code follows the adjudication state > an expiry before the reporting date reads EXPIRED and does not count as waived 806ms
+ ✓ test/unit/mcp.test.ts (15 tests) 934ms
+   ✓ T5.4 - a real stdio session > answers four ordered requests and shuts down cleanly on EOF 409ms
+   ✓ T5.4 - a real stdio session > reports a malformed line as -32700 and keeps serving 348ms
+ ✓ test/unit/copybook.test.ts (27 tests) 16ms
+ ✓ test/pbt/exception.pbt.test.ts (7 tests) 206ms
+ ✓ test/unit/parser.test.ts (25 tests) 19ms
+ ✓ test/unit/reconcile.test.ts (21 tests) 36ms
+ ✓ test/unit/cli.test.ts (14 tests) 604ms
+   ✓ T5.1 - exit codes 0 / 2 / 3 > the contract holds at the process boundary too (real exit code) 415ms
+ ✓ test/unit/explain.test.ts (14 tests) 70ms
+ ✓ test/unit/bai2.test.ts (18 tests) 51ms
+ ✓ test/unit/web.test.ts (11 tests) 164ms
+ ✓ test/regressions/ledger-hardening.test.ts (13 tests) 2578ms
+   ✓ ledger hardening: the CLI and verify surface report the head > prints the entry count and head hash from `exceptions` and `verify` 847ms
+   ✓ ledger hardening: the CLI and verify surface report the head > refuses --today values that are not real days 732ms
+ ✓ test/unit/fixtures.test.ts (10 tests) 70ms
+ ✓ test/regressions/red-team-code.test.ts (9 tests) 14ms
+ ✓ test/pbt/parser.pbt.test.ts (5 tests) 266ms
+ ✓ test/regressions/verdict-integrity.test.ts (7 tests) 975ms
+   ✓ a record that is one byte short never earns PASS > the process boundary agrees: exit code is 2 for INCOMPLETE 412ms
+   ✓ verify is independent of the working directory > re-derives a report whose inputs live outside the current directory 500ms
+ ✓ test/pbt/copybook.pbt.test.ts (5 tests) 126ms
+ ✓ test/regressions/redefines-view.test.ts (4 tests) 48ms
  ✓ test/unit/overpunch.test.ts (57 tests) 10ms
- ✓ test/regressions/redefines-view.test.ts (4 tests) 38ms
- ✓ test/pbt/reconcile.pbt.test.ts (3 tests) 121ms
- ✓ test/pbt/bai2.pbt.test.ts (3 tests) 75ms
- ✓ test/pbt/explain.pbt.test.ts (5 tests) 138ms
+ ✓ test/pbt/reconcile.pbt.test.ts (3 tests) 148ms
+ ✓ test/pbt/bai2.pbt.test.ts (3 tests) 84ms
+ ✓ test/pbt/explain.pbt.test.ts (5 tests) 129ms
  ✓ test/regressions/overpunch-and-width.test.ts (6 tests) 5ms
- ✓ test/pbt/amounts.pbt.test.ts (3 tests) 40ms
+ ✓ test/pbt/amounts.pbt.test.ts (3 tests) 43ms
  ✓ test/unit/static-sha256.test.ts (9 tests) 22ms
+ ✓ test/unit/public-bai2.test.ts (3 tests) 21ms
 
- Test Files 23 passed (23)
- Tests 311 passed (311)
- Start at 10:34:18
- Duration 20.35s (transform 658ms, setup 0ms, collect 4.63s, tests 7.49s, environment 3ms, prepare 3.00s)
+ Test Files  25 passed (25)
+      Tests  334 passed (334)
+   Start at  13:26:42
+   Duration  25.33s (transform 835ms, setup 0ms, collect 4.73s, tests 12.32s, environment 4ms, prepare 3.37s)
 

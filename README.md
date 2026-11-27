@@ -10,6 +10,18 @@ A bank back office still receives fixed-width payment files from a COBOL era and
 - **Built with Kiro, Kiroween 2026, Resurrection category:** a spec of 33 requirements in EARS form, five steering files, three hooks, a reviewer agent over MCP, and the committed Kiro sessions that show each of them running
 - **Check the verdict itself:** `820 verify` re-derives the answer from the inputs and prints `identical`, or names the first field that moved
 
+### Where Kiro is used, in five paths
+
+| Surface | Path | What is in it |
+|---|---|---|
+| Spec | [`.kiro/specs/edi820-importer/`](.kiro/specs/edi820-importer/requirements.md): [requirements](.kiro/specs/edi820-importer/requirements.md), [design](.kiro/specs/edi820-importer/design.md), [tasks](.kiro/specs/edi820-importer/tasks.md) | 33 requirements in EARS form, the design they imply, and the task list. Task T7.1 built the exception register |
+| Steering | [`.kiro/steering/`](.kiro/steering/) | five files: product, tech, structure, conventions, finance-file-conventions. The no-floating-point rule for money is why every amount is a `bigint` |
+| Hooks | [`.kiro/hooks/parser-guardrails.json`](.kiro/hooks/parser-guardrails.json) | PostFileSave runs the tests, Stop re-derives the newest verdict, PostTaskExec writes its own evidence row. Firings are in `out/hook-log.txt` |
+| Agents | [`.kiro/agents/820-implementer.json`](.kiro/agents/820-implementer.json), [`.kiro/agents/reviewer.json`](.kiro/agents/reviewer.json) | the implementer wrote spec task T7.1; the reviewer answers with the project's own MCP server instead of an opinion |
+| MCP | [`.kiro/settings/mcp.json`](.kiro/settings/mcp.json) | five tools, `allowedTools` scoped to `@820` |
+
+The sessions that show these running are in [`docs/kiro-session-transcripts.md`](docs/kiro-session-transcripts.md); what each one produced is in [`docs/kiro-session-evidence.md`](docs/kiro-session-evidence.md). Used surface: Kiro CLI 3.5.0 (V3 engine) with `--agent`. Not used, and not claimed: Kiro IDE, Kiro Web, Kiro Crew and Kiro powers. The free plan has no Web or Crew, and a shallow last-minute use would not be an experiment worth reporting.
+
 > **Build status (2026-11-27):** every layer is implemented and verified locally. L1 (copybook compiler with **`REDEFINES` layouts** + fixed-width parser + **BAI2 reader**), L2 (reconciler), **L3 (zero-credit grounded explainer)**, **L4 (exception register, implemented by Kiro from spec task T7.1)**, four surfaces (**CLI, local screen, static browser build, MCP server**) and the English demo video. Re-run on 2026-11-27: `npm run typecheck` clean, `npm run check:claims` 16/16, `npm run verify:public` 2/2 published files with 0 issues, `npm run build:static` regenerates `docs/demo`, and `python3 scripts/check-static.py` passes every check in a real browser at 1920. `npm test` reports **334 tests / 25 files** (unit, property-based and regression, 31 of them properties); the demo video, recorded on 2026-11-22, states the count in force then (311), and the 23 cases added afterwards cover the MCP path allowlist, the ledger head, and the two published BAI2 files. The repository is public at https://github.com/luke-shin-ai/edi820-workbench, the static build is live on GitHub Pages, and the Devpost entry is submitted at https://devpost.com/software/820-a-reconciliation-workbench-for-dead-payment-files.
 
 Corporate payment files never died. The people and tools that could read them did.
@@ -27,7 +39,7 @@ Two families of file are meant here. **Fixed-width payment and remittance files*
 
 The verdict is **deterministic and re-verifiable** (`820 verify`); the model never decides whether numbers match, and by default it is not called at all. A waiver never turns a verdict green: the register says what a person accepted, beside the answer the code produced.
 
-The register is **tamper-evident, not tamper-proof**. Its hash chain and recorded head catch an entry that was edited, reordered or cut from the tail: `verify` fails and names the sequence. The chain is local and has no outside trust anchor, so a person who recomputes every hash in the file, head included, produces a file that still verifies. Making that detectable needs a witness outside the file, which is why it is on the roadmap rather than in the claims.
+The register is **tamper-evident, not tamper-proof**. Its chain is keyless: each link is a plain SHA-256 of the previous hash and the entry, with a recorded head, so an entry that was edited, reordered or cut from the tail is detected and `verify` fails naming the sequence. It does not stop the edit. Anyone who can write the ledger file can recompute every hash and the head and produce a file that still verifies, because there is no key the writer lacks and no witness outside the file. An outside anchor for the head is a roadmap item, not a claim.
 
 Verdicts: `PASS` (every check agreed), `INCOMPLETE` (a parse issue left bytes uninterpreted, so no PASS is earned), `FAIL` (findings exist). Exit codes are `0` / `2` / `3`.
 

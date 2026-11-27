@@ -244,7 +244,7 @@ def plate_copybook():
         c.text((1234, y2), line, font(SANS_R, 17.5), (196, 210, 226))
         y2 += 25
 
-    c.chip("2 / THE COPYBOOK   samples/copybooks/820-redefines.cpy", "#6BA8FF")
+    c.chip("7 / THE COPYBOOK   samples/copybooks/820-redefines.cpy", "#6BA8FF")
     return c.save("p02_copybook")
 
 
@@ -271,7 +271,7 @@ def static_plate(shot, name, pad=True):
 def plate_hook_fire():
     lines = [ln for ln in open(os.path.join(OUTPUTS, "hook-fire.txt"), encoding="utf-8").read().split("\n")]
     keep = [ln for ln in lines if ln.strip()][:11]
-    return terminal(keep, "p12_hook", "0 / KIRO HOOKS   a real session, not a promise", "#6BA8FF",
+    return terminal(keep, "p12_hook", "6 / THE HOOKS   a real session, not a promise", "#6BA8FF",
                     "820: the hook log and the stop hook's own run", hl=("trigger=PostFileSave", "trigger=PostTaskExecution", "RESULT"))
 
 
@@ -332,6 +332,267 @@ def plate_static_l4():
     path = os.path.join(OUT, "p18_static_l4.png")
     canvas.save(path)
     return path
+
+
+def plate_demo_hero():
+    """The first screen a judge sees, from the real page at devicePixelRatio 2.
+
+    Nothing is redrawn: this is `docs/demo` in Chromium at 1920x1080, captured on 2026-11-27
+    after the ghost bar landed. The money sentence, the guide bar and the bytes in column
+    three are the page's own text.
+    """
+    im = Image.open(os.path.join(SHOTS, "guide-hero@2x.png")).convert("RGB")
+    im = im.resize(FINAL, Image.LANCZOS)
+    os.makedirs(OUT, exist_ok=True)
+    path = os.path.join(OUT, "p20_demo_hero.png")
+    im.save(path)
+    return path
+def plate_demo_finding():
+    """The same page after the guide's first tap: finding 1 open, bytes 24 to 36 lit."""
+    im = Image.open(os.path.join(SHOTS, "guide-finding@2x.png")).convert("RGB")
+    im = im.resize(FINAL, Image.LANCZOS)
+    os.makedirs(OUT, exist_ok=True)
+    path = os.path.join(OUT, "p21_demo_finding.png")
+    im.save(path)
+    return path
+
+
+def plate_demo_waiver():
+    """The guide bar after a waiver, above the register the waiver appended.
+
+    The bar is the page's own element capture; the register is the page's own element
+    capture; the badge, counts and chain are read from the state `check-static.py` wrote
+    beside the screenshot (`shots-static/static-l4.json`). No value is typed by hand.
+    """
+    meta_path = os.path.join(VIDEO_STATIC, "static-l4.json")
+    meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}
+    report_path = os.path.join(WORK, "capture-guide-report.json")
+    cap = json.load(open(report_path)) if os.path.exists(report_path) else {}
+    bar = Image.open(os.path.join(SHOTS, "guide-bar-waived@2x.png")).convert("RGB")
+    l4 = Image.open(os.path.join(SHOTS, "guide-l4-waived@2x.png")).convert("RGB")
+    # The element capture runs on past the table into the waiver form and the sticky strip;
+    # the capture script recorded where the table ends, so the crop follows the page.
+    ratio = cap.get("waiver", {}).get("table_bottom_ratio", 0.63) + 0.015
+    l4 = l4.crop((0, 0, l4.width, int(l4.height * min(ratio, 1.0))))
+
+    c = Canvas()
+    bar_w = 1812
+    bar_h = int(bar.height * bar_w / bar.width)
+    bar_y = 112
+    c.img.paste(bar.resize((bar_w * SS, bar_h * SS), Image.LANCZOS), (c.s(54), c.s(bar_y)))
+    c.d.rounded_rectangle([c.s(54), c.s(bar_y), c.s(54 + bar_w), c.s(bar_y + bar_h)],
+                          radius=c.s(8), outline=(74, 58, 22), width=c.s(2))
+
+    reg_x, reg_y, reg_w = 54, bar_y + bar_h + 28, 1180
+    reg_h = int(l4.height * reg_w / l4.width)
+    c.img.paste(l4.resize((reg_w * SS, reg_h * SS), Image.LANCZOS), (c.s(reg_x), c.s(reg_y)))
+    c.d.rounded_rectangle([c.s(reg_x), c.s(reg_y), c.s(reg_x + reg_w), c.s(reg_y + reg_h)],
+                          radius=c.s(8), outline=PANEL_EDGE, width=c.s(2))
+
+    qy = reg_y + reg_h + 28
+    c.card((54, qy, 1234, 906), fill=(13, 19, 28), stroke=(52, 62, 80))
+    quote = c.wrap("A person can accept a gap, never edit the answer.", font(SANS_B, 30), 1080)
+    yq = qy + 26
+    for line in quote:
+        c.text((84, yq), line, font(SANS_B, 30), (243, 231, 205))
+        yq += 40
+    c.text((84, yq + 8), "the guide's own line, after the waiver", font(SANS_R, 18), DIM)
+    c.text((84, yq + 40), "finding 1 stays FAIL; the ledger entry sits beside the answer, never instead of it",
+           font(SANS_R, 17), (176, 194, 212))
+
+    x = 1260
+    c.card((x, bar_y + bar_h + 28, W - 54, 906), fill=(13, 19, 28), stroke=(52, 62, 80))
+    c.text((x + 30, bar_y + bar_h + 54), "VERDICT", font(SANS_B, 19), MUTED)
+    badge = meta.get("badge", "FAIL")
+    c.text((x + 30, bar_y + bar_h + 80), badge, font(SANS_B, 64), RED)
+    counts = meta.get("counts", {})
+    y = bar_y + bar_h + 178
+    for key in ("OPEN", "WAIVED", "EXPIRED", "RELEASED"):
+        if key not in counts:
+            continue
+        c.text((x + 30, y), key, font(MONO_R, 20), MUTED)
+        c.text((x + 230, y), str(counts[key]), font(MONO_B, 22), INK)
+        y += 38
+    c.text((x + 30, y + 14), "LEDGER", font(SANS_B, 19), AMBER)
+    chain = clean(meta.get("chain", ""))
+    yy = y + 46
+    for line in c.wrap(chain, font(MONO_R, 15), W - 54 - x - 60):
+        c.text((x + 30, yy), line, font(MONO_R, 15), (176, 194, 212))
+        yy += 24
+    c.d.line([(c.s(x + 30), c.s(yy + 20)), (c.s(W - 84), c.s(yy + 20))], fill=(52, 62, 80), width=c.s(2))
+    for line in c.wrap("The register is keyless and append only: it detects an edit, and does not prevent one.",
+                       font(SANS_R, 17), W - 54 - x - 60):
+        c.text((x + 30, yy + 46), line, font(SANS_R, 17), (186, 202, 218))
+        yy += 24
+    c.text((x + 30, yy + 60), "THE PAGE'S OWN LINE", font(SANS_B, 17), MUTED)
+    gy = yy + 88
+    for line in c.wrap(cap.get("waiver", {}).get("guide", ""), font(SANS_R, 15), W - 54 - x - 60):
+        c.text((x + 30, gy), line, font(SANS_R, 15), (166, 184, 202))
+        gy += 21
+
+    c.chip("3 / THE REGISTER   a person decided, the verdict did not move", "#D29922")
+    footer(c, "docs/demo, 1920x1080 at devicePixelRatio 2, captured 2026-11-27; counts and chain read from the page")
+    return c.save("p22_demo_waiver")
+
+
+def plate_spec_doc():
+    """The spec as a document, with the four requirements task T7.1 answers.
+
+    Lines are read from `.kiro/specs/edi820-importer/requirements.md` at build time and
+    wrapped, not retyped. The task line beside them is the one in `tasks.md`.
+    """
+    req_text = open(os.path.join(ROOT, ".kiro/specs/edi820-importer/requirements.md"), encoding="utf-8").read()
+    task_text = open(os.path.join(ROOT, ".kiro/specs/edi820-importer/tasks.md"), encoding="utf-8").read()
+    req_lines = [ln for ln in req_text.split("\n") if ln.startswith("**R8.")][:4]
+    task_line = next((ln for ln in task_text.split("\n") if ln.startswith("- [x] T7.1")), "")
+    delivered = next((ln.strip() for ln in task_text.split("\n") if "**Delivered in a Kiro CLI V3 session**" in ln), "")
+
+    import re
+    total_req = len(re.findall(r"\*\*R\d+\.\d+\*\*", req_text))
+
+    c = Canvas()
+    c.card((54, 104, 1218, 966), fill=(11, 16, 24))
+    c.d.rounded_rectangle([c.s(54), c.s(104), c.s(1218), c.s(150)], radius=c.s(12), fill=(17, 24, 35))
+    c.text((84, 112), ".kiro/specs/edi820-importer/requirements.md", font(MONO_R, 18), (150, 175, 200))
+    c.text((84, 160), "Requirements: edi820-importer, written in EARS form", font(SANS_B, 22), (222, 233, 244))
+    c.text((84, 190), "The contract for src/parser and src/reconcile. A requirement is a sentence, not a wish.",
+           font(SANS_R, 17), MUTED)
+
+    y = 236
+    for raw in req_lines:
+        body = clean(raw)
+        label, rest = body.split(" ", 1) if " " in body else (body, "")
+        c.text((84, y), label, font(MONO_B, 17), AMBER)
+        lines = c.wrap(rest, font(SANS_R, 18), 1080)
+        yy = y + 26
+        for line in lines:
+            c.text((84, yy), line, font(SANS_R, 18), (206, 220, 235))
+            yy += 26
+        y = yy + 16
+
+    # The bottom of the card answers the question the top raises: where the contract lives.
+    c.d.line([(c.s(84), c.s(742)), (c.s(1188), c.s(742))], fill=(52, 62, 80), width=c.s(2))
+    c.text((84, 766), "THE CONTRACT HAS THREE PARTS", font(SANS_B, 19), AMBER)
+    parts = [
+        ("requirements.md", "%d EARS sentences; R8.1 to R8.8 are the register" % total_req),
+        ("design.md", "section 13: the ledger as an append-only state machine"),
+        ("tasks.md", "T7.1 and T7.2, executed in the order they were written"),
+    ]
+    py = 808
+    for left, right in parts:
+        c.text((84, py), left, font(MONO_B, 18), BLUE)
+        c.text((330, py), right, font(SANS_R, 17), (196, 210, 226))
+        py += 34
+    c.text((84, py + 12), "A test names the requirement it covers, so a sentence cannot quietly stop being true.",
+           font(SANS_R, 17), MUTED)
+
+    x = 1240
+    c.card((x, 104, W - 54, 966), fill=(13, 19, 28), stroke=(52, 62, 80))
+    c.text((x + 28, 132), "TASKS, AS EXECUTED", font(SANS_B, 21), MUTED)
+    c.text((x + 28, 170), "T7.1", font(MONO_B, 30), BLUE)
+    ty = 222
+    for line in c.wrap(clean(task_line).lstrip("- [x] ").strip(), font(SANS_R, 16), W - 54 - x - 56):
+        c.text((x + 28, ty), line, font(SANS_R, 16), (186, 202, 218))
+        ty += 24
+    c.d.line([(c.s(x + 28), c.s(ty + 14)), (c.s(W - 82), c.s(ty + 14))], fill=(52, 62, 80), width=c.s(2))
+    dy = ty + 40
+    for line in c.wrap(clean(delivered.split("**:", 1)[-1].strip()), font(SANS_R, 16), W - 54 - x - 56):
+        c.text((x + 28, dy), line, font(SANS_R, 16), (206, 220, 235))
+        dy += 24
+
+    dy += 24
+    c.text((x + 28, dy), "COUNTED FROM THE FILES", font(SANS_B, 18), MUTED)
+    rows = [
+        ("%d requirements" % total_req, "EARS sentences in requirements.md"),
+        ("13 files", "tracked by git under .kiro"),
+        ("T7.1", "the task the implementer agent ran"),
+        ("384 lines", "src/exception/register.ts, with 38 tests"),
+    ]
+    ry = dy + 40
+    for left, right in rows:
+        c.text((x + 28, ry), left, font(MONO_B, 19), GREEN)
+        c.text((x + 210, ry), right, font(SANS_R, 16), (186, 202, 218))
+        ry += 40
+    c.text((x + 28, ry + 20), "Kiro CLI 3.5.0, V3 engine, --agent 820-implementer", font(MONO_R, 15), BLUE)
+    c.text((x + 28, ry + 46), "the session transcript is docs/kiro-session-transcripts.md", font(MONO_R, 15), DIM)
+
+    c.chip("4 / THE SPEC   .kiro/specs/edi820-importer", "#6BA8FF")
+    footer(c, "lines read from .kiro/specs/edi820-importer/requirements.md and tasks.md at build time")
+    return c.save("p23_spec")
+
+
+def plate_steering_doc():
+    """Steering as a document, and the rule that shaped every amount in the code."""
+    import re
+    steer_dir = os.path.join(ROOT, ".kiro/steering")
+    tech = open(os.path.join(steer_dir, "tech.md"), encoding="utf-8").read().split("\n")
+    rule_lines = []
+    for i, line in enumerate(tech):
+        if line.startswith("5. Implied decimals"):
+            rule_lines = tech[i - 2:i + 3]
+            break
+
+    files = []
+    for name in sorted(os.listdir(steer_dir)):
+        if not name.endswith(".md"):
+            continue
+        head = open(os.path.join(steer_dir, name), encoding="utf-8").read()[:400]
+        m = re.search(r"inclusion:\s*(\w+)", head)
+        files.append((name, m.group(1) if m else "always"))
+
+    c = Canvas()
+    c.card((54, 104, 1218, 966), fill=(11, 16, 24))
+    c.d.rounded_rectangle([c.s(54), c.s(104), c.s(1218), c.s(150)], radius=c.s(12), fill=(17, 24, 35))
+    c.text((84, 112), ".kiro/steering/tech.md", font(MONO_R, 18), (150, 175, 200))
+    c.text((84, 160), "Fixed-width parsing rules (the heart of the project)", font(SANS_B, 23), (222, 233, 244))
+    c.text((84, 194), "inclusion: always. Written before the parser existed, and still the rule the code is measured against.",
+           font(SANS_R, 17), MUTED)
+
+    y = 248
+    for raw in rule_lines:
+        hot = raw.startswith("5.")
+        colour = (243, 231, 205) if hot else (170, 190, 210)
+        lines = c.wrap(clean(raw), font(MONO_R, 18 if not hot else 19), 1060)
+        if hot:
+            c.d.rounded_rectangle([c.s(70), c.s(y - 8), c.s(1200), c.s(y + 26 * len(lines) + 2)],
+                                  radius=c.s(10), fill=(30, 26, 14), outline=(107, 84, 36), width=c.s(2))
+        for line in lines:
+            c.text((84, y), line, font(MONO_R, 18 if not hot else 19), colour)
+            y += 28
+        y += 12
+
+    c.d.line([(c.s(84), c.s(y + 10)), (c.s(1188), c.s(y + 10))], fill=(52, 62, 80), width=c.s(2))
+    c.text((84, y + 34), "WHY THIS ONE RULE SHOWS UP IN THE VIDEO", font(SANS_B, 19), AMBER)
+    note = [
+        "The amount in the first screen is 1,284,550.00, not 1284550 or 1284550.0000001.",
+        "The reconciler subtracts two of those exactly and prints -100.00.",
+        "The register hashes the same value into a chain, so the entry cannot be re-read as a different number.",
+        "None of that is a coincidence. Steering said it before any of them were written.",
+    ]
+    ny = y + 76
+    for line in note:
+        c.text((84, ny), line, font(SANS_R, 18), (196, 210, 226))
+        ny += 28
+
+    x = 1240
+    c.card((x, 104, W - 54, 966), fill=(13, 19, 28), stroke=(52, 62, 80))
+    c.text((x + 28, 132), "FIVE FILES, ONE VOICE", font(SANS_B, 21), MUTED)
+    fy = 180
+    for name, inclusion in files:
+        c.text((x + 28, fy), name, font(MONO_B, 19), BLUE)
+        c.text((x + 28, fy + 26), "inclusion: " + inclusion, font(MONO_R, 15), DIM)
+        fy += 66
+
+    c.d.line([(c.s(x + 28), c.s(fy + 10)), (c.s(W - 82), c.s(fy + 10))], fill=(52, 62, 80), width=c.s(2))
+    c.text((x + 28, fy + 34), "STEERING IS READ, NOT QUOTED", font(SANS_B, 18), AMBER)
+    for line in c.wrap("The rule is in the repository, in front of the parser it governs, and the parser's tests assert it: round-trip, sign and currency preservation, exact deltas.",
+                       font(SANS_R, 17), W - 54 - x - 56):
+        c.text((x + 28, fy + 66), line, font(SANS_R, 17), (196, 210, 226))
+        fy += 26
+
+    c.chip("5 / THE STEERING   .kiro/steering", "#6BA8FF")
+    footer(c, "lines read from .kiro/steering/tech.md and the front matter of all five files at build time")
+    return c.save("p24_steering")
 
 
 def plate_from_crop(src, box, name):
@@ -453,8 +714,10 @@ def terminal(lines, name, chip_label, accent, title, hl=(), size=None, top=None)
 
 def plate_verify():
     lines = [ln for ln in open(os.path.join(OUTPUTS, "verify.txt"), encoding="utf-8").read().split("\n") if ln.strip()]
-    keep = [ln.replace(ROOT + "/", "") for ln in lines[:8]]
-    return terminal(keep, "p07_verify", "7 / VERIFY   read-only re-derivation", "#3FB950",
+    # Through the guarantee heading: the guarantee paragraph after it is longer than a terminal
+    # line at readable size, and it is the same list the screen shows.
+    keep = [ln.replace(ROOT + "/", "") for ln in lines[:7]]
+    return terminal(keep, "p07_verify", "9 / VERIFY   read-only re-derivation", "#3FB950",
                     "820 verify out/evidence", hl=("RESULT",))
 
 
@@ -465,7 +728,7 @@ def plate_tests():
     # The highlight follows the captured summary line, so a changed test count cannot leave a stale
     # number lit on screen (the red-team pass of 2026-11-22 found exactly that: the plate said 300).
     summary = next((ln.split("(")[0].strip() for ln in lines if "Tests" in ln and "passed" in ln), "Tests")
-    return terminal(lines, "p08_tests", "8 / PROPERTY BASED TESTS   npx vitest run", "#3FB950",
+    return terminal(lines, "p08_tests", "10 / PROPERTY BASED TESTS   npx vitest run", "#3FB950",
                     "npx vitest run", hl=(summary,))
 
 
@@ -548,12 +811,19 @@ def plate_end():
         c.text((610, y), left, font(SANS_B, 25), GREEN)
         c.text((880, y), right, font(SANS_R, 25), (176, 194, 212))
         y += 58
-    c.text((W / 2, 900), "All sample data is synthetic. No customer, bank or employer data is used.",
+    c.text((W / 2, 858), "All sample data is synthetic. No customer, bank or employer data is used.",
            font(SANS_R, 22), DIM, anchor="mm")
+    c.text((W / 2, 902), "github.com/luke-shin-ai/edi820-workbench", font(MONO_R, 20), (176, 194, 212), anchor="mm")
+    c.text((W / 2, 934), "luke-shin-ai.github.io/edi820-workbench/demo", font(MONO_R, 20), (176, 194, 212), anchor="mm")
     return c.save("p11_end")
 
 
 BUILDERS = {
+    "demo-hero": plate_demo_hero,
+    "demo-finding": plate_demo_finding,
+    "demo-waiver": plate_demo_waiver,
+    "spec-doc": plate_spec_doc,
+    "steering-doc": plate_steering_doc,
     "hook-open": plate_hook_fire,
     "mcp-call": plate_mcp_call,
     "static-pass": plate_static_pass,

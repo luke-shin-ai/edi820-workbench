@@ -1,0 +1,39 @@
+{
+  "hero": {
+    "plain": "The payment control trailer declares 1,284,550.00 USD. Its 10 detail records add up to 1,284,450.00 USD, a difference of -100.00 USD.",
+    "guide": "I kept both numbers for forty years and never subtracted one from the other. Open the total finding: the amount sits at bytes 24 to 36 of payment record 10.",
+    "buttons": [
+      "Open the total finding",
+      "Show a clean run (S1)"
+    ],
+    "hero": "FAIL, 4 findings, 10 records from 820-bad.txt against the bank side (823-bank.txt), fingerprint 7af64454555de8d8..."
+  },
+  "finding": {
+    "guide": "Finding 1 of 4: CONTROL_TOTAL_MISMATCH, bytes 24 to 36 of payment record 10. The bytes are lit in column three. A person decides below, with an owner and an expiry; the verdict never moves.",
+    "note": "AMOUNT S9(11)V99 at bytes 24-36 of record 10 (1-based), payment file",
+    "bytes": "000012845500{"
+  },
+  "waiver": {
+    "guide": "S. Shin (TPM) accepts CONTROL_TOTAL_MISMATCH until 2026-12-05. The verdict is still FAIL, and that is the point: a person can accept a gap, never edit the answer.",
+    "badge": "FAIL",
+    "counts": {
+      "OPEN": 3,
+      "WAIVED": 1,
+      "EXPIRED": 0,
+      "RELEASED": 0
+    },
+    "chain": "1 entry; chain intact; head f2a3221f73b80698...",
+    "table_bottom_ratio": 0.6265,
+    "bar_height_ratio": 0.0526
+  },
+  "pass": {
+    "plain": "Every control total, reference and value date agrees, on both sides.",
+    "guide": "Agreed to the cent, on both sides. Forty years of silence, and the numbers still behave. Now break it on purpose."
+  },
+  "pageErrors": [],
+  "console": {
+    "w": 1920,
+    "h": 1080,
+    "dpr": 2
+  }
+}

@@ -77,6 +77,11 @@ def plan():
 
 
 PLATE_FILE = {
+    "demo-hero": "p20_demo_hero",
+    "demo-finding": "p21_demo_finding",
+    "demo-waiver": "p22_demo_waiver",
+    "spec-doc": "p23_spec",
+    "steering-doc": "p24_steering",
     "hook-open": "p12_hook",
     "mcp-call": "p13_mcp",
     "static-pass": "p14_static_pass",
