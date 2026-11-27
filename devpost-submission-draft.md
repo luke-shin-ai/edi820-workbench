@@ -124,7 +124,7 @@ to reuse it.
 ## [form] Links
 
 - Repository: https://github.com/luke-shin-ai/edi820-workbench (public GitHub, Apache-2.0, `.kiro/` at the root)
-- Video: https://youtu.be/rncG1wwqTAM (public upload, 2 minutes 55 seconds / 2:55.30 / 175.3 s, English narration, burned-in English captions, and an English subtitle track that can be switched on in the player)
+- Video: https://youtu.be/65xfo3u-DaU (public, 2 minutes 41 seconds / 160.97 s, recorded 2026-11-27, 1920x1080 30 fps, English narration, burned-in English captions, and an English subtitle track published in the player; the 2026-11-22 cut at youtu.be/rncG1wwqTAM is unlisted)
 - Working application: https://luke-shin-ai.github.io/edi820-workbench/demo/ , the static build in
   `docs/demo/index.html` ("Runs in this tab"). It is the same engine compiled for the browser, so
   nothing is uploaded and the verdict still comes from code. The local server build
