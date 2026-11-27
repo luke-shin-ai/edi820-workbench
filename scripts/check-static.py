@@ -15,9 +15,13 @@ What this checks, all from the built `docs/demo/` directory served over plain HT
      opens the total finding, and after a waiver its line reports the human decision (2026-11-27).
 
 Screenshots land in `docs/images/` (committed) and `demo-video/build/shots-static/` (for the
-video plate). Run with the same LD_LIBRARY_PATH the other captures use:
+video plate). From the repository root, after `npm install && npm run build:static`:
 
-    LD_LIBRARY_PATH=/workspace/.sysroot/usr/lib/x86_64-linux-gnu python3 scripts/check-static.py
+    python3 scripts/check-static.py
+
+Nothing in here depends on where the repository is checked out: paths are taken from this
+file's own location (2026-11-27). A machine whose Chromium needs extra system libraries can
+still prefix the same command with its own LD_LIBRARY_PATH.
 """
 import json
 import os
@@ -27,16 +31,20 @@ import threading
 import time
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-ROOT = "/workspace/hackathons/kiroween-2026"
+# The repository root is this file's parent's parent, so a fresh clone runs anywhere.
+ROOT = Path(__file__).resolve().parent.parent
 DEMO = os.path.join(ROOT, "docs/demo")
 SHOTS = os.path.join(ROOT, "docs/images")
 VIDEO_SHOTS = os.path.join(ROOT, "demo-video/build/shots-static")
+CLI_OUT = os.path.join(ROOT, ".tmp", "static-cli")
 PORT = 8741
 WINDOW = ("2026-11-18", "2026-11-20")
-NODE_BIN = "/workspace/.toolchain/node-v22.23.5-linux-x64/bin"
+# Only used on a host that keeps its own Node outside PATH; a normal clone uses the PATH one.
+LOCAL_NODE_BIN = Path("/workspace/.toolchain/node-v22.23.5-linux-x64/bin")
 
 SCENARIOS = {
     "S1": dict(payment="820-good.txt", copybook="820.cpy", bank="823-bank.txt", bank_copybook="823.cpy"),
@@ -51,6 +59,7 @@ SCENARIOS = {
 
 os.makedirs(SHOTS, exist_ok=True)
 os.makedirs(VIDEO_SHOTS, exist_ok=True)
+os.makedirs(CLI_OUT, exist_ok=True)
 
 failures = []
 
@@ -63,7 +72,11 @@ def check(label, condition, detail=""):
 
 def serve():
     handler = partial(SimpleHTTPRequestHandler, directory=DEMO)
-    httpd = ThreadingHTTPServer(("127.0.0.1", PORT), handler)
+    try:
+        httpd = ThreadingHTTPServer(("127.0.0.1", PORT), handler)
+    except OSError:
+        # A machine that already holds 8741 still runs; the port it got is read back below.
+        httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
     return httpd
@@ -75,7 +88,7 @@ def cli_fingerprint(spec):
         "--copybook", f"samples/copybooks/{spec['copybook']}",
         "--file", f"samples/data/{spec['payment']}",
         "--window", "..".join(WINDOW),
-        "--out", os.path.join(ROOT, ".tmp", "static-cli", spec["payment"].replace(".txt", "")),
+        "--out", os.path.join(CLI_OUT, spec["payment"].replace(".txt", "")),
         "--json",
     ]
     if spec.get("bank_format") == "bai2":
@@ -83,7 +96,8 @@ def cli_fingerprint(spec):
     else:
         args += ["--bank", f"samples/data/{spec['bank']}", "--bank-copybook", f"samples/copybooks/{spec['bank_copybook']}"]
     env = dict(os.environ)
-    env["PATH"] = NODE_BIN + ":" + env.get("PATH", "")
+    if LOCAL_NODE_BIN.is_dir():
+        env["PATH"] = str(LOCAL_NODE_BIN) + ":" + env.get("PATH", "")
     # --json prints the report; the exit code is 2 for FAIL, which is not an error here.
     out = subprocess.run(args, cwd=ROOT, env=env, capture_output=True, text=True).stdout
     report = json.loads(out)
@@ -91,7 +105,11 @@ def cli_fingerprint(spec):
 
 
 def main():
+    if not os.path.isfile(os.path.join(DEMO, "index.html")):
+        print("docs/demo/index.html is missing: run `npm install && npm run build:static` first.")
+        sys.exit(2)
     httpd = serve()
+    port = httpd.server_address[1]
     time.sleep(0.4)
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--force-device-scale-factor=1"])
@@ -103,7 +121,7 @@ def main():
         page.on("pageerror", lambda err: page_errors.append(str(err)))
         page.on("request", lambda req: requests.append((req.method, req.url, req.resource_type)))
 
-        page.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="load")
+        page.goto(f"http://127.0.0.1:{port}/index.html", wait_until="load")
         page.wait_for_function("window.demo && window.demo.state && window.demo.state.run")
         requests_after_load = len(requests)
         console_errors.clear()
@@ -322,7 +340,7 @@ def main():
         # A screenshot at a phone width, to show the page is not fixed to 1920.
         browser = p.chromium.launch()
         narrow = browser.new_page(viewport={"width": 430, "height": 900})
-        narrow.goto(f"http://127.0.0.1:{PORT}/index.html", wait_until="load")
+        narrow.goto(f"http://127.0.0.1:{port}/index.html", wait_until="load")
         narrow.wait_for_function("window.demo && window.demo.state && window.demo.state.run")
         narrow.screenshot(path=os.path.join(VIDEO_SHOTS, "static-narrow.png"))
         browser.close()
