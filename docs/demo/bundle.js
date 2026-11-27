@@ -3296,7 +3296,9 @@ ${draft.suggestedFix}`, finding);
         state.selected = Number.isInteger(index) && index >= 0 && index < run.findings.length ? index : 0;
         state.picked = true;
         render2();
-        document.getElementById("findings")?.scrollIntoView({ block: "center", behavior: "smooth" });
+        if (window.innerWidth < 1080) {
+          document.getElementById("findings")?.scrollIntoView({ block: "center", behavior: "smooth" });
+        }
         return;
       }
       if (act === "issues") {

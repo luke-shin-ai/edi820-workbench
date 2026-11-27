@@ -607,7 +607,11 @@ function wire(): void {
       state.selected = Number.isInteger(index) && index >= 0 && index < run.findings.length ? index : 0;
       state.picked = true;
       render();
-      document.getElementById('findings')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      // On a desktop the finding and the bytes are already on screen, so the guide's answer stays
+      // in view; on a phone the columns are stacked and the jump is what makes the tap land.
+      if (window.innerWidth < 1080) {
+        document.getElementById('findings')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
       return;
     }
     if (act === 'issues') {
