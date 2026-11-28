@@ -2,7 +2,7 @@
  * T4.2: properties of the numeric grounding guard.
  *
  * These are the properties the product claim rests on:
- *   1. a number the finding does not contain is always rejected;
+ *   1. a number whose magnitude the finding does not contain is always rejected;
  *   2. text built from the finding's own renderings is always accepted;
  *   3. adding a value to a finding never shrinks what it can support.
  */
@@ -52,8 +52,15 @@ describe('T4.2 - a foreign number is always rejected', () => {
         };
         const rendering = formatAmount(foreign);
         const literal = normaliseNumericLiteral(rendering.split(' ')[0]!);
-        // Only assert where the foreign rendering is genuinely new vocabulary.
-        fc.pre(!evidenceVocabulary(finding).includes(literal));
+        const magnitude = literal.startsWith('-') ? literal.slice(1) : literal;
+        // Only assert where the foreign rendering is genuinely new vocabulary. The guard compares a
+        // value by magnitude on purpose (a delta of -100.00 is cited as "short by 100.00"), so a
+        // foreign number whose magnitude the finding already holds is not foreign. Found on
+        // 2026-11-28: a run drew declared -999999999992 against computed 999999999989, the offset
+        // produced the negative of the computed value, and the property failed on a number the
+        // guard is designed to accept.
+        const vocabulary = evidenceVocabulary(finding);
+        fc.pre(!vocabulary.includes(literal) && !vocabulary.includes(magnitude));
         const guard = validateExplanation(`The file is short by ${rendering}.`, finding);
         expect(guard.ok).toBe(false);
         expect(guard.unsupported).toContain(literal);
