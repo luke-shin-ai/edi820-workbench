@@ -348,7 +348,8 @@ and its own account of what it did with that (quoted from the session, punctuati
 > I should only report the failing claims and leave T9.5 in_progress.
 
 The subtitle was then brought to the count the suite measured, and the next run passed the same
-check before the task could complete (`logs/kiro-t95-pass3.log`):
+check before the task could complete (`logs/kiro-t95-pass3.log`; bold marks and tick marks
+removed, the dash written as ASCII):
 
 ```
 ok demo-video/820-demo-en.srt total_tests: claimed=311 measured=311
