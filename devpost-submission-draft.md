@@ -339,8 +339,10 @@ copybook dialect page, which is the document a finance team would actually read 
 
 ### 9. What the video shows
 
-Two minutes fifty five (2:55.30, 175.3 s), English narration and burned-in subtitles, no music. It
-opens on Kiro, not on a logo:
+The public cut is two minutes 41 seconds (2:41), English narration and burned-in subtitles, no
+music, and it opens on the running page rather than a terminal; README "Watch it" has its shot list.
+The shot list below describes the 2026-11-22 cut (2:55.30, 175.3 s), now unlisted, which this draft
+was written against:
 
 - **0:00 to 0:26** the hook log from a real session (a file save ran the tests, the stop hook
   re-derived the newest verdict, and the task hook appended its own evidence row), then a replay of
@@ -461,7 +463,8 @@ Five boundaries are stated here so a judge does not have to find them:
    to `in_progress` and `completed` by Kiro's own `task_update` tool inside a `--mode spec` session,
    and the `PostTaskExec` hook appends its row; the firings are in the committed `out/hook-log.txt`.
 3. **Kiro powers.** Not used. Nothing here depends on a bundled power.
-4. **Hosting.** The static build is verified in a browser and is not deployed yet. Publishing it is
-   the account holder's act, and the URL is not claimed until it is live.
-5. **The video.** It is 2:55 with a synthesised voice, so nobody has watched it end to end with a
-   human ear, and the IDE surface (as opposed to the CLI) was not part of the build.
+4. **Hosting.** The static build is verified in a browser and is live on GitHub Pages at
+   https://luke-shin-ai.github.io/edi820-workbench/demo/. The CLI, the local screen and the MCP
+   server are not reachable from a URL.
+5. **The video.** The public cut is 2:41 with a synthesised voice, so nobody has watched it end to
+   end with a human ear, and the IDE surface (as opposed to the CLI) was not part of the build.
