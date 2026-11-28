@@ -330,3 +330,31 @@ punctuation of the task name normalised to ASCII (2026-11-22):
   short `claude-haiku-4.5` turns on the free allowance.
 - Raw CLI transcripts of the four task-runner turns are in `logs/kiro-t95-pass{1..5}.log`, outside the
   public repository; the excerpts above are what a reviewer can read.
+
+## 9. The T9.5 gate: a task did not close on a stale number
+
+The first T9.5 run (`logs/kiro-t95-pass1.log`, kept out of the public repository with the rest of
+`logs/`) was told to set the task complete only if `npm run check:claims` exited 0. It did not, and
+the agent stopped instead of clearing the check by editing it. The failing line:
+
+```
+FAIL demo-video/820-demo-en.srt total_tests: claimed=300 measured=311
+```
+
+and its own account of what it did with that (quoted from the session, punctuation as typed):
+
+> The SRT subtitle file at line 32 states "300 tests" but the repository now contains 311 tests.
+> According to the task instructions, I should not modify any document to make the check pass -
+> I should only report the failing claims and leave T9.5 in_progress.
+
+The subtitle was then brought to the count the suite measured, and the next run passed the same
+check before the task could complete (`logs/kiro-t95-pass3.log`):
+
+```
+ok demo-video/820-demo-en.srt total_tests: claimed=311 measured=311
+Step 3: Set T9.5 to completed - success
+```
+
+That is the spec surface doing what a prose description cannot: a published number that no longer
+matched the code kept a task open, and the repair went into the document rather than into the
+checker. The checker itself was never loosened to pass.
